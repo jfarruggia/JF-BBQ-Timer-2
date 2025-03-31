@@ -11,7 +11,7 @@ import SwiftUI
 struct JF_BBQ_TimerApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            SplashScreenView()
         }
     }
 }
