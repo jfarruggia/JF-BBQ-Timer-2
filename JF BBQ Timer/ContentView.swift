@@ -54,18 +54,31 @@ class Settings: ObservableObject {
     init() {
         if let data = UserDefaults.standard.data(forKey: "presetIntervals"),
            let decoded = try? JSONDecoder().decode([PresetInterval].self, from: data) {
+            print("Loading saved presets: \(decoded.count)")
             // Ensure we never exceed 9 presets when loading
             self.presetIntervals = Array(decoded.prefix(9))
         } else {
+            print("Initializing with default presets")
+            // Initialize with 9 default presets
             self.presetIntervals = [
                 PresetInterval(name: "1m", minutes: 1, seconds: 0),
+                PresetInterval(name: "2m", minutes: 2, seconds: 0),
                 PresetInterval(name: "5m", minutes: 5, seconds: 0),
-                PresetInterval(name: "10m", minutes: 10, seconds: 0)
+                PresetInterval(name: "10m", minutes: 10, seconds: 0),
+                PresetInterval(name: "15m", minutes: 15, seconds: 0),
+                PresetInterval(name: "20m", minutes: 20, seconds: 0),
+                PresetInterval(name: "30m", minutes: 30, seconds: 0),
+                PresetInterval(name: "45m", minutes: 45, seconds: 0),
+                PresetInterval(name: "1h", minutes: 60, seconds: 0)
             ]
+            print("Default presets initialized: \(self.presetIntervals.count)")
+            // Save the initial presets
+            savePresets()
         }
     }
     
     private func savePresets() {
+        print("Saving presets: \(presetIntervals.count)")
         if let encoded = try? JSONEncoder().encode(presetIntervals) {
             UserDefaults.standard.set(encoded, forKey: "presetIntervals")
         }
@@ -92,62 +105,66 @@ struct SettingsView: View {
     
     var body: some View {
         NavigationView {
-            List {
-                ForEach($settings.presetIntervals) { $preset in
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(preset.formattedName)
-                            .font(.system(.body, design: .rounded))
-                            .foregroundColor(.gray)
-                        
+            ScrollView {
+                LazyVStack(spacing: 20) {
+                    ForEach($settings.presetIntervals) { $preset in
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Duration:")
+                            Text(preset.formattedName)
+                                .font(.system(.body, design: .rounded))
                                 .foregroundColor(.gray)
                             
-                            HStack(spacing: 20) {
-                                // Minutes Picker
-                                Picker("Minutes", selection: $preset.minutes) {
-                                    ForEach(0..<60) { minute in
-                                        Text("\(minute)")
-                                            .tag(minute)
-                                            .foregroundColor(preset.minutes == minute ? .blue : .primary)
-                                    }
-                                }
-                                .pickerStyle(.wheel)
-                                .frame(width: 100)
-                                .clipped()
-                                
-                                Text("min")
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Duration:")
                                     .foregroundColor(.gray)
                                 
-                                // Seconds Picker
-                                Picker("Seconds", selection: $preset.seconds) {
-                                    ForEach(0..<60) { second in
-                                        Text("\(second)")
-                                            .tag(second)
-                                            .foregroundColor(preset.seconds == second ? .blue : .primary)
+                                HStack(spacing: 20) {
+                                    // Minutes Picker
+                                    Picker("Minutes", selection: $preset.minutes) {
+                                        ForEach(0..<60) { minute in
+                                            Text("\(minute)")
+                                                .tag(minute)
+                                                .foregroundColor(preset.minutes == minute ? .blue : .primary)
+                                        }
                                     }
+                                    .pickerStyle(.wheel)
+                                    .frame(width: 100)
+                                    .clipped()
+                                    
+                                    Text("min")
+                                        .foregroundColor(.gray)
+                                    
+                                    // Seconds Picker
+                                    Picker("Seconds", selection: $preset.seconds) {
+                                        ForEach(0..<60) { second in
+                                            Text("\(second)")
+                                                .tag(second)
+                                                .foregroundColor(preset.seconds == second ? .blue : .primary)
+                                        }
+                                    }
+                                    .pickerStyle(.wheel)
+                                    .frame(width: 100)
+                                    .clipped()
+                                    
+                                    Text("sec")
+                                        .foregroundColor(.gray)
                                 }
-                                .pickerStyle(.wheel)
-                                .frame(width: 100)
-                                .clipped()
-                                
-                                Text("sec")
-                                    .foregroundColor(.gray)
+                                .frame(height: 100)
                             }
-                            .frame(height: 100)
+                            
+                            Text("Preview:")
+                                .font(.system(.caption, design: .rounded))
+                                .foregroundColor(.gray)
+                            
+                            ButtonPreview(preset: preset)
                         }
-                        
-                        Text("Preview:")
-                            .font(.system(.caption, design: .rounded))
-                            .foregroundColor(.gray)
-                        
-                        ButtonPreview(preset: preset)
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
+                        .background(Color.white)
+                        .cornerRadius(10)
+                        .shadow(radius: 2)
                     }
-                    .padding(.vertical, 4)
                 }
-                .onDelete { indexSet in
-                    settings.presetIntervals.remove(atOffsets: indexSet)
-                }
+                .padding()
             }
             .navigationTitle("Preset Intervals")
             .navigationBarItems(trailing: Button("Done") {
