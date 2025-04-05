@@ -272,28 +272,37 @@ struct ContentView: View {
                     .padding(.top)
                 }
                 
-                // Elapsed Timer
+                // Interval Timer (now prominent)
                 VStack {
-                    Text("Elapsed Time")
-                        .font(.system(size: 24, weight: .semibold, design: .rounded))
-                    Text(timeString(from: elapsedTime))
+                    Text("Interval Time")
+                        .font(.system(size: 28, weight: .semibold, design: .rounded))
+                    Text(timeString(from: intervalTime))
                         .font(.system(size: 72, weight: .heavy, design: .rounded))
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .cornerRadius(10)
-                }
-                .padding(.top)
-                
-                // Interval Timer
-                VStack {
-                    Text("Interval Time")
-                        .font(.system(size: 24, weight: .semibold, design: .rounded))
-                    Text(timeString(from: intervalTime))
-                        .font(.system(size: 48, weight: .heavy, design: .rounded))
-                        .padding()
-                        .cornerRadius(10)
+                        .foregroundColor(.white)
+                        .background(Color.purple.opacity(0.2))
+                        .cornerRadius(20)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(Color.white, lineWidth: 2)
+                        )
+                        .shadow(radius: 5)
                 }
                 .padding(.top, 20)
+                
+                // Elapsed Timer (now smaller)
+                VStack {
+                    Text("Elapsed Time")
+                        .font(.system(size: 18, weight: .medium, design: .rounded))
+                        .foregroundColor(.white.opacity(0.9))
+                    Text(timeString(from: elapsedTime))
+                        .font(.system(size: 36, weight: .bold, design: .rounded))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .foregroundColor(.white.opacity(0.9))
+                }
+                .padding(.top, 5)
                 
                 Spacer()
                 
@@ -315,13 +324,18 @@ struct ContentView: View {
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 16)
-                                .background(intervalTime == preset.totalSeconds ? Color.orange : Color.purple)
+                                .background(
+                                    (isRunning && intervalTime > 0) ? Color.gray :
+                                        (intervalTime == preset.totalSeconds ? Color.orange : Color.purple)
+                                )
                                 .cornerRadius(8)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 8)
                                         .stroke(intervalTime == preset.totalSeconds ? Color.white : Color.clear, lineWidth: 2)
                                 )
+                                .opacity(isRunning && intervalTime > 0 ? 0.7 : 1.0)
                         }
+                        .disabled(isRunning && intervalTime > 0)
                     }
                 }
                 .padding(.horizontal, 50)
