@@ -313,11 +313,11 @@ struct ContentView: View {
     
     var body: some View {
         ZStack {
-            // Background gradient
+            // Background gradient matching the image
             LinearGradient(
                 gradient: Gradient(colors: [
-                    Color(red: 222/255, green: 123/255, blue: 91/255),
-                    Color(red: 221/255, green: 41/255, blue: 50/255)
+                    Color(red: 0.7, green: 0.55, blue: 0.45), // Brown/bronze at top
+                    Color(red: 0.2, green: 0.2, blue: 0.25)   // Dark at bottom
                 ]),
                 startPoint: .top,
                 endPoint: .bottom
@@ -327,7 +327,7 @@ struct ContentView: View {
             VStack(spacing: 0) {
                 // Interval Timer (now prominent)
                 VStack {
-                    Text("Interval Time")
+                    Text("Next Flip In")
                         .font(.system(size: 28, weight: .semibold, design: .rounded))
                     Text(timeString(from: intervalTime))
                         .font(.system(size: 72, weight: .heavy, design: .rounded))
@@ -343,19 +343,21 @@ struct ContentView: View {
                         .shadow(radius: 5)
                 }
                 .padding(.top, 20)
+                .padding(.bottom, 10) // Add a little space below the interval timer
                 
                 // Elapsed Timer (now smaller)
-                VStack {
-                    Text("Elapsed Time")
+                VStack(spacing: 2) { // Reduced spacing between label and counter
+                    Text("Time Since You Lit It 🔥")
                         .font(.system(size: 18, weight: .medium, design: .rounded))
                         .foregroundColor(.white.opacity(0.9))
                     Text(timeString(from: elapsedTime))
                         .font(.system(size: 36, weight: .bold, design: .rounded))
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
+                        .padding(.vertical, 4) // Reduced vertical padding
                         .foregroundColor(.white.opacity(0.9))
                 }
-                .padding(.top, 5)
+                .padding(.top, 20) // Moderate spacing before the elapsed timer
+                .padding(.bottom, 15) // Add space below the elapsed timer
                 
                 // Preset Intervals Grid
                 VStack(spacing: 30) {
@@ -369,10 +371,10 @@ struct ContentView: View {
                                 }
                             }) {
                                 Text(preset.displayName)
-                                    .font(.system(size: 24, weight: .semibold, design: .rounded))
+                                    .font(.system(size: 20, weight: .semibold, design: .rounded)) // Smaller font
                                     .foregroundColor(.white)
                                     .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 20)
+                                    .padding(.vertical, 16) // Reduced padding
                                     .background(
                                         (isRunning && intervalTime > 0) ? Color.gray :
                                             (intervalTime == preset.totalSeconds ? Color.orange : Color.purple)
@@ -387,73 +389,70 @@ struct ContentView: View {
                             .disabled(isRunning && intervalTime > 0)
                         }
                     }
+                    .padding(.top, 15) // Add padding above buttons
                     
-                    // More button
+                    // More button - dark gray as in the image
                     Button(action: {
                         activeSheet = .allPresets
                     }) {
-                        Label("More Presets", systemImage: "ellipsis.circle")
-                            .font(.system(size: 18, weight: .semibold, design: .rounded))
+                        Text("More Presets")
+                            .font(.system(size: 24, weight: .medium, design: .rounded))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                            .background(Color.blue.opacity(0.8))
-                            .cornerRadius(10)
+                            .padding(.vertical, 16)
+                            .background(Color.gray.opacity(0.3))
+                            .cornerRadius(15)
                     }
-                }
-                .padding(.horizontal, 30)
-                .padding(.bottom, 25)
-                .padding(.top, 20)
-                
-                // Add spacer to push remaining controls to bottom
-                Spacer()
-                
-                HStack(spacing: 15) {
-                    // Reset Elapsed Button
-                    Button(action: {
-                        elapsedTime = 0
-                    }) {
-                        Text("Reset Elapsed")
-                            .font(.system(size: 16, weight: .semibold, design: .rounded))
-                            .foregroundColor(.white)
-                            .frame(width: 110, height: 44)
-                            .background(Color.blue)
-                            .cornerRadius(8)
-                    }
+                    .padding(.horizontal, 30)
+                    .padding(.top, 10)
                     
-                    // Reset Interval Button
+                    // Reset buttons row - dark gray as in the image
+                    HStack(spacing: 15) {
+                        // Reset Elapsed Button
+                        Button(action: {
+                            elapsedTime = 0
+                        }) {
+                            Text("Reset Elapsed")
+                                .font(.system(size: 18, weight: .medium, design: .rounded))
+                                .foregroundColor(.white)
+                                .frame(width: 150, height: 44)
+                                .background(Color.gray.opacity(0.3))
+                                .cornerRadius(15)
+                        }
+                        
+                        // Reset Interval Button
+                        Button(action: {
+                            intervalTime = 0
+                        }) {
+                            Text("Reset Interval")
+                                .font(.system(size: 18, weight: .medium, design: .rounded))
+                                .foregroundColor(.white)
+                                .frame(width: 150, height: 44)
+                                .background(Color.gray.opacity(0.3))
+                                .cornerRadius(15)
+                        }
+                    }
+                    .padding(.top, 10)
+                    
+                    // Start/Stop Button - blue as in the image
                     Button(action: {
-                        intervalTime = 0
+                        if isRunning {
+                            stopTimer()
+                        } else {
+                            startTimer()
+                        }
                     }) {
-                        Text("Reset Interval")
-                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        Text(isRunning ? "Stop" : "Start")
+                            .font(.system(size: 36, weight: .medium, design: .rounded))
                             .foregroundColor(.white)
-                            .frame(width: 110, height: 44)
-                            .background(Color.orange)
-                            .cornerRadius(8)
+                            .padding()
+                            .frame(width: 250, height: 70)
+                            .background(Color(red: 0.4, green: 0.55, blue: 0.8)) // Blue start button
+                            .cornerRadius(35)
                     }
+                    .padding(.top, 20)
+                    .padding(.bottom)
                 }
-                .padding(.horizontal, 40)
-                .padding(.top, 10)
-                
-                // Start/Stop Button
-                Button(action: {
-                    if isRunning {
-                        stopTimer()
-                    } else {
-                        startTimer()
-                    }
-                }) {
-                    Text(isRunning ? "Stop" : "Start")
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
-                        .padding()
-                        .frame(width: 200)
-                        .background(isRunning ? Color.red : Color.green)
-                        .cornerRadius(10)
-                }
-                .padding(.top, 20)
-                .padding(.bottom)
             }
             .padding(.horizontal)
             
