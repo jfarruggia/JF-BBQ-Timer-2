@@ -10,48 +10,44 @@ struct SplashScreenView: View {
             ContentView()
         } else {
             ZStack {
-                // Background gradient
+                // Background gradient with new colors #a4816b → #3d3936
                 LinearGradient(
                     gradient: Gradient(colors: [
-                        Color(red: 222/255, green: 123/255, blue: 91/255),
-                        Color(red: 221/255, green: 41/255, blue: 50/255)
+                        Color(hex: "#a4816b"),
+                        Color(hex: "#3d3936")
                     ]),
                     startPoint: .top,
                     endPoint: .bottom
                 )
                 .edgesIgnoringSafeArea(.all)
                 
-                VStack {
-                    VStack {
-                        if let _ = UIImage(named: "bbq_logo") {
-                            Image("bbq_logo")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 200, height: 200)
-                        } else {
-                            Text("Logo not found")
-                                .foregroundColor(.red)
-                                .font(.system(size: 16, weight: .bold))
-                        }
-                        
-                        Text("JF BBQ Timer")
-                            .font(.system(size: 36, weight: .bold, design: .rounded))
-                            .foregroundColor(.white)
-                    }
-                    .scaleEffect(size)
-                    .opacity(opacity)
-                    .onAppear {
-                        withAnimation(.easeIn(duration: 1.2)) {
-                            self.size = 1.0
-                            self.opacity = 1.0
-                        }
-                    }
+                VStack(spacing: 30) {
+                    // New BBQ Timer Logo
+                    Image("BBQLogo")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 300)
+                        .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
+                    
+                    Text("JF BBQ Timer")
+                        .font(.system(size: 40, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                        .shadow(color: Color.black.opacity(0.3), radius: 5, x: 0, y: 3)
                 }
-            }
-            .onAppear {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                    withAnimation {
-                        self.isActive = true
+                .scaleEffect(size)
+                .opacity(opacity)
+                .onAppear {
+                    // Simple fade-in animation
+                    withAnimation(.easeOut(duration: 1.0)) {
+                        self.size = 1.0
+                        self.opacity = 1.0
+                    }
+                    
+                    // Wait and then transition to the main app
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                        withAnimation {
+                            self.isActive = true
+                        }
                     }
                 }
             }

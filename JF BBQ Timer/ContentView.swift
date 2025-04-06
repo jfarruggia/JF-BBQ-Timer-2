@@ -371,11 +371,11 @@ struct ContentView: View {
     
     var body: some View {
         ZStack {
-            // Background gradient matching the image
+            // Background gradient with #2E2E2E base
             LinearGradient(
                 gradient: Gradient(colors: [
                     Color(red: 0.7, green: 0.55, blue: 0.45), // Brown/bronze at top
-                    Color(red: 0.2, green: 0.2, blue: 0.25)   // Dark at bottom
+                    Color(hex: "#2E2E2E")   // Dark gray at bottom (#2E2E2E)
                 ]),
                 startPoint: .top,
                 endPoint: .bottom
@@ -392,7 +392,12 @@ struct ContentView: View {
                         .frame(maxWidth: .infinity)
                         .padding()
                         .foregroundColor(.white)
-                        .background(Color.purple.opacity(0.2))
+                        .background(
+                            Color(hex: "#3B3B3B")
+                                .overlay(
+                                    Color(hex: "#FF6A00").opacity(0.2)
+                                )
+                        )
                         .cornerRadius(20)
                         .overlay(
                             RoundedRectangle(cornerRadius: 20)
@@ -400,7 +405,7 @@ struct ContentView: View {
                         )
                         .shadow(radius: 5)
                 }
-                .padding(.top, 40) // Extra top padding to position at the top
+                .padding(.top, 40)
                 .padding(.bottom, 10)
                 
                 // Add a flexible spacer to push content down
@@ -444,8 +449,8 @@ struct ContentView: View {
                                         // Gradient background instead of solid color
                                         LinearGradient(
                                             gradient: Gradient(colors: [
-                                                (intervalTime == preset.totalSeconds ? Color.orange.opacity(0.9) : Color.purple.opacity(0.8)),
-                                                (intervalTime == preset.totalSeconds ? Color.orange.opacity(0.7) : Color.purple.opacity(0.6))
+                                                (intervalTime == preset.totalSeconds ? Color(hex: "#FF6A00").opacity(0.9) : Color(hex: "#7C4DFF").opacity(0.8)),
+                                                (intervalTime == preset.totalSeconds ? Color(hex: "#FF6A00").opacity(0.7) : Color(hex: "#7C4DFF").opacity(0.6))
                                             ]),
                                             startPoint: .top,
                                             endPoint: .bottom
@@ -502,15 +507,8 @@ struct ContentView: View {
                         .padding(.horizontal, 20)
                         .padding(.vertical, 16)
                         .background(
-                            // Gradient background for card effect
-                            LinearGradient(
-                                gradient: Gradient(colors: [
-                                    Color.gray.opacity(0.4),
-                                    Color.gray.opacity(0.25)
-                                ]),
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
+                            // Card background using 3B3B3B
+                            Color(hex: "#3B3B3B")
                         )
                         .overlay(
                             // Top border highlight for card effect
@@ -539,7 +537,7 @@ struct ContentView: View {
                                 .font(.system(size: 18, weight: .medium, design: .rounded))
                                 .foregroundColor(.white)
                                 .frame(width: 150, height: 44)
-                                .background(Color.gray.opacity(0.3))
+                                .background(Color(hex: "#3B3B3B"))
                                 .cornerRadius(15)
                                 .shadow(color: Color.black.opacity(0.2), radius: 3, x: 0, y: 2)
                         }
@@ -553,7 +551,7 @@ struct ContentView: View {
                                 .font(.system(size: 18, weight: .medium, design: .rounded))
                                 .foregroundColor(.white)
                                 .frame(width: 150, height: 44)
-                                .background(Color.gray.opacity(0.3))
+                                .background(Color(hex: "#3B3B3B"))
                                 .cornerRadius(15)
                                 .shadow(color: Color.black.opacity(0.2), radius: 3, x: 0, y: 2)
                         }
@@ -574,7 +572,7 @@ struct ContentView: View {
                             .foregroundColor(.white)
                             .padding()
                             .frame(width: 250, height: 70)
-                            .background(isRunning ? Color.red.opacity(0.8) : Color(red: 0.4, green: 0.55, blue: 0.8))
+                            .background(isRunning ? Color(hex: "#D72638") : Color(hex: "#FF6A00"))
                             .cornerRadius(35)
                             .shadow(color: Color.black.opacity(0.3), radius: 5, x: 0, y: 3)
                             // Add a subtle pulsing animation when not running
