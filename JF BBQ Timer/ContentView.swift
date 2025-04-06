@@ -291,6 +291,63 @@ enum ActiveSheet: Identifiable {
     }
 }
 
+// Add this before ContentView struct
+struct BouncyButtonStyle: ButtonStyle {
+    let id: UUID
+    @Binding var pressedButtonId: UUID?
+    
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed || pressedButtonId == id ? 0.95 : 1.0)
+            .brightness(configuration.isPressed || pressedButtonId == id ? -0.05 : 0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
+            .onChange(of: configuration.isPressed) { isPressed in
+                if isPressed {
+                    pressedButtonId = id
+                    // Add a slight delay before resetting the pressed state
+                    // This makes the animation visible even for quick taps
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                        if pressedButtonId == id {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                                pressedButtonId = nil
+                            }
+                        }
+                    }
+                }
+            }
+    }
+}
+
+// Special animation style for the Start/Stop button
+struct PulsatingButtonStyle: ButtonStyle {
+    let id: UUID
+    @Binding var pressedButtonId: UUID?
+    
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed || pressedButtonId == id ? 0.92 : 1.0)
+            .brightness(configuration.isPressed || pressedButtonId == id ? -0.08 : 0)
+            .animation(.spring(response: 0.4, dampingFraction: 0.5, blendDuration: 0.2), value: configuration.isPressed)
+            .onChange(of: configuration.isPressed) { isPressed in
+                if isPressed {
+                    // Add haptic feedback
+                    let feedback = UIImpactFeedbackGenerator(style: .heavy)
+                    feedback.impactOccurred()
+                    
+                    pressedButtonId = id
+                    // Delay reset for more visible animation
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        if pressedButtonId == id {
+                            withAnimation(.spring(response: 0.5, dampingFraction: 0.5, blendDuration: 0.3)) {
+                                pressedButtonId = nil
+                            }
+                        }
+                    }
+                }
+            }
+    }
+}
+
 struct ContentView: View {
     @State private var elapsedTime: TimeInterval = 0
     @State private var intervalTime: TimeInterval = 0
@@ -306,6 +363,7 @@ struct ContentView: View {
     
     // Replace the individual sheet state booleans with a single activeSheet optional
     @State private var activeSheet: ActiveSheet?
+    @State private var pressedButtonId: UUID? // Track which button is being pressed
     
     var sortedPresets: [PresetInterval] {
         settings.presetIntervals.sorted { $0.totalSeconds < $1.totalSeconds }
@@ -325,7 +383,7 @@ struct ContentView: View {
             .edgesIgnoringSafeArea(.all)
             
             VStack(spacing: 0) {
-                // Interval Timer (now prominent)
+                // Interval Timer - moved to the very top
                 VStack {
                     Text("Next Flip In")
                         .font(.system(size: 28, weight: .semibold, design: .rounded))
@@ -342,22 +400,24 @@ struct ContentView: View {
                         )
                         .shadow(radius: 5)
                 }
-                .padding(.top, 20)
-                .padding(.bottom, 10) // Add a little space below the interval timer
+                .padding(.top, 40) // Extra top padding to position at the top
+                .padding(.bottom, 10)
                 
-                // Elapsed Timer (now smaller)
-                VStack(spacing: 2) { // Reduced spacing between label and counter
+                // Add a flexible spacer to push content down
+                Spacer()
+                
+                // Elapsed Timer
+                VStack(spacing: 2) {
                     Text("Time Since You Lit It 🔥")
                         .font(.system(size: 18, weight: .medium, design: .rounded))
                         .foregroundColor(.white.opacity(0.9))
                     Text(timeString(from: elapsedTime))
                         .font(.system(size: 36, weight: .bold, design: .rounded))
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 4) // Reduced vertical padding
+                        .padding(.vertical, 4)
                         .foregroundColor(.white.opacity(0.9))
                 }
-                .padding(.top, 20) // Moderate spacing before the elapsed timer
-                .padding(.bottom, 15) // Add space below the elapsed timer
+                .padding(.top, 40)
                 
                 // Preset Intervals Grid
                 VStack(spacing: 30) {
@@ -365,46 +425,109 @@ struct ContentView: View {
                     HStack(spacing: 20) {
                         ForEach(sortedPresets.prefix(4)) { preset in
                             Button(action: {
+                                // Haptic feedback
+                                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                                impactFeedback.impactOccurred()
+                                
+                                // Set timer
                                 intervalTime = preset.totalSeconds
                                 if !isRunning {
                                     startTimer()
                                 }
                             }) {
                                 Text(preset.displayName)
-                                    .font(.system(size: 20, weight: .semibold, design: .rounded)) // Smaller font
+                                    .font(.system(size: 20, weight: .semibold, design: .rounded))
                                     .foregroundColor(.white)
                                     .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 16) // Reduced padding
+                                    .padding(.vertical, 16)
                                     .background(
-                                        (isRunning && intervalTime > 0) ? Color.gray :
-                                            (intervalTime == preset.totalSeconds ? Color.orange : Color.purple)
+                                        // Gradient background instead of solid color
+                                        LinearGradient(
+                                            gradient: Gradient(colors: [
+                                                (intervalTime == preset.totalSeconds ? Color.orange.opacity(0.9) : Color.purple.opacity(0.8)),
+                                                (intervalTime == preset.totalSeconds ? Color.orange.opacity(0.7) : Color.purple.opacity(0.6))
+                                            ]),
+                                            startPoint: .top,
+                                            endPoint: .bottom
+                                        )
+                                        .opacity(isRunning && intervalTime > 0 ? 0.7 : 1.0)
+                                    )
+                                    // Add a subtle blur for glassmorphism
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(Color.white.opacity(0.1))
+                                            .blur(radius: 1)
                                     )
                                     .cornerRadius(12)
+                                    // Overlay to create a glass-like border
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 12)
-                                            .stroke(intervalTime == preset.totalSeconds ? Color.white : Color.clear, lineWidth: 2)
+                                            .stroke(
+                                                LinearGradient(
+                                                    gradient: Gradient(colors: [
+                                                        Color.white.opacity(0.6),
+                                                        Color.white.opacity(0.2)
+                                                    ]),
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                ),
+                                                lineWidth: 1.5
+                                            )
                                     )
-                                    .opacity(isRunning && intervalTime > 0 ? 0.7 : 1.0)
+                                    // Add shadow for depth
+                                    .shadow(color: Color.black.opacity(0.2), radius: 5, x: 0, y: 3)
                             }
+                            .buttonStyle(BouncyButtonStyle(id: preset.id, pressedButtonId: $pressedButtonId))
                             .disabled(isRunning && intervalTime > 0)
                         }
                     }
-                    .padding(.top, 15) // Add padding above buttons
+                    .padding(.top, 15)
                     
-                    // More button - dark gray as in the image
+                    // More button - styled as a card/popup tab
                     Button(action: {
                         activeSheet = .allPresets
                     }) {
-                        Text("More Presets")
-                            .font(.system(size: 24, weight: .medium, design: .rounded))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(Color.gray.opacity(0.3))
-                            .cornerRadius(15)
+                        HStack {
+                            Text("Explore More Times ⏲")
+                                .font(.system(size: 22, weight: .medium, design: .rounded))
+                                .foregroundColor(.white)
+                            
+                            Spacer()
+                            
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.white.opacity(0.8))
+                                .padding(.trailing, 5)
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 16)
+                        .background(
+                            // Gradient background for card effect
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    Color.gray.opacity(0.4),
+                                    Color.gray.opacity(0.25)
+                                ]),
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .overlay(
+                            // Top border highlight for card effect
+                            Rectangle()
+                                .fill(Color.white.opacity(0.3))
+                                .frame(height: 1)
+                                .padding(.horizontal, 1),
+                            alignment: .top
+                        )
+                        .cornerRadius(15)
+                        // Card-like shadow
+                        .shadow(color: Color.black.opacity(0.25), radius: 6, x: 0, y: 3)
                     }
+                    .buttonStyle(BouncyButtonStyle(id: UUID(), pressedButtonId: $pressedButtonId))
                     .padding(.horizontal, 30)
-                    .padding(.top, 10)
+                    .padding(.top, 15)
+                    .padding(.bottom, 5)
                     
                     // Reset buttons row - dark gray as in the image
                     HStack(spacing: 15) {
@@ -418,7 +541,9 @@ struct ContentView: View {
                                 .frame(width: 150, height: 44)
                                 .background(Color.gray.opacity(0.3))
                                 .cornerRadius(15)
+                                .shadow(color: Color.black.opacity(0.2), radius: 3, x: 0, y: 2)
                         }
+                        .buttonStyle(BouncyButtonStyle(id: UUID(), pressedButtonId: $pressedButtonId))
                         
                         // Reset Interval Button
                         Button(action: {
@@ -430,7 +555,9 @@ struct ContentView: View {
                                 .frame(width: 150, height: 44)
                                 .background(Color.gray.opacity(0.3))
                                 .cornerRadius(15)
+                                .shadow(color: Color.black.opacity(0.2), radius: 3, x: 0, y: 2)
                         }
+                        .buttonStyle(BouncyButtonStyle(id: UUID(), pressedButtonId: $pressedButtonId))
                     }
                     .padding(.top, 10)
                     
@@ -447,9 +574,19 @@ struct ContentView: View {
                             .foregroundColor(.white)
                             .padding()
                             .frame(width: 250, height: 70)
-                            .background(Color(red: 0.4, green: 0.55, blue: 0.8)) // Blue start button
+                            .background(isRunning ? Color.red.opacity(0.8) : Color(red: 0.4, green: 0.55, blue: 0.8))
                             .cornerRadius(35)
+                            .shadow(color: Color.black.opacity(0.3), radius: 5, x: 0, y: 3)
+                            // Add a subtle pulsing animation when not running
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.white.opacity(0.5), lineWidth: 2)
+                                    .scaleEffect(!isRunning ? 1.04 : 1.0)
+                                    .opacity(!isRunning ? 0.6 : 0)
+                                    .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: isRunning)
+                            )
                     }
+                    .buttonStyle(PulsatingButtonStyle(id: UUID(), pressedButtonId: $pressedButtonId))
                     .padding(.top, 20)
                     .padding(.bottom)
                 }
