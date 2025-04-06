@@ -278,6 +278,19 @@ struct AlertView: View {
     }
 }
 
+// Add this enum before the ContentView struct
+enum ActiveSheet: Identifiable {
+    case intervalInput, settings, allPresets
+    
+    var id: Int {
+        switch self {
+        case .intervalInput: return 0
+        case .settings: return 1
+        case .allPresets: return 2
+        }
+    }
+}
+
 struct ContentView: View {
     @State private var elapsedTime: TimeInterval = 0
     @State private var intervalTime: TimeInterval = 0
@@ -285,14 +298,14 @@ struct ContentView: View {
     @State private var isRunning = false
     @State private var selectedMinutes = 0
     @State private var selectedSeconds = 0
-    @State private var showingIntervalInput = false
-    @State private var showingSettings = false
     @State private var audioPlayer: AVAudioPlayer?
     @StateObject private var settings = Settings()
     @StateObject private var alertState = AlertState()
     @State private var isSettingTime = false
     @State private var showConfirmation = false
-    @State private var showingAllPresets = false
+    
+    // Replace the individual sheet state booleans with a single activeSheet optional
+    @State private var activeSheet: ActiveSheet?
     
     var sortedPresets: [PresetInterval] {
         settings.presetIntervals.sorted { $0.totalSeconds < $1.totalSeconds }
@@ -377,7 +390,7 @@ struct ContentView: View {
                     
                     // More button
                     Button(action: {
-                        showingAllPresets = true
+                        activeSheet = .allPresets
                     }) {
                         Label("More Presets", systemImage: "ellipsis.circle")
                             .font(.system(size: 18, weight: .semibold, design: .rounded))
@@ -448,144 +461,155 @@ struct ContentView: View {
                 AlertView(alertState: alertState, audioPlayer: audioPlayer)
             }
         }
-        .sheet(isPresented: $showingIntervalInput) {
-            VStack(spacing: 20) {
-                Text("Set Custom Interval")
-                    .font(.system(size: 24, weight: .bold, design: .rounded))
-                
-                // Preview of selected time
-                Text(timeString(from: TimeInterval(selectedMinutes * 60 + selectedSeconds)))
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
-                    .foregroundColor(.blue)
-                    .padding()
-                    .background(Color.blue.opacity(0.1))
-                    .cornerRadius(10)
-                
-                HStack(spacing: 20) {
-                    // Minutes Picker
-                    Picker("Minutes", selection: $selectedMinutes) {
-                        ForEach(0..<60) { minute in
-                            Text("\(minute)")
-                                .tag(minute)
-                                .foregroundColor(selectedMinutes == minute ? .blue : .primary)
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .intervalInput:
+                VStack(spacing: 20) {
+                    Text("Set Custom Interval")
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                    
+                    // Preview of selected time
+                    Text(timeString(from: TimeInterval(selectedMinutes * 60 + selectedSeconds)))
+                        .font(.system(size: 36, weight: .bold, design: .rounded))
+                        .foregroundColor(.blue)
+                        .padding()
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(10)
+                    
+                    HStack(spacing: 20) {
+                        // Minutes Picker
+                        Picker("Minutes", selection: $selectedMinutes) {
+                            ForEach(0..<60) { minute in
+                                Text("\(minute)")
+                                    .tag(minute)
+                                    .foregroundColor(selectedMinutes == minute ? .blue : .primary)
+                            }
                         }
-                    }
-                    .pickerStyle(.wheel)
-                    .frame(width: 100)
-                    .clipped()
-                    
-                    Text("min")
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
-                    
-                    // Seconds Picker
-                    Picker("Seconds", selection: $selectedSeconds) {
-                        ForEach(0..<60) { second in
-                            Text("\(second)")
-                                .tag(second)
-                                .foregroundColor(selectedSeconds == second ? .blue : .primary)
-                        }
-                    }
-                    .pickerStyle(.wheel)
-                    .frame(width: 100)
-                    .clipped()
-                    
-                    Text("sec")
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
-                }
-                .frame(height: 100)
-                
-                HStack(spacing: 20) {
-                    Button("Cancel") {
-                        showingIntervalInput = false
-                    }
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white)
-                    .padding()
-                    .frame(width: 100)
-                    .background(Color.gray)
-                    .cornerRadius(8)
-                    
-                    Button("Set") {
-                        withAnimation {
-                            isSettingTime = true
-                            showConfirmation = true
-                        }
+                        .pickerStyle(.wheel)
+                        .frame(width: 100)
+                        .clipped()
                         
-                        // Add haptic feedback
-                        let generator = UINotificationFeedbackGenerator()
-                        generator.notificationOccurred(.success)
+                        Text("min")
+                            .font(.system(size: 18, weight: .semibold, design: .rounded))
                         
-                        // Set the time after a brief delay
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            intervalTime = TimeInterval(selectedMinutes * 60 + selectedSeconds)
-                            showingIntervalInput = false
+                        // Seconds Picker
+                        Picker("Seconds", selection: $selectedSeconds) {
+                            ForEach(0..<60) { second in
+                                Text("\(second)")
+                                    .tag(second)
+                                    .foregroundColor(selectedSeconds == second ? .blue : .primary)
+                            }
                         }
+                        .pickerStyle(.wheel)
+                        .frame(width: 100)
+                        .clipped()
+                        
+                        Text("sec")
+                            .font(.system(size: 18, weight: .semibold, design: .rounded))
                     }
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white)
-                    .padding()
-                    .frame(width: 100)
-                    .background(Color.blue)
-                    .cornerRadius(8)
-                    .scaleEffect(isSettingTime ? 1.1 : 1.0)
-                    .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isSettingTime)
+                    .frame(height: 100)
+                    
+                    HStack(spacing: 20) {
+                        Button("Cancel") {
+                            activeSheet = nil
+                        }
+                        .font(.system(size: 18, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white)
+                        .padding()
+                        .frame(width: 100)
+                        .background(Color.gray)
+                        .cornerRadius(8)
+                        
+                        Button("Set") {
+                            withAnimation {
+                                isSettingTime = true
+                                showConfirmation = true
+                            }
+                            
+                            // Add haptic feedback
+                            let generator = UINotificationFeedbackGenerator()
+                            generator.notificationOccurred(.success)
+                            
+                            // Set the time after a brief delay
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                intervalTime = TimeInterval(selectedMinutes * 60 + selectedSeconds)
+                                activeSheet = nil
+                            }
+                        }
+                        .font(.system(size: 18, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white)
+                        .padding()
+                        .frame(width: 100)
+                        .background(Color.blue)
+                        .cornerRadius(8)
+                        .scaleEffect(isSettingTime ? 1.1 : 1.0)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isSettingTime)
+                    }
+                    
+                    if showConfirmation {
+                        Text("Time Set!")
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .foregroundColor(.green)
+                            .transition(.opacity)
+                    }
                 }
+                .padding()
                 
-                if showConfirmation {
-                    Text("Time Set!")
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
-                        .foregroundColor(.green)
-                        .transition(.opacity)
-                }
-            }
-            .padding()
-        }
-        .sheet(isPresented: $showingSettings) {
-            SettingsView(settings: settings)
-        }
-        .sheet(isPresented: $showingAllPresets) {
-            NavigationView {
-                ScrollView {
-                    VStack(spacing: 15) {
-                        LazyVGrid(columns: [
-                            GridItem(.flexible()),
-                            GridItem(.flexible())
-                        ], spacing: 15) {
-                            ForEach(sortedPresets) { preset in
-                                Button(action: {
-                                    intervalTime = preset.totalSeconds
-                                    if !isRunning {
-                                        startTimer()
+            case .settings:
+                SettingsView(settings: settings)
+                    .onDisappear {
+                        // We need to handle any special logic when the settings view disappears
+                    }
+                
+            case .allPresets:
+                NavigationView {
+                    ScrollView {
+                        VStack(spacing: 15) {
+                            LazyVGrid(columns: [
+                                GridItem(.flexible()),
+                                GridItem(.flexible())
+                            ], spacing: 15) {
+                                ForEach(sortedPresets) { preset in
+                                    Button(action: {
+                                        intervalTime = preset.totalSeconds
+                                        if !isRunning {
+                                            startTimer()
+                                        }
+                                        activeSheet = nil
+                                    }) {
+                                        Text(preset.displayName)
+                                            .font(.system(size: 20, weight: .semibold, design: .rounded))
+                                            .foregroundColor(.white)
+                                            .frame(maxWidth: .infinity)
+                                            .padding(.vertical, 16)
+                                            .background(
+                                                intervalTime == preset.totalSeconds ? Color.orange : Color.purple
+                                            )
+                                            .cornerRadius(8)
                                     }
-                                    showingAllPresets = false
-                                }) {
-                                    Text(preset.displayName)
-                                        .font(.system(size: 20, weight: .semibold, design: .rounded))
-                                        .foregroundColor(.white)
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 16)
-                                        .background(
-                                            intervalTime == preset.totalSeconds ? Color.orange : Color.purple
-                                        )
-                                        .cornerRadius(8)
                                 }
                             }
                         }
+                        .padding()
                     }
-                    .padding()
+                    .navigationTitle("All Presets")
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            Button("Done") {
+                                activeSheet = nil
+                            }
+                        }
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            NavigationLink(destination: 
+                                SettingsView(settings: settings)
+                                    .navigationBarBackButtonHidden(false)
+                            ) {
+                                Image(systemName: "gear")
+                                    .font(.system(size: 20, weight: .semibold, design: .rounded))
+                            }
+                        }
+                    }
                 }
-                .navigationTitle("All Presets")
-                .navigationBarItems(
-                    leading: Button("Done") {
-                        showingAllPresets = false
-                    },
-                    trailing: Button(action: {
-                        showingSettings = true
-                    }) {
-                        Image(systemName: "gear")
-                            .font(.system(size: 20, weight: .semibold, design: .rounded))
-                    }
-                )
             }
         }
         .onAppear {
