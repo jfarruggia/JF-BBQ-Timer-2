@@ -344,12 +344,10 @@ struct ContentView: View {
                 }
                 .padding(.top, 5)
                 
-                Spacer()
-                
                 // Preset Intervals Grid
-                VStack(spacing: 15) {
+                VStack(spacing: 30) {
                     // Show just top 4 presets in a row
-                    HStack(spacing: 15) {
+                    HStack(spacing: 20) {
                         ForEach(sortedPresets.prefix(4)) { preset in
                             Button(action: {
                                 intervalTime = preset.totalSeconds
@@ -358,17 +356,17 @@ struct ContentView: View {
                                 }
                             }) {
                                 Text(preset.displayName)
-                                    .font(.system(size: 20, weight: .semibold, design: .rounded))
+                                    .font(.system(size: 24, weight: .semibold, design: .rounded))
                                     .foregroundColor(.white)
                                     .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 16)
+                                    .padding(.vertical, 20)
                                     .background(
                                         (isRunning && intervalTime > 0) ? Color.gray :
                                             (intervalTime == preset.totalSeconds ? Color.orange : Color.purple)
                                     )
-                                    .cornerRadius(8)
+                                    .cornerRadius(12)
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
+                                        RoundedRectangle(cornerRadius: 12)
                                             .stroke(intervalTime == preset.totalSeconds ? Color.white : Color.clear, lineWidth: 2)
                                     )
                                     .opacity(isRunning && intervalTime > 0 ? 0.7 : 1.0)
@@ -382,16 +380,20 @@ struct ContentView: View {
                         showingAllPresets = true
                     }) {
                         Label("More Presets", systemImage: "ellipsis.circle")
-                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .font(.system(size: 18, weight: .semibold, design: .rounded))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
+                            .padding(.vertical, 14)
                             .background(Color.blue.opacity(0.8))
-                            .cornerRadius(8)
+                            .cornerRadius(10)
                     }
                 }
-                .padding(.horizontal, 50)
-                .padding(.bottom, 30)
+                .padding(.horizontal, 30)
+                .padding(.bottom, 25)
+                .padding(.top, 20)
+                
+                // Add spacer to push remaining controls to bottom
+                Spacer()
                 
                 HStack(spacing: 15) {
                     // Reset Elapsed Button
