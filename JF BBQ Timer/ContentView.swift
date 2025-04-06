@@ -301,8 +301,8 @@ struct BouncyButtonStyle: ButtonStyle {
             .scaleEffect(configuration.isPressed || pressedButtonId == id ? 0.95 : 1.0)
             .brightness(configuration.isPressed || pressedButtonId == id ? -0.05 : 0)
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
-            .onChange(of: configuration.isPressed) { isPressed in
-                if isPressed {
+            .onChange(of: configuration.isPressed) { oldValue, newValue in
+                if newValue {
                     pressedButtonId = id
                     // Add a slight delay before resetting the pressed state
                     // This makes the animation visible even for quick taps
@@ -328,8 +328,8 @@ struct PulsatingButtonStyle: ButtonStyle {
             .scaleEffect(configuration.isPressed || pressedButtonId == id ? 0.92 : 1.0)
             .brightness(configuration.isPressed || pressedButtonId == id ? -0.08 : 0)
             .animation(.spring(response: 0.4, dampingFraction: 0.5, blendDuration: 0.2), value: configuration.isPressed)
-            .onChange(of: configuration.isPressed) { isPressed in
-                if isPressed {
+            .onChange(of: configuration.isPressed) { oldValue, newValue in
+                if newValue {
                     // Add haptic feedback
                     let feedback = UIImpactFeedbackGenerator(style: .heavy)
                     feedback.impactOccurred()
