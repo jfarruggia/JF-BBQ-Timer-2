@@ -27,6 +27,7 @@ struct SplashScreenView: View {
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(width: 300)
+                        .cornerRadius(20)
                         .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
                     
                     Text("JF BBQ Timer")
