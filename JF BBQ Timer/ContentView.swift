@@ -178,7 +178,63 @@ class AlertState: ObservableObject {
     @Published var isPresented: Bool = false {
         didSet {
             print("AlertState changed from \(oldValue) to \(isPresented)")
+            if isPresented {
+                startHapticTimer()
+            } else if hapticTimer != nil {
+                stopHapticTimer()
+            }
         }
+    }
+    
+    private var hapticTimer: Timer?
+    private let notificationGenerator = UINotificationFeedbackGenerator()
+    private let heavyGenerator = UIImpactFeedbackGenerator(style: .heavy)
+    private let mediumGenerator = UIImpactFeedbackGenerator(style: .medium)
+    private var hapticCounter = 0
+    
+    func startHapticTimer() {
+        // Prepare generators
+        notificationGenerator.prepare()
+        heavyGenerator.prepare()
+        mediumGenerator.prepare()
+        
+        // Initial feedback
+        triggerHapticFeedback()
+        
+        // Start repeating timer
+        hapticTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
+            self?.triggerHapticFeedback()
+        }
+    }
+    
+    func stopHapticTimer() {
+        hapticTimer?.invalidate()
+        hapticTimer = nil
+        hapticCounter = 0
+    }
+    
+    private func triggerHapticFeedback() {
+        switch hapticCounter % 3 {
+        case 0:
+            notificationGenerator.notificationOccurred(.error)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                self.heavyGenerator.impactOccurred(intensity: 1.0)
+            }
+        case 1:
+            heavyGenerator.impactOccurred(intensity: 1.0)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                self.heavyGenerator.impactOccurred(intensity: 1.0)
+            }
+        case 2:
+            mediumGenerator.impactOccurred(intensity: 1.0)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                self.notificationGenerator.notificationOccurred(.error)
+            }
+        default:
+            break
+        }
+        
+        hapticCounter += 1
     }
 }
 
@@ -236,6 +292,7 @@ struct ContentView: View {
     @StateObject private var alertState = AlertState()
     @State private var isSettingTime = false
     @State private var showConfirmation = false
+    @State private var showingAllPresets = false
     
     var sortedPresets: [PresetInterval] {
         settings.presetIntervals.sorted { $0.totalSeconds < $1.totalSeconds }
@@ -255,23 +312,6 @@ struct ContentView: View {
             .edgesIgnoringSafeArea(.all)
             
             VStack(spacing: 0) {
-                // Settings Button at the top
-                HStack {
-                    Spacer()
-                    Button(action: {
-                        showingSettings = true
-                    }) {
-                        Image(systemName: "gear")
-                            .font(.system(size: 20, weight: .semibold, design: .rounded))
-                            .foregroundColor(.blue)
-                            .padding(8)
-                            .background(Color.blue.opacity(0.1))
-                            .cornerRadius(8)
-                    }
-                    .padding(.trailing)
-                    .padding(.top)
-                }
-                
                 // Interval Timer (now prominent)
                 VStack {
                     Text("Interval Time")
@@ -307,35 +347,47 @@ struct ContentView: View {
                 Spacer()
                 
                 // Preset Intervals Grid
-                LazyVGrid(columns: [
-                    GridItem(.flexible()),
-                    GridItem(.flexible()),
-                    GridItem(.flexible())
-                ], spacing: 15) {
-                    ForEach(sortedPresets.prefix(9)) { preset in
-                        Button(action: {
-                            intervalTime = preset.totalSeconds
-                            if !isRunning {
-                                startTimer()
+                VStack(spacing: 15) {
+                    // Show just top 4 presets in a row
+                    HStack(spacing: 15) {
+                        ForEach(sortedPresets.prefix(4)) { preset in
+                            Button(action: {
+                                intervalTime = preset.totalSeconds
+                                if !isRunning {
+                                    startTimer()
+                                }
+                            }) {
+                                Text(preset.displayName)
+                                    .font(.system(size: 20, weight: .semibold, design: .rounded))
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 16)
+                                    .background(
+                                        (isRunning && intervalTime > 0) ? Color.gray :
+                                            (intervalTime == preset.totalSeconds ? Color.orange : Color.purple)
+                                    )
+                                    .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(intervalTime == preset.totalSeconds ? Color.white : Color.clear, lineWidth: 2)
+                                    )
+                                    .opacity(isRunning && intervalTime > 0 ? 0.7 : 1.0)
                             }
-                        }) {
-                            Text(preset.displayName)
-                                .font(.system(size: 20, weight: .semibold, design: .rounded))
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 16)
-                                .background(
-                                    (isRunning && intervalTime > 0) ? Color.gray :
-                                        (intervalTime == preset.totalSeconds ? Color.orange : Color.purple)
-                                )
-                                .cornerRadius(8)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(intervalTime == preset.totalSeconds ? Color.white : Color.clear, lineWidth: 2)
-                                )
-                                .opacity(isRunning && intervalTime > 0 ? 0.7 : 1.0)
+                            .disabled(isRunning && intervalTime > 0)
                         }
-                        .disabled(isRunning && intervalTime > 0)
+                    }
+                    
+                    // More button
+                    Button(action: {
+                        showingAllPresets = true
+                    }) {
+                        Label("More Presets", systemImage: "ellipsis.circle")
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(Color.blue.opacity(0.8))
+                            .cornerRadius(8)
                     }
                 }
                 .padding(.horizontal, 50)
@@ -363,18 +415,6 @@ struct ContentView: View {
                             .foregroundColor(.white)
                             .frame(width: 110, height: 44)
                             .background(Color.orange)
-                            .cornerRadius(8)
-                    }
-                    
-                    // Set Custom Interval Button
-                    Button(action: {
-                        showingIntervalInput = true
-                    }) {
-                        Text("Set Interval")
-                            .font(.system(size: 16, weight: .semibold, design: .rounded))
-                            .foregroundColor(.white)
-                            .frame(width: 110, height: 44)
-                            .background(Color.blue)
                             .cornerRadius(8)
                     }
                 }
@@ -501,6 +541,51 @@ struct ContentView: View {
         .sheet(isPresented: $showingSettings) {
             SettingsView(settings: settings)
         }
+        .sheet(isPresented: $showingAllPresets) {
+            NavigationView {
+                ScrollView {
+                    VStack(spacing: 15) {
+                        LazyVGrid(columns: [
+                            GridItem(.flexible()),
+                            GridItem(.flexible())
+                        ], spacing: 15) {
+                            ForEach(sortedPresets) { preset in
+                                Button(action: {
+                                    intervalTime = preset.totalSeconds
+                                    if !isRunning {
+                                        startTimer()
+                                    }
+                                    showingAllPresets = false
+                                }) {
+                                    Text(preset.displayName)
+                                        .font(.system(size: 20, weight: .semibold, design: .rounded))
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 16)
+                                        .background(
+                                            intervalTime == preset.totalSeconds ? Color.orange : Color.purple
+                                        )
+                                        .cornerRadius(8)
+                                }
+                            }
+                        }
+                    }
+                    .padding()
+                }
+                .navigationTitle("All Presets")
+                .navigationBarItems(
+                    leading: Button("Done") {
+                        showingAllPresets = false
+                    },
+                    trailing: Button(action: {
+                        showingSettings = true
+                    }) {
+                        Image(systemName: "gear")
+                            .font(.system(size: 20, weight: .semibold, design: .rounded))
+                    }
+                )
+            }
+        }
         .onAppear {
             setupAudioPlayer()
         }
@@ -537,7 +622,9 @@ struct ContentView: View {
                 if intervalTime == 0 {
                     print("Timer reached zero")
                     DispatchQueue.main.async {
+                        // Play sound
                         playAlertSound()
+                        // Show alert (which will start continuous haptic feedback)
                         alertState.isPresented = true
                     }
                 }
