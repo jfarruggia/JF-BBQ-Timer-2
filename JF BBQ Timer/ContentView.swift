@@ -9,7 +9,7 @@ import SwiftUI
 import AVFoundation
 
 struct PresetInterval: Identifiable, Codable {
-    var id: UUID
+    let id: UUID
     var name: String
     var minutes: Int
     var seconds: Int
@@ -41,17 +41,31 @@ struct PresetInterval: Identifiable, Codable {
 }
 
 class Settings: ObservableObject {
-    @Published var presetIntervals: [PresetInterval] {
+    @Published var presetIntervals: [PresetInterval]
+    @Published var preheatDuration: TimeInterval {
         didSet {
-            // Ensure we never exceed 9 presets
-            if presetIntervals.count > 9 {
-                presetIntervals = Array(presetIntervals.prefix(9))
-            }
-            savePresets()
+            UserDefaults.standard.set(preheatDuration, forKey: "preheatDuration")
+        }
+    }
+    @Published var soundEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(soundEnabled, forKey: "soundEnabled")
+        }
+    }
+    @Published var hapticsEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(hapticsEnabled, forKey: "hapticsEnabled")
         }
     }
     
     init() {
+        // Initialize all stored properties first
+        self.presetIntervals = []
+        self.preheatDuration = 900 // Default 15 minutes
+        self.soundEnabled = false
+        self.hapticsEnabled = false
+        
+        // Now we can safely use self
         if let data = UserDefaults.standard.data(forKey: "presetIntervals"),
            let decoded = try? JSONDecoder().decode([PresetInterval].self, from: data) {
             print("Loading saved presets: \(decoded.count)")
@@ -72,9 +86,18 @@ class Settings: ObservableObject {
                 PresetInterval(name: "1h", minutes: 60, seconds: 0)
             ]
             print("Default presets initialized: \(self.presetIntervals.count)")
-            // Save the initial presets
-            savePresets()
+            
+            // Save initial presets
+            if let encoded = try? JSONEncoder().encode(self.presetIntervals) {
+                UserDefaults.standard.set(encoded, forKey: "presetIntervals")
+            }
         }
+        
+        // Load other settings
+        self.preheatDuration = UserDefaults.standard.double(forKey: "preheatDuration") > 0 ? 
+            UserDefaults.standard.double(forKey: "preheatDuration") : 900 // Default 15 minutes
+        self.soundEnabled = UserDefaults.standard.bool(forKey: "soundEnabled")
+        self.hapticsEnabled = UserDefaults.standard.bool(forKey: "hapticsEnabled")
     }
     
     private func savePresets() {
@@ -102,11 +125,59 @@ struct ButtonPreview: View {
 struct SettingsView: View {
     @ObservedObject var settings: Settings
     @Environment(\.dismiss) var dismiss
+    @State private var preheatMinutes: Int = 0
+    @State private var preheatSeconds: Int = 0
     
     var body: some View {
         NavigationView {
             ScrollView {
                 LazyVStack(spacing: 20) {
+                    // Preheat Timer Settings
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Preheat Timer Duration")
+                            .font(.system(.headline, design: .rounded))
+                            .foregroundColor(.gray)
+                        
+                        HStack(spacing: 20) {
+                            // Minutes Picker
+                            Picker("Minutes", selection: $preheatMinutes) {
+                                ForEach(0..<60) { minute in
+                                    Text("\(minute)")
+                                        .tag(minute)
+                                        .foregroundColor(preheatMinutes == minute ? .blue : .primary)
+                                }
+                            }
+                            .pickerStyle(.wheel)
+                            .frame(width: 100)
+                            .clipped()
+                            
+                            Text("min")
+                                .foregroundColor(.gray)
+                            
+                            // Seconds Picker
+                            Picker("Seconds", selection: $preheatSeconds) {
+                                ForEach(0..<60) { second in
+                                    Text("\(second)")
+                                        .tag(second)
+                                        .foregroundColor(preheatSeconds == second ? .blue : .primary)
+                                }
+                            }
+                            .pickerStyle(.wheel)
+                            .frame(width: 100)
+                            .clipped()
+                            
+                            Text("sec")
+                                .foregroundColor(.gray)
+                        }
+                        .frame(height: 100)
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                    .background(Color.white)
+                    .cornerRadius(10)
+                    .shadow(radius: 2)
+                    
+                    // Existing preset intervals
                     ForEach($settings.presetIntervals) { $preset in
                         VStack(alignment: .leading, spacing: 8) {
                             Text(preset.formattedName)
@@ -166,12 +237,24 @@ struct SettingsView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Preset Intervals")
+            .navigationTitle("Settings")
             .navigationBarItems(trailing: Button("Done") {
+                // Save preheat duration when done
+                settings.preheatDuration = TimeInterval(preheatMinutes * 60 + preheatSeconds)
                 dismiss()
             })
+            .onAppear {
+                // Initialize pickers with current preheat duration
+                preheatMinutes = Int(settings.preheatDuration) / 60
+                preheatSeconds = Int(settings.preheatDuration) % 60
+            }
         }
     }
+}
+
+// Add this enum before the ContentView struct
+enum TimerType {
+    case regular, preheat
 }
 
 class AlertState: ObservableObject {
@@ -186,13 +269,37 @@ class AlertState: ObservableObject {
         }
     }
     
+    @Published var showPreheatAlert: Bool = false {
+        didSet {
+            print("PreheatAlertState changed from \(oldValue) to \(showPreheatAlert)")
+            if showPreheatAlert {
+                startHapticTimer()
+            } else if hapticTimer != nil {
+                stopHapticTimer()
+            }
+        }
+    }
+    
     private var hapticTimer: Timer?
     private let notificationGenerator = UINotificationFeedbackGenerator()
     private let heavyGenerator = UIImpactFeedbackGenerator(style: .heavy)
     private let mediumGenerator = UIImpactFeedbackGenerator(style: .medium)
     private var hapticCounter = 0
     
-    func startHapticTimer() {
+    init() {
+        // Initialize all properties
+        self.isPresented = false
+        self.showPreheatAlert = false
+        self.hapticCounter = 0
+        self.hapticTimer = nil
+        
+        // Prepare generators
+        notificationGenerator.prepare()
+        heavyGenerator.prepare()
+        mediumGenerator.prepare()
+    }
+    
+    private func startHapticTimer() {
         // Prepare generators
         notificationGenerator.prepare()
         heavyGenerator.prepare()
@@ -207,40 +314,26 @@ class AlertState: ObservableObject {
         }
     }
     
-    func stopHapticTimer() {
+    private func stopHapticTimer() {
         hapticTimer?.invalidate()
         hapticTimer = nil
         hapticCounter = 0
     }
     
     private func triggerHapticFeedback() {
-        switch hapticCounter % 3 {
-        case 0:
-            notificationGenerator.notificationOccurred(.error)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                self.heavyGenerator.impactOccurred(intensity: 1.0)
-            }
-        case 1:
-            heavyGenerator.impactOccurred(intensity: 1.0)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                self.heavyGenerator.impactOccurred(intensity: 1.0)
-            }
-        case 2:
-            mediumGenerator.impactOccurred(intensity: 1.0)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                self.notificationGenerator.notificationOccurred(.error)
-            }
-        default:
-            break
-        }
-        
         hapticCounter += 1
+        if hapticCounter % 2 == 0 {
+            heavyGenerator.impactOccurred()
+        } else {
+            mediumGenerator.impactOccurred()
+        }
     }
 }
 
 struct AlertView: View {
     @ObservedObject var alertState: AlertState
     let audioPlayer: AVAudioPlayer?
+    let isPreheat: Bool
     
     var body: some View {
         GeometryReader { geometry in
@@ -250,26 +343,43 @@ struct AlertView: View {
                     .onTapGesture {
                         print("Background tapped")
                         audioPlayer?.stop()
-                        alertState.isPresented = false
+                        if isPreheat {
+                            alertState.showPreheatAlert = false
+                        } else {
+                            alertState.isPresented = false
+                        }
                     }
                 
                 Button(action: {
                     print("Button tapped")
                     audioPlayer?.stop()
-                    alertState.isPresented = false
+                    if isPreheat {
+                        alertState.showPreheatAlert = false
+                    } else {
+                        alertState.isPresented = false
+                    }
                 }) {
-                    Text("Interval Complete!")
-                        .font(.system(size: 32, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
-                        .multilineTextAlignment(.center)
-                        .frame(width: 200, height: 200)
-                        .background(Color.red)
-                        .cornerRadius(20)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(Color.white, lineWidth: 3)
-                        )
-                        .shadow(radius: 10)
+                    VStack(spacing: 8) {
+                        if isPreheat {
+                            Text("Preheat")
+                                .font(.system(size: 40, weight: .bold, design: .rounded))
+                            Text("Complete! 🔥")
+                                .font(.system(size: 36, weight: .bold, design: .rounded))
+                        } else {
+                            Text("Interval Complete!")
+                                .font(.system(size: 32, weight: .bold, design: .rounded))
+                        }
+                    }
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .frame(width: 220, height: 220)
+                    .background(Color.red)
+                    .cornerRadius(20)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(Color.white, lineWidth: 3)
+                    )
+                    .shadow(radius: 10)
                 }
                 .buttonStyle(PlainButtonStyle())
             }
@@ -360,6 +470,7 @@ struct ContentView: View {
     @StateObject private var alertState = AlertState()
     @State private var isSettingTime = false
     @State private var showConfirmation = false
+    @State private var currentTimerType: TimerType = .regular
     
     // Replace the individual sheet state booleans with a single activeSheet optional
     @State private var activeSheet: ActiveSheet?
@@ -383,7 +494,26 @@ struct ContentView: View {
             .edgesIgnoringSafeArea(.all)
             
             VStack(spacing: 0) {
-                // Interval Timer - moved to the very top
+                // Settings Gear Icon - moved to the very top
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        activeSheet = .settings
+                    }) {
+                        Image(systemName: "gear")
+                            .font(.system(size: 24, weight: .semibold, design: .rounded))
+                            .foregroundColor(.white)
+                            .padding(8)
+                            .background(Color(hex: "#3B3B3B").opacity(0.7))
+                            .clipShape(Circle())
+                            .shadow(color: Color.black.opacity(0.2), radius: 3, x: 0, y: 2)
+                    }
+                    .buttonStyle(BouncyButtonStyle(id: UUID(), pressedButtonId: $pressedButtonId))
+                }
+                .padding(.horizontal)
+                .padding(.top, 5)
+                
+                // Interval Timer
                 VStack {
                     Text("Next Flip In")
                         .font(.system(size: 28, weight: .semibold, design: .rounded))
@@ -405,11 +535,8 @@ struct ContentView: View {
                         )
                         .shadow(radius: 5)
                 }
-                .padding(.top, 40)
+                .padding(.top, 1)
                 .padding(.bottom, 10)
-                
-                // Add a flexible spacer to push content down
-                Spacer()
                 
                 // Elapsed Timer
                 VStack(spacing: 2) {
@@ -422,13 +549,14 @@ struct ContentView: View {
                         .padding(.vertical, 4)
                         .foregroundColor(.white.opacity(0.9))
                 }
-                .padding(.top, 40)
+                .padding(.top, 10)
+                .padding(.bottom, 80)
                 
                 // Preset Intervals Grid
                 VStack(spacing: 30) {
-                    // Show just top 4 presets in a row
+                    // Show just top 2 presets in a row
                     HStack(spacing: 20) {
-                        ForEach(sortedPresets.prefix(4)) { preset in
+                        ForEach(sortedPresets.prefix(2)) { preset in
                             Button(action: {
                                 // Haptic feedback
                                 let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
@@ -441,10 +569,10 @@ struct ContentView: View {
                                 }
                             }) {
                                 Text(preset.displayName)
-                                    .font(.system(size: 20, weight: .semibold, design: .rounded))
+                                    .font(.system(size: 32, weight: .semibold, design: .rounded))
                                     .foregroundColor(.white)
                                     .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 16)
+                                    .padding(.vertical, 24)
                                     .background(
                                         // Gradient background instead of solid color
                                         LinearGradient(
@@ -489,40 +617,74 @@ struct ContentView: View {
                     .padding(.top, 15)
                     
                     // More button - styled as a card/popup tab
-                    Button(action: {
-                        activeSheet = .allPresets
-                    }) {
-                        HStack {
-                            Text("Explore More Times ⏲")
-                                .font(.system(size: 22, weight: .medium, design: .rounded))
-                                .foregroundColor(.white)
-                            
-                            Spacer()
-                            
-                            Image(systemName: "chevron.down")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.white.opacity(0.8))
-                                .padding(.trailing, 5)
+                    HStack(spacing: 15) {
+                        Button(action: {
+                            activeSheet = .allPresets
+                        }) {
+                            HStack {
+                                Text("Explore More Times ⏲")
+                                    .font(.system(size: 22, weight: .medium, design: .rounded))
+                                    .foregroundColor(.white)
+                                
+                                Spacer()
+                                
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundColor(.white.opacity(0.8))
+                                    .padding(.trailing, 5)
+                            }
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 16)
+                            .background(
+                                // Card background using 3B3B3B
+                                Color(hex: "#3B3B3B")
+                            )
+                            .overlay(
+                                // Top border highlight for card effect
+                                Rectangle()
+                                    .fill(Color.white.opacity(0.3))
+                                    .frame(height: 1)
+                                    .padding(.horizontal, 1),
+                                alignment: .top
+                            )
+                            .cornerRadius(15)
+                            // Card-like shadow
+                            .shadow(color: Color.black.opacity(0.25), radius: 6, x: 0, y: 3)
                         }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 16)
-                        .background(
-                            // Card background using 3B3B3B
-                            Color(hex: "#3B3B3B")
-                        )
-                        .overlay(
-                            // Top border highlight for card effect
-                            Rectangle()
-                                .fill(Color.white.opacity(0.3))
-                                .frame(height: 1)
-                                .padding(.horizontal, 1),
-                            alignment: .top
-                        )
-                        .cornerRadius(15)
-                        // Card-like shadow
-                        .shadow(color: Color.black.opacity(0.25), radius: 6, x: 0, y: 3)
+                        .buttonStyle(BouncyButtonStyle(id: UUID(), pressedButtonId: $pressedButtonId))
+                        
+                        // Preheat Timer Button
+                        Button(action: {
+                            currentTimerType = .preheat
+                            intervalTime = settings.preheatDuration
+                            elapsedTime = 0 // Reset elapsed timer
+                            if !isRunning {
+                                startTimer()
+                            }
+                        }) {
+                            Text("Preheat 🔥")
+                                .font(.system(size: 18, weight: .medium, design: .rounded))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 16)
+                                .background(
+                                    // Card background using 3B3B3B
+                                    Color(hex: "#3B3B3B")
+                                )
+                                .overlay(
+                                    // Top border highlight for card effect
+                                    Rectangle()
+                                        .fill(Color.white.opacity(0.3))
+                                        .frame(height: 1)
+                                        .padding(.horizontal, 1),
+                                    alignment: .top
+                                )
+                                .cornerRadius(15)
+                                // Card-like shadow
+                                .shadow(color: Color.black.opacity(0.25), radius: 6, x: 0, y: 3)
+                        }
+                        .buttonStyle(BouncyButtonStyle(id: UUID(), pressedButtonId: $pressedButtonId))
                     }
-                    .buttonStyle(BouncyButtonStyle(id: UUID(), pressedButtonId: $pressedButtonId))
                     .padding(.horizontal, 30)
                     .padding(.top, 15)
                     .padding(.bottom, 5)
@@ -591,12 +753,14 @@ struct ContentView: View {
             }
             .padding(.horizontal)
             
-            if alertState.isPresented {
-                AlertView(alertState: alertState, audioPlayer: audioPlayer)
+            if alertState.isPresented || alertState.showPreheatAlert {
+                AlertView(alertState: alertState, audioPlayer: audioPlayer, isPreheat: alertState.showPreheatAlert)
             }
         }
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
+            case .settings:
+                NewSettingsView(settings: settings)
             case .intervalInput:
                 VStack(spacing: 20) {
                     Text("Set Custom Interval")
@@ -689,12 +853,6 @@ struct ContentView: View {
                 }
                 .padding()
                 
-            case .settings:
-                SettingsView(settings: settings)
-                    .onDisappear {
-                        // We need to handle any special logic when the settings view disappears
-                    }
-                
             case .allPresets:
                 NavigationView {
                     ScrollView {
@@ -733,15 +891,6 @@ struct ContentView: View {
                                 activeSheet = nil
                             }
                         }
-                        ToolbarItem(placement: .navigationBarTrailing) {
-                            NavigationLink(destination: 
-                                SettingsView(settings: settings)
-                                    .navigationBarBackButtonHidden(false)
-                            ) {
-                                Image(systemName: "gear")
-                                    .font(.system(size: 20, weight: .semibold, design: .rounded))
-                            }
-                        }
                     }
                 }
             }
@@ -776,17 +925,18 @@ struct ContentView: View {
     private func startTimer() {
         isRunning = true
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            elapsedTime += 1
             if intervalTime > 0 {
                 intervalTime -= 1
-                if intervalTime == 0 {
-                    print("Timer reached zero")
-                    DispatchQueue.main.async {
-                        // Play sound
-                        playAlertSound()
-                        // Show alert (which will start continuous haptic feedback)
-                        alertState.isPresented = true
-                    }
+                elapsedTime += 1
+            } else {
+                stopTimer()
+                // Play sound and show appropriate alert
+                playSound()
+                if currentTimerType == .preheat {
+                    alertState.showPreheatAlert = true
+                    elapsedTime = 0 // Reset elapsed timer when preheat completes
+                } else {
+                    alertState.isPresented = true
                 }
             }
         }
@@ -798,7 +948,7 @@ struct ContentView: View {
         timer = nil
     }
     
-    private func playAlertSound() {
+    private func playSound() {
         audioPlayer?.currentTime = 0
         audioPlayer?.play()
     }
