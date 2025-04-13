@@ -9,6 +9,7 @@ struct NewSettingsView: View {
     @State private var showTimer2Preset1Picker = false
     @State private var showTimer2Preset2Picker = false
     @State private var showPreheatDurationPicker = false
+    @State private var showTimerManagement = false
     
     var body: some View {
         NavigationView {
@@ -109,6 +110,21 @@ struct NewSettingsView: View {
                     }
                 }
                 
+                // Add Timer Management Section
+                Section(header: Text("Manage Timers")) {
+                    NavigationLink(destination: TimerManagementView(settings: settings)) {
+                        HStack {
+                            Image(systemName: "timer")
+                                .foregroundColor(.blue)
+                            Text("Manage Additional Timers")
+                        }
+                    }
+                    
+                    Text("Add custom timers for different meats or cooking methods")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                }
+                
                 // Preheat Duration Section
                 Section(header: Text("Preheat Duration")) {
                     Button(action: {
@@ -139,11 +155,24 @@ struct NewSettingsView: View {
                     Toggle("Haptic Feedback", isOn: $settings.hapticsEnabled)
                 }
                 
+                // Accessibility Section
+                Section(header: Text("Accessibility")) {
+                    Toggle("Compact Display Mode", isOn: $settings.compactMode)
+                        .tint(.blue)
+                    
+                    if !settings.compactMode {
+                        Text("Large display mode enabled for better visibility")
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("Compact mode saves space for more timers")
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
                 // Future Features Section
                 Section(header: Text("Future Features")) {
-                    NavigationLink(destination: Text("Multiple timer profiles - Coming Soon")) {
-                        Text("Multiple Timer Profiles")
-                    }
                     NavigationLink(destination: Text("Custom alert sounds - Coming Soon")) {
                         Text("Custom Alert Sounds")
                     }
@@ -173,6 +202,183 @@ struct NewSettingsView: View {
             })
         }
     }
+}
+
+// Add TimerManagementView
+struct TimerManagementView: View {
+    @ObservedObject var settings: Settings
+    @State private var showingAddTimerSheet = false
+    @State private var newTimerName = ""
+    @State private var showPreset1Picker = false
+    @State private var showPreset2Picker = false
+    @State private var tempPreset1 = 60 // 1 minute default
+    @State private var tempPreset2 = 120 // 2 minutes default
+    @State private var editingTimerIndex: Int? = nil
+    
+    var body: some View {
+        List {
+            Section(header: Text("Additional Timers")) {
+                ForEach(settings.additionalTimers.indices, id: \.self) { index in
+                    timerRow(for: settings.additionalTimers[index], at: index)
+                }
+                .onDelete { indexSet in
+                    for index in indexSet {
+                        settings.removeTimer(at: index)
+                    }
+                }
+                
+                Button(action: {
+                    newTimerName = ""
+                    tempPreset1 = 60
+                    tempPreset2 = 120
+                    editingTimerIndex = nil
+                    showingAddTimerSheet = true
+                }) {
+                    HStack {
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundColor(.green)
+                        Text("Add New Timer")
+                    }
+                }
+            }
+            
+            if settings.additionalTimers.isEmpty {
+                Section {
+                    Text("Add custom timers for different meats or cooking methods")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                        .padding(.vertical, 8)
+                }
+            }
+        }
+        .navigationTitle("Manage Timers")
+        .sheet(isPresented: $showingAddTimerSheet) {
+            addTimerSheet
+        }
+        .sheet(isPresented: $showPreset1Picker) {
+            TimerPickerSheet(
+                title: "Preset 1",
+                seconds: $tempPreset1,
+                isPresented: $showPreset1Picker
+            )
+        }
+        .sheet(isPresented: $showPreset2Picker) {
+            TimerPickerSheet(
+                title: "Preset 2",
+                seconds: $tempPreset2,
+                isPresented: $showPreset2Picker
+            )
+        }
+    }
+    
+    private func timerRow(for timer: BBQTimer, at index: Int) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(timer.name)
+                    .font(.headline)
+                Spacer()
+                Button(action: {
+                    newTimerName = timer.name
+                    tempPreset1 = timer.preset1
+                    tempPreset2 = timer.preset2
+                    editingTimerIndex = index
+                    showingAddTimerSheet = true
+                }) {
+                    Image(systemName: "pencil")
+                        .foregroundColor(.blue)
+                }
+                .buttonStyle(BorderlessButtonStyle())
+                
+                Toggle("", isOn: Binding(
+                    get: { timer.isVisible },
+                    set: { newValue in
+                        settings.updateTimer(at: index, isVisible: newValue)
+                    }
+                ))
+                .labelsHidden()
+            }
+            
+            HStack {
+                Text("Presets:")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                Text(timeString(from: timer.preset1))
+                    .font(.subheadline)
+                Text("|")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                Text(timeString(from: timer.preset2))
+                    .font(.subheadline)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+    
+    private var addTimerSheet: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("Timer Details")) {
+                    TextField("Timer Name", text: $newTimerName)
+                        .autocapitalization(.words)
+                    
+                    Button(action: {
+                        showPreset1Picker = true
+                    }) {
+                        HStack {
+                            Text("Preset 1")
+                            Spacer()
+                            Text(timeString(from: tempPreset1))
+                                .foregroundColor(.gray)
+                        }
+                    }
+                    
+                    Button(action: {
+                        showPreset2Picker = true
+                    }) {
+                        HStack {
+                            Text("Preset 2")
+                            Spacer()
+                            Text(timeString(from: tempPreset2))
+                                .foregroundColor(.gray)
+                        }
+                    }
+                }
+            }
+            .navigationTitle(editingTimerIndex == nil ? "Add Timer" : "Edit Timer")
+            .navigationBarItems(
+                leading: Button("Cancel") {
+                    showingAddTimerSheet = false
+                },
+                trailing: Button("Save") {
+                    if newTimerName.isEmpty {
+                        newTimerName = "Timer \(settings.additionalTimers.count + 3)"
+                    }
+                    
+                    if let editIndex = editingTimerIndex {
+                        settings.updateTimer(
+                            at: editIndex,
+                            name: newTimerName,
+                            preset1: tempPreset1,
+                            preset2: tempPreset2
+                        )
+                    } else {
+                        settings.addTimer(
+                            name: newTimerName,
+                            preset1: tempPreset1,
+                            preset2: tempPreset2
+                        )
+                    }
+                    showingAddTimerSheet = false
+                }
+            )
+        }
+    }
+}
+
+func timeString(from seconds: Int) -> String {
+    let minutes = seconds / 60
+    let remainingSeconds = seconds % 60
+    return String(format: "%d:%02d", minutes, remainingSeconds)
 }
 
 struct TimerPickerSheet: View {
@@ -251,13 +457,6 @@ struct TimeTextField: View {
             text = String(format: "%d:%02d", minutes, secs)
         }
     }
-}
-
-// Helper function to convert seconds to formatted time string
-func timeString(from seconds: Int) -> String {
-    let minutes = seconds / 60
-    let secs = seconds % 60
-    return String(format: "%d:%02d", minutes, secs)
 }
 
 struct TimerPresetStylesPreview: View {
