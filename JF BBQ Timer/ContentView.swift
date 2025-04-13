@@ -662,7 +662,7 @@ struct ContentView: View {
                         Button(action: {
                             startPreheatTimer()
                         }) {
-                            Text("Start Preheat (\(timeString(from: TimeInterval(settings.preheatDuration))))")
+                            Text("Preheat Grill")
                                 .font(.system(size: 20, weight: .bold, design: .rounded))
                                 .foregroundColor(.white)
                                 .padding(.vertical, 12)
