@@ -7,6 +7,7 @@
 
 import SwiftUI
 import AVFoundation
+import UIKit
 
 struct PresetInterval: Identifiable, Codable {
     let id: UUID
@@ -41,70 +42,56 @@ struct PresetInterval: Identifiable, Codable {
 }
 
 class Settings: ObservableObject {
-    @Published var presetIntervals: [PresetInterval]
-    @Published var preheatDuration: TimeInterval {
-        didSet {
-            UserDefaults.standard.set(preheatDuration, forKey: "preheatDuration")
-        }
-    }
-    @Published var soundEnabled: Bool {
-        didSet {
-            UserDefaults.standard.set(soundEnabled, forKey: "soundEnabled")
-        }
-    }
-    @Published var hapticsEnabled: Bool {
-        didSet {
-            UserDefaults.standard.set(hapticsEnabled, forKey: "hapticsEnabled")
-        }
-    }
+    @Published var timer1Name: String
+    @Published var timer2Name: String
+    @Published var timer1Preset1: Int
+    @Published var timer1Preset2: Int
+    @Published var timer2Preset1: Int
+    @Published var timer2Preset2: Int
+    @Published var preheatDuration: Int
+    @Published var soundEnabled: Bool
+    @Published var hapticsEnabled: Bool
     
     init() {
         // Initialize all stored properties first
-        self.presetIntervals = []
-        self.preheatDuration = 900 // Default 15 minutes
-        self.soundEnabled = false
-        self.hapticsEnabled = false
-        
-        // Now we can safely use self
-        if let data = UserDefaults.standard.data(forKey: "presetIntervals"),
-           let decoded = try? JSONDecoder().decode([PresetInterval].self, from: data) {
-            print("Loading saved presets: \(decoded.count)")
-            // Ensure we never exceed 9 presets when loading
-            self.presetIntervals = Array(decoded.prefix(9))
-        } else {
-            print("Initializing with default presets")
-            // Initialize with 9 default presets
-            self.presetIntervals = [
-                PresetInterval(name: "1m", minutes: 1, seconds: 0),
-                PresetInterval(name: "2m", minutes: 2, seconds: 0),
-                PresetInterval(name: "5m", minutes: 5, seconds: 0),
-                PresetInterval(name: "10m", minutes: 10, seconds: 0),
-                PresetInterval(name: "15m", minutes: 15, seconds: 0),
-                PresetInterval(name: "20m", minutes: 20, seconds: 0),
-                PresetInterval(name: "30m", minutes: 30, seconds: 0),
-                PresetInterval(name: "45m", minutes: 45, seconds: 0),
-                PresetInterval(name: "1h", minutes: 60, seconds: 0)
-            ]
-            print("Default presets initialized: \(self.presetIntervals.count)")
-            
-            // Save initial presets
-            if let encoded = try? JSONEncoder().encode(self.presetIntervals) {
-                UserDefaults.standard.set(encoded, forKey: "presetIntervals")
-            }
-        }
-        
-        // Load other settings
-        self.preheatDuration = UserDefaults.standard.double(forKey: "preheatDuration") > 0 ? 
-            UserDefaults.standard.double(forKey: "preheatDuration") : 900 // Default 15 minutes
+        self.timer1Name = UserDefaults.standard.string(forKey: "timer1Name") ?? "Timer 1"
+        self.timer2Name = UserDefaults.standard.string(forKey: "timer2Name") ?? "Timer 2"
+        self.timer1Preset1 = UserDefaults.standard.integer(forKey: "timer1Preset1")
+        self.timer1Preset2 = UserDefaults.standard.integer(forKey: "timer1Preset2")
+        self.timer2Preset1 = UserDefaults.standard.integer(forKey: "timer2Preset1")
+        self.timer2Preset2 = UserDefaults.standard.integer(forKey: "timer2Preset2")
+        self.preheatDuration = UserDefaults.standard.integer(forKey: "preheatDuration")
         self.soundEnabled = UserDefaults.standard.bool(forKey: "soundEnabled")
         self.hapticsEnabled = UserDefaults.standard.bool(forKey: "hapticsEnabled")
+        
+        // Set default values if not previously set
+        if timer1Preset1 == 0 {
+            timer1Preset1 = 60 // 1 minute
+        }
+        if timer1Preset2 == 0 {
+            timer1Preset2 = 120 // 2 minutes
+        }
+        if timer2Preset1 == 0 {
+            timer2Preset1 = 180 // 3 minutes
+        }
+        if timer2Preset2 == 0 {
+            timer2Preset2 = 240 // 4 minutes
+        }
+        if preheatDuration == 0 {
+            preheatDuration = 900 // 15 minutes
+        }
     }
     
-    private func savePresets() {
-        print("Saving presets: \(presetIntervals.count)")
-        if let encoded = try? JSONEncoder().encode(presetIntervals) {
-            UserDefaults.standard.set(encoded, forKey: "presetIntervals")
-        }
+    func save() {
+        UserDefaults.standard.set(timer1Name, forKey: "timer1Name")
+        UserDefaults.standard.set(timer2Name, forKey: "timer2Name")
+        UserDefaults.standard.set(timer1Preset1, forKey: "timer1Preset1")
+        UserDefaults.standard.set(timer1Preset2, forKey: "timer1Preset2")
+        UserDefaults.standard.set(timer2Preset1, forKey: "timer2Preset1")
+        UserDefaults.standard.set(timer2Preset2, forKey: "timer2Preset2")
+        UserDefaults.standard.set(preheatDuration, forKey: "preheatDuration")
+        UserDefaults.standard.set(soundEnabled, forKey: "soundEnabled")
+        UserDefaults.standard.set(hapticsEnabled, forKey: "hapticsEnabled")
     }
 }
 
@@ -119,136 +106,6 @@ struct ButtonPreview: View {
             .padding(.vertical, 8)
             .background(Color.purple)
             .cornerRadius(8)
-    }
-}
-
-struct SettingsView: View {
-    @ObservedObject var settings: Settings
-    @Environment(\.dismiss) var dismiss
-    @State private var preheatMinutes: Int = 0
-    @State private var preheatSeconds: Int = 0
-    
-    var body: some View {
-        NavigationView {
-            ScrollView {
-                LazyVStack(spacing: 20) {
-                    // Preheat Timer Settings
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Preheat Timer Duration")
-                            .font(.system(.headline, design: .rounded))
-                            .foregroundColor(.gray)
-                        
-                        HStack(spacing: 20) {
-                            // Minutes Picker
-                            Picker("Minutes", selection: $preheatMinutes) {
-                                ForEach(0..<60) { minute in
-                                    Text("\(minute)")
-                                        .tag(minute)
-                                        .foregroundColor(preheatMinutes == minute ? .blue : .primary)
-                                }
-                            }
-                            .pickerStyle(.wheel)
-                            .frame(width: 100)
-                            .clipped()
-                            
-                            Text("min")
-                                .foregroundColor(.gray)
-                            
-                            // Seconds Picker
-                            Picker("Seconds", selection: $preheatSeconds) {
-                                ForEach(0..<60) { second in
-                                    Text("\(second)")
-                                        .tag(second)
-                                        .foregroundColor(preheatSeconds == second ? .blue : .primary)
-                                }
-                            }
-                            .pickerStyle(.wheel)
-                            .frame(width: 100)
-                            .clipped()
-                            
-                            Text("sec")
-                                .foregroundColor(.gray)
-                        }
-                        .frame(height: 100)
-                    }
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
-                    .background(Color.white)
-                    .cornerRadius(10)
-                    .shadow(radius: 2)
-                    
-                    // Existing preset intervals
-                    ForEach($settings.presetIntervals) { $preset in
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(preset.formattedName)
-                                .font(.system(.body, design: .rounded))
-                                .foregroundColor(.gray)
-                            
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Duration:")
-                                    .foregroundColor(.gray)
-                                
-                                HStack(spacing: 20) {
-                                    // Minutes Picker
-                                    Picker("Minutes", selection: $preset.minutes) {
-                                        ForEach(0..<60) { minute in
-                                            Text("\(minute)")
-                                                .tag(minute)
-                                                .foregroundColor(preset.minutes == minute ? .blue : .primary)
-                                        }
-                                    }
-                                    .pickerStyle(.wheel)
-                                    .frame(width: 100)
-                                    .clipped()
-                                    
-                                    Text("min")
-                                        .foregroundColor(.gray)
-                                    
-                                    // Seconds Picker
-                                    Picker("Seconds", selection: $preset.seconds) {
-                                        ForEach(0..<60) { second in
-                                            Text("\(second)")
-                                                .tag(second)
-                                                .foregroundColor(preset.seconds == second ? .blue : .primary)
-                                        }
-                                    }
-                                    .pickerStyle(.wheel)
-                                    .frame(width: 100)
-                                    .clipped()
-                                    
-                                    Text("sec")
-                                        .foregroundColor(.gray)
-                                }
-                                .frame(height: 100)
-                            }
-                            
-                            Text("Preview:")
-                                .font(.system(.caption, design: .rounded))
-                                .foregroundColor(.gray)
-                            
-                            ButtonPreview(preset: preset)
-                        }
-                        .padding(.horizontal)
-                        .padding(.vertical, 8)
-                        .background(Color.white)
-                        .cornerRadius(10)
-                        .shadow(radius: 2)
-                    }
-                }
-                .padding()
-            }
-            .navigationTitle("Settings")
-            .navigationBarItems(trailing: Button("Done") {
-                // Save preheat duration when done
-                settings.preheatDuration = TimeInterval(preheatMinutes * 60 + preheatSeconds)
-                dismiss()
-            })
-            .onAppear {
-                // Initialize pickers with current preheat duration
-                preheatMinutes = Int(settings.preheatDuration) / 60
-                preheatSeconds = Int(settings.preheatDuration) % 60
-            }
-        }
     }
 }
 
@@ -458,506 +315,446 @@ struct PulsatingButtonStyle: ButtonStyle {
     }
 }
 
+// Remove the duplicate NewSettingsView declaration and keep only the most complete version
 struct ContentView: View {
-    @State private var elapsedTime: TimeInterval = 0
-    @State private var intervalTime: TimeInterval = 0
-    @State private var timer: Timer?
-    @State private var isRunning = false
-    @State private var selectedMinutes = 0
-    @State private var selectedSeconds = 0
-    @State private var audioPlayer: AVAudioPlayer?
     @StateObject private var settings = Settings()
+    @State private var showSettings = false
+    
+    // Timer 1 State
+    @State private var timer1IntervalTime: TimeInterval = 0
+    @State private var timer1ElapsedTime: TimeInterval = 0
+    @State private var timer1: Timer?
+    @State private var isTimer1Running = false
+    
+    // Timer 2 State
+    @State private var timer2IntervalTime: TimeInterval = 0
+    @State private var timer2ElapsedTime: TimeInterval = 0
+    @State private var timer2: Timer?
+    @State private var isTimer2Running = false
+    
+    // Alert State
     @StateObject private var alertState = AlertState()
-    @State private var isSettingTime = false
-    @State private var showConfirmation = false
-    @State private var currentTimerType: TimerType = .regular
     
-    // Replace the individual sheet state booleans with a single activeSheet optional
-    @State private var activeSheet: ActiveSheet?
-    @State private var pressedButtonId: UUID? // Track which button is being pressed
+    // Preheat Timer State
+    @State private var showPreheatAlert = false
+    @State private var preheatTimeRemaining: TimeInterval = 0
+    @State private var preheatTimer: Timer?
     
-    var sortedPresets: [PresetInterval] {
-        settings.presetIntervals.sorted { $0.totalSeconds < $1.totalSeconds }
-    }
-    
-    var body: some View {
-        ZStack {
-            // Background gradient with #2E2E2E base
-            LinearGradient(
-                gradient: Gradient(colors: [
-                    Color(red: 0.7, green: 0.55, blue: 0.45), // Brown/bronze at top
-                    Color(hex: "#2E2E2E")   // Dark gray at bottom (#2E2E2E)
-                ]),
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .edgesIgnoringSafeArea(.all)
-            
-            VStack(spacing: 0) {
-                // Settings Gear Icon - moved to the very top
-                HStack {
-                    Spacer()
-                    Button(action: {
-                        activeSheet = .settings
-                    }) {
-                        Image(systemName: "gear")
-                            .font(.system(size: 24, weight: .semibold, design: .rounded))
-                            .foregroundColor(.white)
-                            .padding(8)
-                            .background(Color(hex: "#3B3B3B").opacity(0.7))
-                            .clipShape(Circle())
-                            .shadow(color: Color.black.opacity(0.2), radius: 3, x: 0, y: 2)
-                    }
-                    .buttonStyle(BouncyButtonStyle(id: UUID(), pressedButtonId: $pressedButtonId))
-                }
-                .padding(.horizontal)
-                .padding(.top, 5)
-                
-                // Interval Timer
-                VStack {
-                    Text("Next Flip In")
-                        .font(.system(size: 28, weight: .semibold, design: .rounded))
-                    Text(timeString(from: intervalTime))
-                        .font(.system(size: 72, weight: .heavy, design: .rounded))
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .foregroundColor(.white)
-                        .background(
-                            Color(hex: "#3B3B3B")
-                                .overlay(
-                                    Color(hex: "#FF6A00").opacity(0.2)
-                                )
-                        )
-                        .cornerRadius(20)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(Color.white, lineWidth: 2)
-                        )
-                        .shadow(radius: 5)
-                }
-                .padding(.top, 1)
-                .padding(.bottom, 10)
-                
-                // Elapsed Timer
-                VStack(spacing: 2) {
-                    Text("Time Since You Lit It 🔥")
-                        .font(.system(size: 18, weight: .medium, design: .rounded))
-                        .foregroundColor(.white.opacity(0.9))
-                    Text(timeString(from: elapsedTime))
-                        .font(.system(size: 36, weight: .bold, design: .rounded))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 4)
-                        .foregroundColor(.white.opacity(0.9))
-                }
-                .padding(.top, 10)
-                .padding(.bottom, 80)
-                
-                // Preset Intervals Grid
-                VStack(spacing: 30) {
-                    // Show just top 2 presets in a row
-                    HStack(spacing: 20) {
-                        ForEach(sortedPresets.prefix(2)) { preset in
-                            Button(action: {
-                                // Haptic feedback
-                                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-                                impactFeedback.impactOccurred()
-                                
-                                // Set timer
-                                intervalTime = preset.totalSeconds
-                                if !isRunning {
-                                    startTimer()
-                                }
-                            }) {
-                                Text(preset.displayName)
-                                    .font(.system(size: 32, weight: .semibold, design: .rounded))
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 24)
-                                    .background(
-                                        // Gradient background instead of solid color
-                                        LinearGradient(
-                                            gradient: Gradient(colors: [
-                                                (intervalTime == preset.totalSeconds ? Color(hex: "#FF6A00").opacity(0.9) : Color(hex: "#7C4DFF").opacity(0.8)),
-                                                (intervalTime == preset.totalSeconds ? Color(hex: "#FF6A00").opacity(0.7) : Color(hex: "#7C4DFF").opacity(0.6))
-                                            ]),
-                                            startPoint: .top,
-                                            endPoint: .bottom
-                                        )
-                                        .opacity(isRunning && intervalTime > 0 ? 0.7 : 1.0)
-                                    )
-                                    // Add a subtle blur for glassmorphism
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .fill(Color.white.opacity(0.1))
-                                            .blur(radius: 1)
-                                    )
-                                    .cornerRadius(12)
-                                    // Overlay to create a glass-like border
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke(
-                                                LinearGradient(
-                                                    gradient: Gradient(colors: [
-                                                        Color.white.opacity(0.6),
-                                                        Color.white.opacity(0.2)
-                                                    ]),
-                                                    startPoint: .topLeading,
-                                                    endPoint: .bottomTrailing
-                                                ),
-                                                lineWidth: 1.5
-                                            )
-                                    )
-                                    // Add shadow for depth
-                                    .shadow(color: Color.black.opacity(0.2), radius: 5, x: 0, y: 3)
-                            }
-                            .buttonStyle(BouncyButtonStyle(id: preset.id, pressedButtonId: $pressedButtonId))
-                            .disabled(isRunning && intervalTime > 0)
-                        }
-                    }
-                    .padding(.top, 15)
-                    
-                    // More button - styled as a card/popup tab
-                    HStack(spacing: 15) {
-                        Button(action: {
-                            activeSheet = .allPresets
-                        }) {
-                            HStack {
-                                Text("Explore More Times ⏲")
-                                    .font(.system(size: 22, weight: .medium, design: .rounded))
-                                    .foregroundColor(.white)
-                                
-                                Spacer()
-                                
-                                Image(systemName: "chevron.down")
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundColor(.white.opacity(0.8))
-                                    .padding(.trailing, 5)
-                            }
-                            .padding(.horizontal, 20)
-                            .padding(.vertical, 16)
-                            .background(
-                                // Card background using 3B3B3B
-                                Color(hex: "#3B3B3B")
-                            )
-                            .overlay(
-                                // Top border highlight for card effect
-                                Rectangle()
-                                    .fill(Color.white.opacity(0.3))
-                                    .frame(height: 1)
-                                    .padding(.horizontal, 1),
-                                alignment: .top
-                            )
-                            .cornerRadius(15)
-                            // Card-like shadow
-                            .shadow(color: Color.black.opacity(0.25), radius: 6, x: 0, y: 3)
-                        }
-                        .buttonStyle(BouncyButtonStyle(id: UUID(), pressedButtonId: $pressedButtonId))
-                        
-                        // Preheat Timer Button
-                        Button(action: {
-                            currentTimerType = .preheat
-                            intervalTime = settings.preheatDuration
-                            elapsedTime = 0 // Reset elapsed timer
-                            if !isRunning {
-                                startTimer()
-                            }
-                        }) {
-                            Text("Preheat 🔥")
-                                .font(.system(size: 18, weight: .medium, design: .rounded))
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 16)
-                                .background(
-                                    // Card background using 3B3B3B
-                                    Color(hex: "#3B3B3B")
-                                )
-                                .overlay(
-                                    // Top border highlight for card effect
-                                    Rectangle()
-                                        .fill(Color.white.opacity(0.3))
-                                        .frame(height: 1)
-                                        .padding(.horizontal, 1),
-                                    alignment: .top
-                                )
-                                .cornerRadius(15)
-                                // Card-like shadow
-                                .shadow(color: Color.black.opacity(0.25), radius: 6, x: 0, y: 3)
-                        }
-                        .buttonStyle(BouncyButtonStyle(id: UUID(), pressedButtonId: $pressedButtonId))
-                    }
-                    .padding(.horizontal, 30)
-                    .padding(.top, 15)
-                    .padding(.bottom, 5)
-                    
-                    // Reset buttons row - dark gray as in the image
-                    HStack(spacing: 15) {
-                        // Reset Elapsed Button
-                        Button(action: {
-                            elapsedTime = 0
-                        }) {
-                            Text("Reset Elapsed")
-                                .font(.system(size: 18, weight: .medium, design: .rounded))
-                                .foregroundColor(.white)
-                                .frame(width: 150, height: 44)
-                                .background(Color(hex: "#3B3B3B"))
-                                .cornerRadius(15)
-                                .shadow(color: Color.black.opacity(0.2), radius: 3, x: 0, y: 2)
-                        }
-                        .buttonStyle(BouncyButtonStyle(id: UUID(), pressedButtonId: $pressedButtonId))
-                        
-                        // Reset Interval Button
-                        Button(action: {
-                            intervalTime = 0
-                        }) {
-                            Text("Reset Interval")
-                                .font(.system(size: 18, weight: .medium, design: .rounded))
-                                .foregroundColor(.white)
-                                .frame(width: 150, height: 44)
-                                .background(Color(hex: "#3B3B3B"))
-                                .cornerRadius(15)
-                                .shadow(color: Color.black.opacity(0.2), radius: 3, x: 0, y: 2)
-                        }
-                        .buttonStyle(BouncyButtonStyle(id: UUID(), pressedButtonId: $pressedButtonId))
-                    }
-                    .padding(.top, 10)
-                    
-                    // Start/Stop Button - blue as in the image
-                    Button(action: {
-                        if isRunning {
-                            stopTimer()
-                        } else {
-                            startTimer()
-                        }
-                    }) {
-                        Text(isRunning ? "Stop" : "Start")
-                            .font(.system(size: 36, weight: .medium, design: .rounded))
-                            .foregroundColor(.white)
-                            .padding()
-                            .frame(width: 250, height: 70)
-                            .background(isRunning ? Color(hex: "#D72638") : Color(hex: "#FF6A00"))
-                            .cornerRadius(35)
-                            .shadow(color: Color.black.opacity(0.3), radius: 5, x: 0, y: 3)
-                            // Add a subtle pulsing animation when not running
-                            .overlay(
-                                Circle()
-                                    .stroke(Color.white.opacity(0.5), lineWidth: 2)
-                                    .scaleEffect(!isRunning ? 1.04 : 1.0)
-                                    .opacity(!isRunning ? 0.6 : 0)
-                                    .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: isRunning)
-                            )
-                    }
-                    .buttonStyle(PulsatingButtonStyle(id: UUID(), pressedButtonId: $pressedButtonId))
-                    .padding(.top, 20)
-                    .padding(.bottom)
-                }
-            }
-            .padding(.horizontal)
-            
-            if alertState.isPresented || alertState.showPreheatAlert {
-                AlertView(alertState: alertState, audioPlayer: audioPlayer, isPreheat: alertState.showPreheatAlert)
-            }
-        }
-        .sheet(item: $activeSheet) { sheet in
-            switch sheet {
-            case .settings:
-                NewSettingsView(settings: settings)
-            case .intervalInput:
-                VStack(spacing: 20) {
-                    Text("Set Custom Interval")
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
-                    
-                    // Preview of selected time
-                    Text(timeString(from: TimeInterval(selectedMinutes * 60 + selectedSeconds)))
-                        .font(.system(size: 36, weight: .bold, design: .rounded))
-                        .foregroundColor(.blue)
-                        .padding()
-                        .background(Color.blue.opacity(0.1))
-                        .cornerRadius(10)
-                    
-                    HStack(spacing: 20) {
-                        // Minutes Picker
-                        Picker("Minutes", selection: $selectedMinutes) {
-                            ForEach(0..<60) { minute in
-                                Text("\(minute)")
-                                    .tag(minute)
-                                    .foregroundColor(selectedMinutes == minute ? .blue : .primary)
-                            }
-                        }
-                        .pickerStyle(.wheel)
-                        .frame(width: 100)
-                        .clipped()
-                        
-                        Text("min")
-                            .font(.system(size: 18, weight: .semibold, design: .rounded))
-                        
-                        // Seconds Picker
-                        Picker("Seconds", selection: $selectedSeconds) {
-                            ForEach(0..<60) { second in
-                                Text("\(second)")
-                                    .tag(second)
-                                    .foregroundColor(selectedSeconds == second ? .blue : .primary)
-                            }
-                        }
-                        .pickerStyle(.wheel)
-                        .frame(width: 100)
-                        .clipped()
-                        
-                        Text("sec")
-                            .font(.system(size: 18, weight: .semibold, design: .rounded))
-                    }
-                    .frame(height: 100)
-                    
-                    HStack(spacing: 20) {
-                        Button("Cancel") {
-                            activeSheet = nil
-                        }
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
-                        .foregroundColor(.white)
-                        .padding()
-                        .frame(width: 100)
-                        .background(Color.gray)
-                        .cornerRadius(8)
-                        
-                        Button("Set") {
-                            withAnimation {
-                                isSettingTime = true
-                                showConfirmation = true
-                            }
-                            
-                            // Add haptic feedback
-                            let generator = UINotificationFeedbackGenerator()
-                            generator.notificationOccurred(.success)
-                            
-                            // Set the time after a brief delay
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                intervalTime = TimeInterval(selectedMinutes * 60 + selectedSeconds)
-                                activeSheet = nil
-                            }
-                        }
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
-                        .foregroundColor(.white)
-                        .padding()
-                        .frame(width: 100)
-                        .background(Color.blue)
-                        .cornerRadius(8)
-                        .scaleEffect(isSettingTime ? 1.1 : 1.0)
-                        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isSettingTime)
-                    }
-                    
-                    if showConfirmation {
-                        Text("Time Set!")
-                            .font(.system(size: 16, weight: .semibold, design: .rounded))
-                            .foregroundColor(.green)
-                            .transition(.opacity)
-                    }
-                }
-                .padding()
-                
-            case .allPresets:
-                NavigationView {
-                    ScrollView {
-                        VStack(spacing: 15) {
-                            LazyVGrid(columns: [
-                                GridItem(.flexible()),
-                                GridItem(.flexible())
-                            ], spacing: 15) {
-                                ForEach(sortedPresets) { preset in
-                                    Button(action: {
-                                        intervalTime = preset.totalSeconds
-                                        if !isRunning {
-                                            startTimer()
-                                        }
-                                        activeSheet = nil
-                                    }) {
-                                        Text(preset.displayName)
-                                            .font(.system(size: 20, weight: .semibold, design: .rounded))
-                                            .foregroundColor(.white)
-                                            .frame(maxWidth: .infinity)
-                                            .padding(.vertical, 16)
-                                            .background(
-                                                intervalTime == preset.totalSeconds ? Color.orange : Color.purple
-                                            )
-                                            .cornerRadius(8)
-                                    }
-                                }
-                            }
-                        }
-                        .padding()
-                    }
-                    .navigationTitle("All Presets")
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarLeading) {
-                            Button("Done") {
-                                activeSheet = nil
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        .onAppear {
-            setupAudioPlayer()
-        }
-    }
-    
-    private func setupAudioPlayer() {
-        // Configure audio session
-        do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
-            try AVAudioSession.sharedInstance().setActive(true)
-        } catch {
-            print("Error setting up audio session: \(error.localizedDescription)")
-        }
-        
-        guard let soundURL = Bundle.main.url(forResource: "beep", withExtension: "mp3") else {
-            print("Sound file not found")
-            return
-        }
-        
-        do {
-            audioPlayer = try AVAudioPlayer(contentsOf: soundURL)
-            audioPlayer?.prepareToPlay()
-        } catch {
-            print("Error setting up audio player: \(error.localizedDescription)")
-        }
-    }
-    
-    private func startTimer() {
-        isRunning = true
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-            if intervalTime > 0 {
-                intervalTime -= 1
-                elapsedTime += 1
+    private func startTimer1() {
+        timer1?.invalidate()
+        timer1 = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            if timer1IntervalTime > 0 {
+                timer1IntervalTime -= 1
+                timer1ElapsedTime += 1
             } else {
-                stopTimer()
-                // Play sound and show appropriate alert
-                playSound()
-                if currentTimerType == .preheat {
-                    alertState.showPreheatAlert = true
-                    elapsedTime = 0 // Reset elapsed timer when preheat completes
-                } else {
+                stopTimer1()
+                if settings.soundEnabled {
+                    playSound()
+                }
+                if settings.hapticsEnabled {
+                    alertState.isPresented = true
+                }
+            }
+        }
+        isTimer1Running = true
+    }
+    
+    private func stopTimer1() {
+        timer1?.invalidate()
+        timer1 = nil
+        isTimer1Running = false
+    }
+    
+    private func startTimer2() {
+        timer2?.invalidate()
+        timer2 = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            if timer2IntervalTime > 0 {
+                timer2IntervalTime -= 1
+                timer2ElapsedTime += 1
+            } else {
+                stopTimer2()
+                if settings.soundEnabled {
+                    playSound()
+                }
+                if settings.hapticsEnabled {
+                    alertState.isPresented = true
+                }
+            }
+        }
+        isTimer2Running = true
+    }
+    
+    private func stopTimer2() {
+        timer2?.invalidate()
+        timer2 = nil
+        isTimer2Running = false
+    }
+    
+    private func startPreheatTimer() {
+        preheatTimer?.invalidate()
+        preheatTimeRemaining = TimeInterval(settings.preheatDuration)
+        showPreheatAlert = true
+        
+        preheatTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            if preheatTimeRemaining > 0 {
+                preheatTimeRemaining -= 1
+            } else {
+                stopPreheatTimer()
+                if settings.soundEnabled {
+                    playSound()
+                }
+                if settings.hapticsEnabled {
                     alertState.isPresented = true
                 }
             }
         }
     }
     
-    private func stopTimer() {
-        isRunning = false
-        timer?.invalidate()
-        timer = nil
+    private func stopPreheatTimer() {
+        preheatTimer?.invalidate()
+        preheatTimer = nil
     }
     
     private func playSound() {
-        audioPlayer?.currentTime = 0
-        audioPlayer?.play()
+        AudioServicesPlaySystemSound(1005)
     }
     
     private func timeString(from timeInterval: TimeInterval) -> String {
-        let hours = Int(timeInterval) / 3600
-        let minutes = Int(timeInterval) / 60 % 60
+        let minutes = Int(timeInterval) / 60
         let seconds = Int(timeInterval) % 60
-        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+        return String(format: "%02d:%02d", minutes, seconds)
+    }
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 16) {
+                    // Settings Button
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            showSettings = true
+                        }) {
+                            Image(systemName: "gear")
+                                .font(.system(size: 24))
+                                .foregroundColor(.gray)
+                                .padding(.horizontal)
+                                .padding(.top, 8)
+                        }
+                    }
+                    
+                    // Timer 1 Section
+                    VStack(spacing: 12) {
+                        Text(settings.timer1Name)
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                        
+                        // Interval Timer Display
+                        VStack(spacing: 4) {
+                            Text("Next Flip In")
+                                .font(.system(.caption, design: .rounded))
+                                .foregroundColor(.gray)
+                            Text(timeString(from: timer1IntervalTime))
+                                .font(.system(size: 48, weight: .bold, design: .rounded))
+                        }
+                        
+                        // Elapsed Timer Display
+                        VStack(spacing: 4) {
+                            Text("Time Since You Lit It 🔥")
+                                .font(.system(.caption, design: .rounded))
+                                .foregroundColor(.gray)
+                            Text(timeString(from: timer1ElapsedTime))
+                                .font(.system(size: 24, weight: .medium, design: .rounded))
+                        }
+                        
+                        // Timer 1 Preset Buttons
+                        HStack(spacing: 12) {
+                            Button(action: {
+                                timer1IntervalTime = TimeInterval(settings.timer1Preset1)
+                                stopTimer1()
+                                startTimer1()
+                            }) {
+                                Text(timeString(from: TimeInterval(settings.timer1Preset1)))
+                                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                                    .foregroundColor(.white)
+                                    .padding(.vertical, 16)
+                                    .frame(maxWidth: .infinity)
+                                    .background(
+                                        LinearGradient(
+                                            gradient: Gradient(colors: [Color.purple, Color.blue]),
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .cornerRadius(12)
+                                    .shadow(radius: 5)
+                            }
+                            
+                            Button(action: {
+                                timer1IntervalTime = TimeInterval(settings.timer1Preset2)
+                                stopTimer1()
+                                startTimer1()
+                            }) {
+                                Text(timeString(from: TimeInterval(settings.timer1Preset2)))
+                                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                                    .foregroundColor(.white)
+                                    .padding(.vertical, 16)
+                                    .frame(maxWidth: .infinity)
+                                    .background(
+                                        LinearGradient(
+                                            gradient: Gradient(colors: [Color.purple, Color.blue]),
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .cornerRadius(12)
+                                    .shadow(radius: 5)
+                            }
+                        }
+                        
+                        // Timer 1 Control Buttons
+                        HStack(spacing: 12) {
+                            Button(action: {
+                                timer1IntervalTime = 0
+                                timer1ElapsedTime = 0
+                                stopTimer1()
+                            }) {
+                                Text("Reset")
+                                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                                    .foregroundColor(.white)
+                                    .padding(.vertical, 8)
+                                    .frame(maxWidth: .infinity)
+                                    .background(Color.red)
+                                    .cornerRadius(12)
+                            }
+                            
+                            Button(action: {
+                                if isTimer1Running {
+                                    stopTimer1()
+                                } else {
+                                    startTimer1()
+                                }
+                            }) {
+                                Text(isTimer1Running ? "Stop" : "Start")
+                                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                                    .foregroundColor(.white)
+                                    .padding(.vertical, 8)
+                                    .frame(maxWidth: .infinity)
+                                    .background(isTimer1Running ? Color.red : Color.green)
+                                    .cornerRadius(12)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color.white)
+                    .cornerRadius(16)
+                    .shadow(radius: 5)
+                    
+                    // Timer 2 Section
+                    VStack(spacing: 12) {
+                        Text(settings.timer2Name)
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                        
+                        // Interval Timer Display
+                        VStack(spacing: 4) {
+                            Text("Next Flip In")
+                                .font(.system(.caption, design: .rounded))
+                                .foregroundColor(.gray)
+                            Text(timeString(from: timer2IntervalTime))
+                                .font(.system(size: 48, weight: .bold, design: .rounded))
+                        }
+                        
+                        // Elapsed Timer Display
+                        VStack(spacing: 4) {
+                            Text("Time Since You Lit It 🔥")
+                                .font(.system(.caption, design: .rounded))
+                                .foregroundColor(.gray)
+                            Text(timeString(from: timer2ElapsedTime))
+                                .font(.system(size: 24, weight: .medium, design: .rounded))
+                        }
+                        
+                        // Timer 2 Preset Buttons
+                        HStack(spacing: 12) {
+                            Button(action: {
+                                timer2IntervalTime = TimeInterval(settings.timer2Preset1)
+                                stopTimer2()
+                                startTimer2()
+                            }) {
+                                Text(timeString(from: TimeInterval(settings.timer2Preset1)))
+                                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                                    .foregroundColor(.white)
+                                    .padding(.vertical, 16)
+                                    .frame(maxWidth: .infinity)
+                                    .background(
+                                        LinearGradient(
+                                            gradient: Gradient(colors: [Color.purple, Color.blue]),
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .cornerRadius(12)
+                                    .shadow(radius: 5)
+                            }
+                            
+                            Button(action: {
+                                timer2IntervalTime = TimeInterval(settings.timer2Preset2)
+                                stopTimer2()
+                                startTimer2()
+                            }) {
+                                Text(timeString(from: TimeInterval(settings.timer2Preset2)))
+                                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                                    .foregroundColor(.white)
+                                    .padding(.vertical, 16)
+                                    .frame(maxWidth: .infinity)
+                                    .background(
+                                        LinearGradient(
+                                            gradient: Gradient(colors: [Color.purple, Color.blue]),
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .cornerRadius(12)
+                                    .shadow(radius: 5)
+                            }
+                        }
+                        
+                        // Timer 2 Control Buttons
+                        HStack(spacing: 12) {
+                            Button(action: {
+                                timer2IntervalTime = 0
+                                timer2ElapsedTime = 0
+                                stopTimer2()
+                            }) {
+                                Text("Reset")
+                                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                                    .foregroundColor(.white)
+                                    .padding(.vertical, 8)
+                                    .frame(maxWidth: .infinity)
+                                    .background(Color.red)
+                                    .cornerRadius(12)
+                            }
+                            
+                            Button(action: {
+                                if isTimer2Running {
+                                    stopTimer2()
+                                } else {
+                                    startTimer2()
+                                }
+                            }) {
+                                Text(isTimer2Running ? "Stop" : "Start")
+                                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                                    .foregroundColor(.white)
+                                    .padding(.vertical, 8)
+                                    .frame(maxWidth: .infinity)
+                                    .background(isTimer2Running ? Color.red : Color.green)
+                                    .cornerRadius(12)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color.white)
+                    .cornerRadius(16)
+                    .shadow(radius: 5)
+                    
+                    // Preheat Button
+                    VStack(spacing: 12) {
+                        Button(action: {
+                            startPreheatTimer()
+                        }) {
+                            Text("Start Preheat (\(timeString(from: TimeInterval(settings.preheatDuration))))")
+                                .font(.system(size: 20, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                                .padding(.vertical, 12)
+                                .frame(maxWidth: .infinity)
+                                .background(Color.orange)
+                                .cornerRadius(12)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color.white)
+                    .cornerRadius(16)
+                    .shadow(radius: 5)
+                }
+                .padding(.horizontal, 12)
+                .padding(.bottom, 16)
+            }
+            .background(Color(.systemGray6))
+            .sheet(isPresented: $showSettings) {
+                NewSettingsView(settings: settings)
+            }
+            .overlay(
+                Group {
+                    if alertState.isPresented {
+                        AlertView(alertState: alertState, audioPlayer: nil, isPreheat: false)
+                    }
+                    
+                    if showPreheatAlert {
+                        PreheatAlertView(
+                            timeRemaining: preheatTimeRemaining,
+                            isPresented: $showPreheatAlert,
+                            onDismiss: {
+                                stopPreheatTimer()
+                                showPreheatAlert = false
+                            }
+                        )
+                    }
+                }
+            )
+        }
+    }
+}
+
+struct PreheatAlertView: View {
+    let timeRemaining: TimeInterval
+    @Binding var isPresented: Bool
+    var onDismiss: () -> Void
+    
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.4)
+                .edgesIgnoringSafeArea(.all)
+                .onTapGesture {
+                    onDismiss()
+                }
+            
+            VStack(spacing: 20) {
+                Text("Preheat in Progress")
+                    .font(.system(size: 22, weight: .bold))
+                
+                Text("Time until grill is ready:")
+                    .font(.system(size: 16))
+                    .foregroundColor(.secondary)
+                
+                Text(timeString(from: timeRemaining))
+                    .font(.system(size: 48, weight: .bold))
+                    .padding(.vertical, 10)
+                
+                Button(action: {
+                    onDismiss()
+                }) {
+                    Text("Cancel")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(.vertical, 12)
+                        .frame(width: 120)
+                        .background(Color.red)
+                        .cornerRadius(10)
+                }
+                .padding(.top, 10)
+            }
+            .padding(25)
+            .background(Color.white)
+            .cornerRadius(16)
+            .shadow(radius: 10)
+        }
+    }
+    
+    private func timeString(from timeInterval: TimeInterval) -> String {
+        let minutes = Int(timeInterval) / 60
+        let seconds = Int(timeInterval) % 60
+        return String(format: "%02d:%02d", minutes, seconds)
     }
 }
 
