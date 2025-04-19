@@ -318,7 +318,7 @@ struct AlertView: View {
                         if isPreheat {
                             alertState.showPreheatAlert = false
                         } else {
-                            alertState.isPresented = false
+                        alertState.isPresented = false
                         }
                     }
                 
@@ -328,7 +328,7 @@ struct AlertView: View {
                     if isPreheat {
                         alertState.showPreheatAlert = false
                     } else {
-                        alertState.isPresented = false
+                    alertState.isPresented = false
                     }
                 }) {
                     VStack(spacing: 8) {
@@ -338,20 +338,20 @@ struct AlertView: View {
                             Text("Complete! 🔥")
                                 .font(.system(size: 36, weight: .bold, design: .rounded))
                         } else {
-                            Text("Interval Complete!")
-                                .font(.system(size: 32, weight: .bold, design: .rounded))
+                    Text("Interval Complete!")
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
                         }
                     }
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
                     .frame(width: 220, height: 220)
-                    .background(Color.red)
-                    .cornerRadius(20)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(Color.white, lineWidth: 3)
-                    )
-                    .shadow(radius: 10)
+                        .background(Color.red)
+                        .cornerRadius(20)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(Color.white, lineWidth: 3)
+                        )
+                        .shadow(radius: 10)
                 }
                 .buttonStyle(PlainButtonStyle())
             }
@@ -435,16 +435,9 @@ struct CompactTimerView: View {
     let name: String
     let preset1: TimeInterval
     let preset2: TimeInterval
-    @Binding var intervalTime: TimeInterval
-    @Binding var elapsedTime: TimeInterval
-    @Binding var isRunning: Bool
-    let onStartStop: () -> Void
-    let onReset: () -> Void
-    let onPreset1Tap: () -> Void
-    let onPreset2Tap: () -> Void
-    
-    // For button animations
-    @State private var pressedButtonId: UUID?
+    @ObservedObject var state: TimerState // Direct state reference instead of bindings
+    var settings: Settings
+    var alertState: AlertState
     
     private func timeString(from timeInterval: TimeInterval) -> String {
         let minutes = Int(timeInterval) / 60
@@ -453,114 +446,160 @@ struct CompactTimerView: View {
     }
     
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 4) {
             // Header with timer name
             HStack {
                 Text(name)
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
                 Spacer()
             }
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 6)
             
-            // Main timer display and controls in a horizontal layout
-            HStack(alignment: .top, spacing: 10) {
-                // Left side: timer displays
-                VStack(alignment: .leading, spacing: 6) {
-                    // Interval timer
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text("Next Flip:")
-                            .font(.system(size: 16, weight: .semibold, design: .rounded))
-                            .foregroundColor(.blue)
-                        Text(timeString(from: intervalTime))
-                            .font(.system(size: 38, weight: .bold, design: .rounded))
-                    }
-                    
-                    // Elapsed timer
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text("Time Elapsed:")
-                            .font(.system(size: 16, weight: .semibold, design: .rounded))
-                            .foregroundColor(.purple)
-                        Text(timeString(from: elapsedTime))
-                            .font(.system(size: 22, weight: .bold, design: .rounded))
+            // Main timer content
+            HStack(spacing: 8) {
+                // Timer info
+                VStack(alignment: .leading, spacing: 4) {
+                    // Timer display
+                    HStack(alignment: .bottom, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text("Flip")
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .foregroundColor(.blue.opacity(0.8))
+                            Text(timeString(from: state.intervalTime))
+                                .font(.system(size: 32, weight: .semibold, design: .rounded))
+                                .monospacedDigit()
+                                .minimumScaleFactor(0.8)
+                                .contentTransition(.numericText())
+                                .animation(.easeInOut, value: state.intervalTime)
+                                .id("interval-\(state.intervalTime)") // Force refresh with changing ID
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 0) {
+                            HStack(spacing: 2) {
+                                Text("Lit Time")
+                                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                                    .foregroundColor(.orange.opacity(0.8))
+                                
+                                Image(systemName: "flame.fill")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.orange)
+                            }
+                            Text(timeString(from: state.elapsedTime))
+                                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                                .monospacedDigit()
+                                .minimumScaleFactor(0.8)
+                                .contentTransition(.numericText())
+                                .animation(.easeInOut, value: state.elapsedTime)
+                                .id("elapsed-\(state.elapsedTime)") // Force refresh with changing ID
+                        }
+                        .padding(.bottom, 2)
                     }
                 }
-                .frame(width: 140)
                 
                 Spacer()
                 
-                // Right side: buttons in a vertical layout
+                // Control buttons in a simpler layout
                 VStack(spacing: 8) {
-                    // Preset buttons in a row
+                    // Preset buttons - direct actions instead of callbacks
                     HStack(spacing: 8) {
-                        // Preset 1 button
-                        Button(action: onPreset1Tap) {
-                            Text(timeString(from: preset1))
-                                .font(.system(size: 18, weight: .bold, design: .rounded))
-                                .foregroundColor(.white)
-                                .frame(height: 40)
-                                .frame(minWidth: 70)
-                                .background(
-                                    LinearGradient(
-                                        gradient: Gradient(colors: [Color.purple, Color.blue]),
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .cornerRadius(10)
+                        Button("P1") {
+                            print("Direct P1 tap: \(preset1)")
+                            // Ensure interval timer is stopped first
+                            state.stop()
+                            // Don't reset the elapsed timer, just set new interval time
+                            state.setCurrentIntervalTime(preset1)
+                            
+                            // Ensure we're on the main thread and add a very short delay
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                print("Starting timer with P1 value: \(preset1)")
+                                if preset1 > 0 {
+                                    state.start {
+                                        if settings.soundEnabled {
+                                            state.playSound()
+                                        }
+                                        if settings.hapticsEnabled {
+                                            alertState.isPresented = true
+                                        }
+                                    }
+                                    print("Timer started: isRunning=\(state.isRunning)")
+                                }
+                            }
                         }
-                        .buttonStyle(BouncyButtonStyle(id: UUID(), pressedButtonId: $pressedButtonId))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.blue)
+                        .cornerRadius(8)
                         
-                        // Preset 2 button
-                        Button(action: onPreset2Tap) {
-                            Text(timeString(from: preset2))
-                                .font(.system(size: 18, weight: .bold, design: .rounded))
-                                .foregroundColor(.white)
-                                .frame(height: 40)
-                                .frame(minWidth: 70)
-                                .background(
-                                    LinearGradient(
-                                        gradient: Gradient(colors: [Color.purple, Color.blue]),
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .cornerRadius(10)
+                        Button("P2") {
+                            print("Direct P2 tap: \(preset2)")
+                            // Ensure interval timer is stopped first
+                            state.stop()
+                            // Don't reset the elapsed timer, just set new interval time
+                            state.setCurrentIntervalTime(preset2)
+                            
+                            // Ensure we're on the main thread and add a very short delay
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                print("Starting timer with P2 value: \(preset2)")
+                                if preset2 > 0 {
+                                    state.start {
+                                        if settings.soundEnabled {
+                                            state.playSound()
+                                        }
+                                        if settings.hapticsEnabled {
+                                            alertState.isPresented = true
+                                        }
+                                    }
+                                    print("Timer started: isRunning=\(state.isRunning)")
+                                }
+                            }
                         }
-                        .buttonStyle(BouncyButtonStyle(id: UUID(), pressedButtonId: $pressedButtonId))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.blue)
+                        .cornerRadius(8)
                     }
                     
-                    // Control buttons in a row
+                    // Action buttons
                     HStack(spacing: 8) {
-                        // Reset button
-                        Button(action: onReset) {
-                            Text("Reset")
-                                .font(.system(size: 16, weight: .bold, design: .rounded))
-                                .foregroundColor(.white)
-                                .frame(height: 40)
-                                .frame(minWidth: 70)
-                                .background(Color.red)
-                                .cornerRadius(10)
+                        Button("Reset") {
+                            print("Direct reset tap")
+                            state.resetToZero()
                         }
-                        .buttonStyle(BouncyButtonStyle(id: UUID(), pressedButtonId: $pressedButtonId))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.red)
+                        .cornerRadius(8)
                         
-                        // Start/Stop button
-                        Button(action: onStartStop) {
-                            Text(isRunning ? "Stop" : "Start")
-                                .font(.system(size: 16, weight: .bold, design: .rounded))
-                                .foregroundColor(.white)
-                                .frame(height: 40)
-                                .frame(minWidth: 70)
-                                .background(isRunning ? Color.red : Color.green)
-                                .cornerRadius(10)
+                        Button(state.isRunning ? "Stop" : "Start") {
+                            print("Direct start/stop tap")
+                            if state.isRunning {
+                                state.stop()
+                            } else if state.intervalTime > 0 {
+                                state.start {
+                                    if settings.soundEnabled {
+                                        state.playSound()
+                                    }
+                                    if settings.hapticsEnabled {
+                                        alertState.isPresented = true
+                                    }
+                                }
+                            }
                         }
-                        .buttonStyle(PulsatingButtonStyle(id: UUID(), pressedButtonId: $pressedButtonId))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(state.isRunning ? Color.red : Color.green)
+                        .cornerRadius(8)
                     }
                 }
             }
-            .padding(10)
+            .padding(8)
             .background(Color.white)
-            .cornerRadius(16)
-            .shadow(radius: 3)
+            .cornerRadius(12)
+            .shadow(radius: 2)
         }
     }
 }
@@ -571,7 +610,7 @@ struct PreheatCompleteModifier: ViewModifier {
     
     func body(content: Content) -> some View {
         content
-            .overlay(
+                                    .overlay(
                 RoundedRectangle(cornerRadius: 16)
                     .stroke(isPreheatComplete ? Color.red : Color.clear, lineWidth: 4)
                     .opacity(isPreheatComplete ? 1.0 : 0)
@@ -617,7 +656,7 @@ struct IntervalTimerView: View {
     
     var body: some View {
         VStack(spacing: 4) {
-            Text("TIME REMAINING")
+            Text("FLIP IN")
                 .font(.system(size: 18, weight: .medium))
                 .foregroundColor(.gray)
                 .if(debugSettings.isEnabled && debugSettings.showLabels) { view in
@@ -631,8 +670,9 @@ struct IntervalTimerView: View {
                 }
             
             Text(timeString(from: state.intervalTime))
-                .font(.system(size: 64, weight: .bold, design: .monospaced))
+                .font(.system(size: 64, weight: .semibold, design: .rounded))
                 .foregroundColor(.primary)
+                .monospacedDigit()
                 .contentTransition(.numericText())
                 .animation(.easeInOut, value: state.intervalTime)
                 .if(debugSettings.isEnabled && debugSettings.showLabels) { view in
@@ -675,22 +715,29 @@ struct ElapsedTimerView: View {
     
     var body: some View {
         VStack(spacing: 4) {
-            Text("ELAPSED TIME")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.gray)
-                .if(debugSettings.isEnabled && debugSettings.showLabels) { view in
-                    view.debugFrame(
-                        debugSettings.showFrames,
-                        color: .red,
-                        showPadding: debugSettings.showPadding,
-                        showBackground: debugSettings.showBackgrounds,
-                        label: "Label"
-                    )
-                }
+            HStack(spacing: 4) {
+                Text("TIME SINCE YOU LIT IT")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(.gray)
+                
+                Image(systemName: "flame.fill")
+                    .font(.system(size: 14))
+                    .foregroundColor(.orange)
+            }
+            .if(debugSettings.isEnabled && debugSettings.showLabels) { view in
+                view.debugFrame(
+                    debugSettings.showFrames,
+                    color: .red,
+                    showPadding: debugSettings.showPadding,
+                    showBackground: debugSettings.showBackgrounds,
+                    label: "Label"
+                )
+            }
             
             Text(timeString(from: state.elapsedTime))
-                .font(.system(size: 32, weight: .bold, design: .monospaced))
+                .font(.system(size: 32, weight: .semibold, design: .rounded))
                 .foregroundColor(.primary)
+                .monospacedDigit()
                 .contentTransition(.numericText())
                 .animation(.easeInOut, value: state.elapsedTime)
                 .if(debugSettings.isEnabled && debugSettings.showLabels) { view in
@@ -722,7 +769,7 @@ struct TimerPresetButton: View {
     @ObservedObject private var debugSettings = DebugVisualizerSettings.shared
     
     var body: some View {
-        Button(action: {
+                    Button(action: {
             // Add haptic feedback when button is pressed
             let generator = UIImpactFeedbackGenerator(style: .medium)
             generator.prepare()
@@ -733,7 +780,7 @@ struct TimerPresetButton: View {
         }) {
             Text(timeStringConverter(presetTime))
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(.white)
+                            .foregroundColor(.white)
                 .frame(minWidth: 80)
                 .padding(.vertical, 8)
                 .padding(.horizontal, 16)
@@ -771,7 +818,7 @@ struct TimerControlButtons: View {
     
     var body: some View {
         HStack(spacing: 20) {
-            Button(action: {
+                    Button(action: {
                 // Add haptic feedback
                 let generator = UIImpactFeedbackGenerator(style: .medium)
                 generator.prepare()
@@ -792,7 +839,7 @@ struct TimerControlButtons: View {
             }) {
                 Image(systemName: state.isRunning ? "pause.fill" : "play.fill")
                     .font(.system(size: 24))
-                    .foregroundColor(.white)
+                            .foregroundColor(.white)
                     .frame(width: 60, height: 60)
                     .background(
                         Circle()
@@ -820,13 +867,17 @@ struct TimerControlButtons: View {
                 )
             }
             
-            Button(action: {
+                    Button(action: {
                 // Add haptic feedback
                 let generator = UIImpactFeedbackGenerator(style: .medium)
                 generator.prepare()
                 generator.impactOccurred()
                 
-                state.reset()
+                // Reset both timers completely
+                state.resetToZero()
+                
+                // Print debug info to verify reset
+                print("Reset button pressed. Interval timer reset to: \(state.intervalTime)")
             }) {
                 Image(systemName: "arrow.counterclockwise")
                     .font(.system(size: 24))
@@ -895,7 +946,7 @@ struct DebugPanel: View {
                 }
             }
         }
-        .padding()
+                        .padding()
         .background(Color.white.opacity(0.9))
         .cornerRadius(12)
         .shadow(radius: 4)
@@ -1028,113 +1079,37 @@ struct ContentView: View {
     
     @ViewBuilder
     private func compactTimerView(for timer: BBQTimer, state: TimerState) -> some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 6) {
             TimerHeaderView(name: timer.name)
             
-            HStack(spacing: 20) {
-                IntervalTimerView(state: state)
-                
-                VStack(spacing: 12) {
-                    HStack(spacing: 10) {
-                        TimerPresetButton(
-                            presetTime: TimeInterval(timer.preset1),
-                            timeStringConverter: timeString,
-                            action: {
-                                // First stop any running timer
-                                state.stop()
-                                
-                                // Reset elapsed time
-                                state.setElapsedTime(0)
-                                
-                                // Set new interval time
-                                state.setIntervalTime(TimeInterval(timer.preset1))
-                                
-                                // Start the timer immediately
-                                state.start {
-                                    if settings.soundEnabled {
-                                        state.playSound()
-                                    }
-                                    if settings.hapticsEnabled {
-                                        alertState.isPresented = true
-                                    }
-                                }
-                            }
-                        )
-                        
-                        TimerPresetButton(
-                            presetTime: TimeInterval(timer.preset2),
-                            timeStringConverter: timeString,
-                            action: {
-                                // First stop any running timer
-                                state.stop()
-                                
-                                // Reset elapsed time
-                                state.setElapsedTime(0)
-                                
-                                // Set new interval time
-                                state.setIntervalTime(TimeInterval(timer.preset2))
-                                
-                                // Start the timer immediately
-                                state.start {
-                                    if settings.soundEnabled {
-                                        state.playSound()
-                                    }
-                                    if settings.hapticsEnabled {
-                                        alertState.isPresented = true
-                                    }
-                                }
-                            }
-                        )
-                    }
-                    
-                    HStack(spacing: 10) {
-                        Button(action: {
-                            if state.isRunning {
-                                state.stop()
-                            } else {
-                                state.start {
-                                    if settings.soundEnabled {
-                                        state.playSound()
-                                    }
-                                    if settings.hapticsEnabled {
-                                        alertState.isPresented = true
-                                    }
-                                }
-                            }
-                        }) {
-                            Text(state.isRunning ? "Stop" : "Start")
-                                .font(.system(size: 16, weight: .bold, design: .rounded))
-                                .foregroundColor(.white)
-                                .frame(height: 40)
-                                .frame(minWidth: 70)
-                                .background(state.isRunning ? Color.red : Color.green)
-                                .cornerRadius(10)
-                        }
-                    }
-                }
-            }
-            
-            TimerControlButtons(
+            CompactTimerView(
+                name: timer.name,
+                preset1: TimeInterval(timer.preset1),
+                preset2: TimeInterval(timer.preset2),
                 state: state,
                 settings: settings,
                 alertState: alertState
             )
         }
-        .padding()
+        .padding(8)
         .background(Color.black.opacity(0.5))
         .cornerRadius(15)
+        .padding(.horizontal, 12) // Add horizontal padding
+        .padding(.bottom, 16) // Add more space between containers
+        .frame(maxWidth: .infinity) // Use full available width
     }
     
     @ViewBuilder
     private func largeTimerView(for timer: BBQTimer, state: TimerState) -> some View {
-        VStack(spacing: 20) {
+        // Use a regular VStack instead of GeometryReader to preserve scrolling behavior
+        VStack(spacing: 12) { // Reduced spacing from 20 to 12
             TimerHeaderView(name: timer.name)
             
             IntervalTimerView(state: state)
-                .padding(.top, 10)
+                .padding(.top, 6) // Reduced padding from 10 to 6
             
             ElapsedTimerView(state: state)
-                .padding(.bottom, 10)
+                .padding(.bottom, 6) // Reduced padding from 10 to 6
             
             HStack(spacing: 16) {
                 TimerPresetButton(
@@ -1147,16 +1122,19 @@ struct ContentView: View {
                         // Reset elapsed time
                         state.setElapsedTime(0)
                         
-                        // Set new interval time
-                        state.setIntervalTime(TimeInterval(timer.preset1))
+                        // Set new interval time without changing the initial reset value
+                        state.setCurrentIntervalTime(TimeInterval(timer.preset1))
                         
-                        // Start the timer immediately
-                        state.start {
-                            if settings.soundEnabled {
-                                state.playSound()
-                            }
-                            if settings.hapticsEnabled {
-                                alertState.isPresented = true
+                        // Add a small delay to ensure state updates are processed
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            // Start the timer after a slight delay
+                            state.start {
+                                if settings.soundEnabled {
+                                    state.playSound()
+                                }
+                                if settings.hapticsEnabled {
+                                    alertState.isPresented = true
+                                }
                             }
                         }
                     }
@@ -1172,22 +1150,25 @@ struct ContentView: View {
                         // Reset elapsed time
                         state.setElapsedTime(0)
                         
-                        // Set new interval time
-                        state.setIntervalTime(TimeInterval(timer.preset2))
+                        // Set new interval time without changing the initial reset value
+                        state.setCurrentIntervalTime(TimeInterval(timer.preset2))
                         
-                        // Start the timer immediately
-                        state.start {
-                            if settings.soundEnabled {
-                                state.playSound()
-                            }
-                            if settings.hapticsEnabled {
-                                alertState.isPresented = true
+                        // Add a small delay to ensure state updates are processed
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            // Start the timer after a slight delay
+                            state.start {
+                                if settings.soundEnabled {
+                                    state.playSound()
+                                }
+                                if settings.hapticsEnabled {
+                                    alertState.isPresented = true
+                                }
                             }
                         }
                     }
                 )
             }
-            .padding(.top, 8)
+            .padding(.top, 4) // Reduced padding from 8 to 4
             
             TimerControlButtons(
                 state: state,
@@ -1196,8 +1177,11 @@ struct ContentView: View {
             )
         }
         .padding()
+        .frame(maxWidth: .infinity) // Use full width of parent container
         .background(Color.black.opacity(0.5))
         .cornerRadius(15)
+        .padding(.horizontal, 12) // Add horizontal padding
+        .padding(.bottom, 16) // Add more space between containers
     }
     
     // Add a method for the preheat button view with debug visualization
@@ -1285,9 +1269,9 @@ struct ContentView: View {
                     Text("Reset Settings")
                 }
                 .font(.system(size: 16, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
+                                        .foregroundColor(.white)
                 .padding(.vertical, 8)
-                .frame(maxWidth: .infinity)
+                                        .frame(maxWidth: .infinity)
                 .background(Color.gray)
                 .cornerRadius(12)
             }
@@ -1303,8 +1287,8 @@ struct ContentView: View {
         NavigationView {
             ZStack(alignment: .bottom) {
                 // Main content with timers
-                ScrollView {
-                    VStack(spacing: 16) {
+                ScrollView(.vertical, showsIndicators: true) {
+                    VStack(spacing: 24) { // Increase spacing further between timer containers
                         // Settings Button
                         HStack {
                             Spacer()
@@ -1318,23 +1302,27 @@ struct ContentView: View {
                                     .padding(.top, 8)
                             }
                         }
+                        .padding(.horizontal, 12) // Add padding just for the settings button
                         
                         // Timer 1
                         if let timer1 = settings.legacyTimersAsBBQTimers.first,
                            let timer1State = timerStates.state(for: timer1.id) {
                             additionalTimerView(for: timer1, state: timer1State)
+                                .id(timer1.id) // Add id to force layout refresh
                         }
                         
                         // Timer 2
                         if settings.legacyTimersAsBBQTimers.count > 1,
                            let timer2State = timerStates.state(for: settings.legacyTimersAsBBQTimers[1].id) {
                             additionalTimerView(for: settings.legacyTimersAsBBQTimers[1], state: timer2State)
+                                .id(settings.legacyTimersAsBBQTimers[1].id) // Add id to force layout refresh
                         }
                         
                         // Display additional timers
                         ForEach(settings.additionalTimers.filter { $0.isVisible }) { timer in
                             if let timerState = timerStates.state(for: timer.id) {
                                 additionalTimerView(for: timer, state: timerState)
+                                    .id(timer.id) // Add id to force layout refresh
                             }
                         }
                         
@@ -1342,7 +1330,7 @@ struct ContentView: View {
                         Spacer()
                             .frame(height: 180) // Height for preheat and reset buttons plus padding
                     }
-                    .padding(.horizontal, 12)
+                    .padding(.top, 8) // Add top padding to the VStack
                 }
                 .if(debugSettings.isEnabled && debugSettings.showGrid) { view in
                     view.gridOverlay(
@@ -1362,7 +1350,7 @@ struct ContentView: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.bottom, 16)
-                .background(
+                                        .background(
                     Color(.systemGray6)
                         .shadow(color: Color.black.opacity(0.1), radius: 6, x: 0, y: -3)
                 )
@@ -1521,7 +1509,7 @@ struct PreheatAlertView: View {
             .cornerRadius(16)
             .modifier(PulsatingBorderModifier(animating: animationPhase))
             .shadow(radius: 8)
-            .onAppear {
+        .onAppear {
                 startAnimationTimer()
             }
             .onDisappear {
@@ -1575,19 +1563,32 @@ class TimerState: ObservableObject {
     @Published var elapsedTime: TimeInterval = 0
     @Published var isRunning: Bool = false
     
-    private var timer: Timer?
+    private var intervalTimer: Timer?
+    private var elapsedTimer: Timer?
     private var onCompleteAction: (() -> Void)?
+    private var initialIntervalTime: TimeInterval
     
     init(id: UUID, interval: TimeInterval) {
         self.id = id
         self.intervalTime = interval
+        self.initialIntervalTime = interval
     }
     
     func setIntervalTime(_ time: TimeInterval) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             self.intervalTime = time
-            self.objectWillChange.send()  // Explicitly notify observers
+            self.initialIntervalTime = time  // Also update initial time when setting a preset
+            self.objectWillChange.send()
+        }
+    }
+    
+    // Add a new method to set only the current interval time without changing the initial time
+    func setCurrentIntervalTime(_ time: TimeInterval) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.intervalTime = time
+            self.objectWillChange.send()
         }
     }
     
@@ -1600,53 +1601,114 @@ class TimerState: ObservableObject {
     }
     
     func start(onComplete: @escaping () -> Void) {
+        print("Starting timer with interval: \(intervalTime)")
+        
+        // Make absolutely sure interval timer is in a clean state
+        // But don't touch the elapsed timer
+        intervalTimer?.invalidate()
+        intervalTimer = nil
+        self.isRunning = false
+        
         // Store completion handler
         self.onCompleteAction = onComplete
         
-        // Ensure timer is invalidated before creating a new one
-        stop()
+        // Ensure interval timer is invalidated before creating a new one
+        stopIntervalTimer()
         
-        // Only start if we have time to count down
-        guard intervalTime > 0 else { return }
+        // Only start interval timer if we have time to count down
+        guard intervalTime > 0 else {
+            print("⚠️ Cannot start timer - interval time is \(intervalTime)")
+            return
+        }
+        
+        // Start elapsed timer if not already running, but don't reset it
+        startElapsedTimerIfNeeded()
         
         // IMPORTANT: Set isRunning to true immediately on the main thread
         DispatchQueue.main.async { [weak self] in
-            self?.isRunning = true
+            guard let self = self else { return }
+            self.isRunning = true
             // Also notify observers explicitly
-            self?.objectWillChange.send()
+            self.objectWillChange.send()
+            print("Timer started - isRunning set to true")
+            
+            // Create timer on the main thread after UI state is updated
+            self.createAndStartIntervalTimer()
+        }
+    }
+    
+    // Modified version that doesn't reset the elapsed timer if it's already running
+    private func startElapsedTimerIfNeeded() {
+        // If the elapsed timer is already running, do nothing
+        guard elapsedTimer == nil else {
+            print("Elapsed timer already running, continuing it")
+            return
         }
         
-        // Create and schedule timer on main thread
+        print("Starting elapsed timer")
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             
-            self.timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            self.elapsedTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
                 guard let self = self else { return }
                 
-                // Ensure timer updates happen on main thread
                 DispatchQueue.main.async {
-                    if self.intervalTime > 0 {
-                        self.intervalTime -= 1
-                        self.elapsedTime += 1
-                        // Explicitly notify observers of changes
-                        self.objectWillChange.send()
-                    } else {
-                        self.stop()
-                        self.onCompleteAction?()
-                    }
+                    self.elapsedTime += 1
+                    print("Elapsed timer tick: \(self.elapsedTime)")
+                    self.objectWillChange.send()
                 }
             }
             
             // Add timer to RunLoop to ensure it runs while scrolling
-            if let timer = self.timer {
+            if let timer = self.elapsedTimer {
                 RunLoop.main.add(timer, forMode: .common)
+                print("Elapsed timer added to RunLoop")
             }
         }
     }
     
-    func stop() {
-        timer?.invalidate()
-        timer = nil
+    private func createAndStartIntervalTimer() {
+        print("Creating interval timer")
+        
+        // Double check we're on the main thread
+        if !Thread.isMainThread {
+            DispatchQueue.main.async { [weak self] in
+                self?.createAndStartIntervalTimer()
+            }
+            return
+        }
+        
+        // Create and schedule interval timer
+        self.intervalTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            
+            // Ensure timer updates happen on main thread
+            DispatchQueue.main.async {
+                if self.intervalTime > 0 {
+                    self.intervalTime -= 1
+                    print("Interval timer tick: \(self.intervalTime)")
+                    // Explicitly notify observers of changes
+                    self.objectWillChange.send()
+                } else {
+                    print("Interval timer complete")
+                    self.stopIntervalTimer() // Only stop the interval timer
+                    self.onCompleteAction?()
+                }
+            }
+        }
+        
+        // Add timer to RunLoop to ensure it runs while scrolling
+        if let timer = self.intervalTimer {
+            RunLoop.main.add(timer, forMode: .common)
+            print("Timer added to RunLoop")
+        } else {
+            print("⚠️ Failed to create timer")
+        }
+    }
+    
+    private func stopIntervalTimer() {
+        intervalTimer?.invalidate()
+        intervalTimer = nil
         
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
@@ -1655,15 +1717,32 @@ class TimerState: ObservableObject {
         }
     }
     
+    private func stopElapsedTimer() {
+        elapsedTimer?.invalidate()
+        elapsedTimer = nil
+    }
+    
+    func stop() {
+        // Only stop the interval timer, leave the elapsed timer running
+        stopIntervalTimer()
+    }
+    
     func reset() {
-        stop()
+        // Stop both timers and reset elapsed time
+        stopIntervalTimer()
+        stopElapsedTimer()
         
         // Reset on main thread
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
-            // Use explicit setters
-            self.setElapsedTime(0)
-            self.objectWillChange.send()  // Explicitly notify observers
+            
+            // Reset both timers - set elapsed to zero and interval to zero
+            self.elapsedTime = 0
+            self.intervalTime = 0 // Set to zero instead of initialIntervalTime
+            self.isRunning = false
+            
+            // Explicitly notify observers
+            self.objectWillChange.send()
         }
     }
     
@@ -1671,6 +1750,37 @@ class TimerState: ObservableObject {
         // Implementation for sound playing
         let systemSoundID: SystemSoundID = 1005
         AudioServicesPlaySystemSound(systemSoundID)
+    }
+    
+    // Add this method to explicitly set the interval time and update the initial value
+    func setPresetIntervalTime(_ time: TimeInterval) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.intervalTime = time
+            self.initialIntervalTime = time  // Also update initial time when setting a preset
+            self.objectWillChange.send()
+        }
+    }
+    
+    func resetToZero() {
+        // Stop both timers
+        stopIntervalTimer()
+        stopElapsedTimer()
+        
+        // Reset on main thread - ensure all values go to zero
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            // Reset both timers - set everything to zero
+            self.elapsedTime = 0
+            self.intervalTime = 0
+            self.isRunning = false
+            
+            // Explicitly notify observers
+            self.objectWillChange.send()
+            
+            print("Timer reset to zero. Interval time is now: \(self.intervalTime)")
+        }
     }
 }
 
@@ -1687,6 +1797,8 @@ class TimerStatesManager: ObservableObject {
         states = []
         
         // Create new states for each timer
+        // Each timer state's initialIntervalTime will be set to preset1
+        // This becomes the default value used when resetting the timer
         for timer in timers {
             states.append(TimerState(id: timer.id, interval: TimeInterval(timer.preset1)))
         }

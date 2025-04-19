@@ -184,3 +184,4 @@ class DebugVisualizerSettings: ObservableObject {
     
     static let shared = DebugVisualizerSettings()
 }
+
