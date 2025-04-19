@@ -457,42 +457,40 @@ struct CompactTimerView: View {
             
             // Main timer content
             HStack(spacing: 8) {
-                // Timer info
-                VStack(alignment: .leading, spacing: 4) {
-                    // Timer display
-                    HStack(alignment: .bottom, spacing: 8) {
-                        VStack(alignment: .leading, spacing: 0) {
-                            Text("Flip")
+                // Timer info - vertically stacked
+                VStack(alignment: .leading, spacing: 6) {
+                    // Flip timer
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Flip In")
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundColor(.blue.opacity(0.8))
+                        Text(timeString(from: state.intervalTime))
+                            .font(.system(size: 32, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                            .minimumScaleFactor(0.8)
+                            .contentTransition(.numericText())
+                            .animation(.easeInOut, value: state.intervalTime)
+                            .id("interval-\(state.intervalTime)")
+                    }
+                    
+                    // Elapsed timer
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 2) {
+                            Text("Lit Time")
                                 .font(.system(size: 12, weight: .medium, design: .rounded))
-                                .foregroundColor(.blue.opacity(0.8))
-                            Text(timeString(from: state.intervalTime))
-                                .font(.system(size: 32, weight: .semibold, design: .rounded))
-                                .monospacedDigit()
-                                .minimumScaleFactor(0.8)
-                                .contentTransition(.numericText())
-                                .animation(.easeInOut, value: state.intervalTime)
-                                .id("interval-\(state.intervalTime)") // Force refresh with changing ID
+                                .foregroundColor(.orange.opacity(0.8))
+                            
+                            Image(systemName: "flame.fill")
+                                .font(.system(size: 10))
+                                .foregroundColor(.orange)
                         }
-                        
-                        VStack(alignment: .leading, spacing: 0) {
-                            HStack(spacing: 2) {
-                                Text("Lit Time")
-                                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                                    .foregroundColor(.orange.opacity(0.8))
-                                
-                                Image(systemName: "flame.fill")
-                                    .font(.system(size: 10))
-                                    .foregroundColor(.orange)
-                            }
-                            Text(timeString(from: state.elapsedTime))
-                                .font(.system(size: 18, weight: .semibold, design: .rounded))
-                                .monospacedDigit()
-                                .minimumScaleFactor(0.8)
-                                .contentTransition(.numericText())
-                                .animation(.easeInOut, value: state.elapsedTime)
-                                .id("elapsed-\(state.elapsedTime)") // Force refresh with changing ID
-                        }
-                        .padding(.bottom, 2)
+                        Text(timeString(from: state.elapsedTime))
+                            .font(.system(size: 24, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                            .minimumScaleFactor(0.8)
+                            .contentTransition(.numericText())
+                            .animation(.easeInOut, value: state.elapsedTime)
+                            .id("elapsed-\(state.elapsedTime)")
                     }
                 }
                 

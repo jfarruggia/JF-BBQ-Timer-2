@@ -14,113 +14,17 @@ struct NewSettingsView: View {
     var body: some View {
         NavigationView {
             List {
-                // Timer Names Section
-                Section(header: Text("Timer Names")) {
-                    TextField("Timer 1 Name", text: $settings.timer1Name)
-                    TextField("Timer 2 Name", text: $settings.timer2Name)
-                }
-                
-                // Timer 1 Presets Section
-                Section(header: Text("Timer 1 Presets")) {
-                    Button(action: {
-                        showTimer1Preset1Picker = true
-                    }) {
-                        HStack {
-                            Text("Preset 1")
-                            Spacer()
-                            Text(timeString(from: settings.timer1Preset1))
-                                .foregroundColor(.gray)
-                        }
-                    }
-                    .sheet(isPresented: $showTimer1Preset1Picker) {
-                        TimerPickerSheet(
-                            title: "Timer 1 Preset 1",
-                            seconds: Binding(
-                                get: { settings.timer1Preset1 },
-                                set: { settings.timer1Preset1 = $0 }
-                            ),
-                            isPresented: $showTimer1Preset1Picker
-                        )
-                    }
-                    
-                    Button(action: {
-                        showTimer1Preset2Picker = true
-                    }) {
-                        HStack {
-                            Text("Preset 2")
-                            Spacer()
-                            Text(timeString(from: settings.timer1Preset2))
-                                .foregroundColor(.gray)
-                        }
-                    }
-                    .sheet(isPresented: $showTimer1Preset2Picker) {
-                        TimerPickerSheet(
-                            title: "Timer 1 Preset 2",
-                            seconds: Binding(
-                                get: { settings.timer1Preset2 },
-                                set: { settings.timer1Preset2 = $0 }
-                            ),
-                            isPresented: $showTimer1Preset2Picker
-                        )
-                    }
-                }
-                
-                // Timer 2 Presets Section
-                Section(header: Text("Timer 2 Presets")) {
-                    Button(action: {
-                        showTimer2Preset1Picker = true
-                    }) {
-                        HStack {
-                            Text("Preset 1")
-                            Spacer()
-                            Text(timeString(from: settings.timer2Preset1))
-                                .foregroundColor(.gray)
-                        }
-                    }
-                    .sheet(isPresented: $showTimer2Preset1Picker) {
-                        TimerPickerSheet(
-                            title: "Timer 2 Preset 1",
-                            seconds: Binding(
-                                get: { settings.timer2Preset1 },
-                                set: { settings.timer2Preset1 = $0 }
-                            ),
-                            isPresented: $showTimer2Preset1Picker
-                        )
-                    }
-                    
-                    Button(action: {
-                        showTimer2Preset2Picker = true
-                    }) {
-                        HStack {
-                            Text("Preset 2")
-                            Spacer()
-                            Text(timeString(from: settings.timer2Preset2))
-                                .foregroundColor(.gray)
-                        }
-                    }
-                    .sheet(isPresented: $showTimer2Preset2Picker) {
-                        TimerPickerSheet(
-                            title: "Timer 2 Preset 2",
-                            seconds: Binding(
-                                get: { settings.timer2Preset2 },
-                                set: { settings.timer2Preset2 = $0 }
-                            ),
-                            isPresented: $showTimer2Preset2Picker
-                        )
-                    }
-                }
-                
-                // Add Timer Management Section
+                // Timer Management Section (now includes all timers)
                 Section(header: Text("Manage Timers")) {
                     NavigationLink(destination: TimerManagementView(settings: settings)) {
                         HStack {
                             Image(systemName: "timer")
                                 .foregroundColor(.blue)
-                            Text("Manage Additional Timers")
+                            Text("Manage All Timers")
                         }
                     }
                     
-                    Text("Add custom timers for different meats or cooking methods")
+                    Text("Configure all timers including presets")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                 }
@@ -204,7 +108,7 @@ struct NewSettingsView: View {
     }
 }
 
-// Add TimerManagementView
+// Updated TimerManagementView to handle both legacy and additional timers
 struct TimerManagementView: View {
     @ObservedObject var settings: Settings
     @State private var showingAddTimerSheet = false
@@ -214,12 +118,34 @@ struct TimerManagementView: View {
     @State private var tempPreset1 = 60 // 1 minute default
     @State private var tempPreset2 = 120 // 2 minutes default
     @State private var editingTimerIndex: Int? = nil
+    @State private var editingLegacyTimer: Int? = nil // 0 for Timer 1, 1 for Timer 2
     
     var body: some View {
         List {
+            // Default Timers Section
+            Section(header: Text("Default Timers")) {
+                // Timer 1
+                timerRow(
+                    for: settings.legacyTimersAsBBQTimers[0],
+                    isLegacy: true,
+                    legacyIndex: 0
+                )
+                
+                // Timer 2
+                timerRow(
+                    for: settings.legacyTimersAsBBQTimers[1],
+                    isLegacy: true,
+                    legacyIndex: 1
+                )
+            }
+            
+            // Additional Timers Section
             Section(header: Text("Additional Timers")) {
                 ForEach(settings.additionalTimers.indices, id: \.self) { index in
-                    timerRow(for: settings.additionalTimers[index], at: index)
+                    timerRow(
+                        for: settings.additionalTimers[index],
+                        at: index
+                    )
                 }
                 .onDelete { indexSet in
                     for index in indexSet {
@@ -228,10 +154,12 @@ struct TimerManagementView: View {
                 }
                 
                 Button(action: {
+                    // Set up for adding a new timer
                     newTimerName = ""
                     tempPreset1 = 60
                     tempPreset2 = 120
                     editingTimerIndex = nil
+                    editingLegacyTimer = nil
                     showingAddTimerSheet = true
                 }) {
                     HStack {
@@ -239,15 +167,6 @@ struct TimerManagementView: View {
                             .foregroundColor(.green)
                         Text("Add New Timer")
                     }
-                }
-            }
-            
-            if settings.additionalTimers.isEmpty {
-                Section {
-                    Text("Add custom timers for different meats or cooking methods")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-                        .padding(.vertical, 8)
                 }
             }
         }
@@ -271,17 +190,27 @@ struct TimerManagementView: View {
         }
     }
     
-    private func timerRow(for timer: BBQTimer, at index: Int) -> some View {
+    // Updated timer row to handle both legacy and additional timers
+    private func timerRow(for timer: BBQTimer, isLegacy: Bool = false, legacyIndex: Int? = nil, at index: Int? = nil) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(timer.name)
                     .font(.headline)
                 Spacer()
                 Button(action: {
+                    // Set up for editing this timer
                     newTimerName = timer.name
                     tempPreset1 = timer.preset1
                     tempPreset2 = timer.preset2
-                    editingTimerIndex = index
+                    
+                    if isLegacy && legacyIndex != nil {
+                        editingLegacyTimer = legacyIndex
+                        editingTimerIndex = nil
+                    } else if !isLegacy && index != nil {
+                        editingTimerIndex = index
+                        editingLegacyTimer = nil
+                    }
+                    
                     showingAddTimerSheet = true
                 }) {
                     Image(systemName: "pencil")
@@ -289,13 +218,16 @@ struct TimerManagementView: View {
                 }
                 .buttonStyle(BorderlessButtonStyle())
                 
-                Toggle("", isOn: Binding(
-                    get: { timer.isVisible },
-                    set: { newValue in
-                        settings.updateTimer(at: index, isVisible: newValue)
-                    }
-                ))
-                .labelsHidden()
+                // Only show visibility toggle for additional timers
+                if !isLegacy, let index = index {
+                    Toggle("", isOn: Binding(
+                        get: { timer.isVisible },
+                        set: { newValue in
+                            settings.updateTimer(at: index, isVisible: newValue)
+                        }
+                    ))
+                    .labelsHidden()
+                }
             }
             
             HStack {
@@ -344,34 +276,71 @@ struct TimerManagementView: View {
                     }
                 }
             }
-            .navigationTitle(editingTimerIndex == nil ? "Add Timer" : "Edit Timer")
+            .navigationTitle(getEditTitle())
             .navigationBarItems(
                 leading: Button("Cancel") {
                     showingAddTimerSheet = false
                 },
                 trailing: Button("Save") {
-                    if newTimerName.isEmpty {
-                        newTimerName = "Timer \(settings.additionalTimers.count + 3)"
-                    }
-                    
-                    if let editIndex = editingTimerIndex {
-                        settings.updateTimer(
-                            at: editIndex,
-                            name: newTimerName,
-                            preset1: tempPreset1,
-                            preset2: tempPreset2
-                        )
-                    } else {
-                        settings.addTimer(
-                            name: newTimerName,
-                            preset1: tempPreset1,
-                            preset2: tempPreset2
-                        )
-                    }
+                    saveTimer()
                     showingAddTimerSheet = false
                 }
             )
         }
+    }
+    
+    // Helper function to get the appropriate title for the edit sheet
+    private func getEditTitle() -> String {
+        if editingLegacyTimer == 0 {
+            return "Edit Timer 1"
+        } else if editingLegacyTimer == 1 {
+            return "Edit Timer 2"
+        } else if editingTimerIndex != nil {
+            return "Edit Timer"
+        } else {
+            return "Add Timer"
+        }
+    }
+    
+    // Helper function to save the timer
+    private func saveTimer() {
+        // Default name if empty
+        if newTimerName.isEmpty {
+            newTimerName = "Timer \(settings.additionalTimers.count + 3)"
+        }
+        
+        // Handle legacy timers
+        if let legacyIndex = editingLegacyTimer {
+            if legacyIndex == 0 {
+                // Update Timer 1
+                settings.timer1Name = newTimerName
+                settings.timer1Preset1 = tempPreset1
+                settings.timer1Preset2 = tempPreset2
+            } else if legacyIndex == 1 {
+                // Update Timer 2
+                settings.timer2Name = newTimerName
+                settings.timer2Preset1 = tempPreset1
+                settings.timer2Preset2 = tempPreset2
+            }
+        } 
+        // Handle additional timers
+        else if let editIndex = editingTimerIndex {
+            settings.updateTimer(
+                at: editIndex,
+                name: newTimerName,
+                preset1: tempPreset1,
+                preset2: tempPreset2
+            )
+        } else {
+            settings.addTimer(
+                name: newTimerName,
+                preset1: tempPreset1,
+                preset2: tempPreset2
+            )
+        }
+        
+        // Save changes
+        settings.save()
     }
 }
 
