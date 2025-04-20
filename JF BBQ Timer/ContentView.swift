@@ -310,7 +310,7 @@ struct AlertView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.black.opacity(0.5)
+                Color.black.opacity(0)
                     .edgesIgnoringSafeArea(.all)
                     .onTapGesture {
                         print("Background tapped")
@@ -457,7 +457,7 @@ struct CompactTimerView: View {
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(.black)
                         Text(timeString(from: state.intervalTime))
-                            .font(.system(size: 32, weight: .semibold, design: .rounded))
+                            .font(.system(size: 40, weight: .semibold, design: .rounded))
                             .monospacedDigit()
                             .minimumScaleFactor(0.8)
                             .contentTransition(.numericText())
@@ -477,7 +477,7 @@ struct CompactTimerView: View {
                                 .foregroundColor(.red)
                         }
                         Text(timeString(from: state.elapsedTime))
-                            .font(.system(size: 24, weight: .semibold, design: .rounded))
+                            .font(.system(size: 28, weight: .semibold, design: .rounded))
                             .monospacedDigit()
                             .minimumScaleFactor(0.8)
                             .contentTransition(.numericText())
@@ -492,7 +492,7 @@ struct CompactTimerView: View {
                 VStack(spacing: 8) {
                     // Preset buttons - direct actions instead of callbacks
                     HStack(spacing: 8) {
-                        Button("P1") {
+                        Button(timeString(from: preset1)) {
                             print("Direct P1 tap: \(preset1)")
                             // Ensure interval timer is stopped first
                             state.stop()
@@ -516,12 +516,12 @@ struct CompactTimerView: View {
                             }
                         }
                         .foregroundColor(.white)
-                        .padding(.horizontal, 12)
+                        .frame(width: 80) // Set a fixed width for P1 button
                         .padding(.vertical, 8)
                         .background(Color.blue)
                         .cornerRadius(8)
                         
-                        Button("P2") {
+                        Button(timeString(from: preset2)) {
                             print("Direct P2 tap: \(preset2)")
                             // Ensure interval timer is stopped first
                             state.stop()
@@ -545,7 +545,7 @@ struct CompactTimerView: View {
                             }
                         }
                         .foregroundColor(.white)
-                        .padding(.horizontal, 12)
+                        .frame(width: 80) // Set a fixed width for P2 button
                         .padding(.vertical, 8)
                         .background(Color.blue)
                         .cornerRadius(8)
@@ -555,10 +555,10 @@ struct CompactTimerView: View {
                     HStack(spacing: 8) {
                         Button("Reset") {
                             print("Direct reset tap")
-                            state.resetToZero()
+                            state.reset()
                         }
                         .foregroundColor(.white)
-                        .padding(.horizontal, 12)
+                        .frame(width: 80) // Set a fixed width for Reset button
                         .padding(.vertical, 8)
                         .background(Color.red)
                         .cornerRadius(8)
@@ -579,7 +579,7 @@ struct CompactTimerView: View {
                             }
                         }
                         .foregroundColor(.white)
-                        .padding(.horizontal, 12)
+                        .frame(width: 80) // Set a fixed width for Start/Stop button
                         .padding(.vertical, 8)
                         .background(state.isRunning ? Color.red : Color.green)
                         .cornerRadius(8)
@@ -587,8 +587,7 @@ struct CompactTimerView: View {
                 }
             }
             .padding(8)
-            .background(Color(UIColor(red: 250/255, green: 166/255, blue: 72/255, alpha: 0.5)))
-            .cornerRadius(15)
+            .timerContainerAppearance(timerState: state, skipBorder: true)
             .padding(.horizontal, 12) // Add horizontal padding
             .padding(.bottom, 5) // Add more space between containers
             .frame(maxWidth: .infinity) // Use full available width
@@ -856,6 +855,12 @@ struct ContentView: View {
     @StateObject private var timerStates = TimerStatesManager()
     @State private var showSettings = false
     
+    // Add a namespace for scroll identification
+    @Namespace private var scrollNamespace
+    
+    // Track the UUID of the most recently completed timer
+    @State private var lastCompletedTimerId: UUID? = nil
+    
     // Global timeString function to be used throughout the view
     private func timeString(from timeInterval: TimeInterval) -> String {
         let minutes = Int(timeInterval) / 60
@@ -924,6 +929,13 @@ struct ContentView: View {
     }
     
     private func startPreheatTimer() {
+        // Check if any timer is running and abort if so
+        let anyTimerRunning = timerStates.states.contains { $0.isRunning }
+        if anyTimerRunning {
+            print("Cannot start preheat timer while other timers are running")
+            return
+        }
+        
         preheatTimer?.invalidate()
         preheatTimeRemaining = TimeInterval(settings.preheatDuration)
         showPreheatAlert = false
@@ -975,7 +987,6 @@ struct ContentView: View {
     
     @ViewBuilder
     private func compactTimerView(for timer: BBQTimer, state: TimerState) -> some View {
-        // RED: Compact view shows both timers side-by-side with smaller controls
         VStack(spacing: 6) {
             TimerHeaderView(name: timer.name)
             
@@ -989,47 +1000,37 @@ struct ContentView: View {
             )
         }
         .padding(8)
-        .background(Color(UIColor(red: 250/255, green: 166/255, blue: 72/255, alpha: 0.5)))
-        .cornerRadius(15)
-        .overlay(
-            RoundedRectangle(cornerRadius: 15)
-                .stroke(Color.black, lineWidth: 2)
+        .timerContainerAppearance(
+            timerState: state, 
+            onTimerComplete: { timerId in
+                print("Timer \(timerId) completed, scrolling to view")
+                lastCompletedTimerId = timerId
+            }
         )
-        .padding(.horizontal, 12) // Add horizontal padding
-        .padding(.bottom, 5) // Add more space between containers
-        .frame(maxWidth: .infinity) // Use full available width
+        .padding(.horizontal, 12)
+        .padding(.bottom, 5)
+        .frame(maxWidth: .infinity)
     }
     
     @ViewBuilder
     private func largeTimerView(for timer: BBQTimer, state: TimerState) -> some View {
-        // RED: Large view shows both timers stacked vertically with full-size controls
-        // Use a regular VStack instead of GeometryReader to preserve scrolling behavior
-        VStack(spacing: 12) { // Reduced spacing from 20 to 12
+        VStack(spacing: 12) {
             TimerHeaderView(name: timer.name)
             
-            // RED: Shows the countdown "flip in" timer
             IntervalTimerView(timerState: state, theme: Theme.defaultTheme)
-                .padding(.top, 6) // Reduced padding from 10 to 6
+                .padding(.top, 6)
             
-            // RED: Shows the elapsed "lit time" timer
             ElapsedTimerView(timerState: state, theme: Theme.defaultTheme)
-                .padding(.bottom, 6) // Reduced padding from 10 to 6
+                .padding(.bottom, 6)
             
-            // RED: Preset buttons for quick timer settings
             HStack(spacing: 16) {
                 TimerPresetButton(
                     presetTime: TimeInterval(timer.preset1),
                     timeStringConverter: timeString,
                     action: {
-                        // First stop any running timer
                         state.stop()
-                        
-                        // Set new interval time without changing the initial reset value
                         state.setCurrentIntervalTime(TimeInterval(timer.preset1))
-                        
-                        // Add a small delay to ensure state updates are processed
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            // Start the timer after a slight delay
                             state.start {
                                 if settings.soundEnabled {
                                     state.playSound()
@@ -1046,15 +1047,9 @@ struct ContentView: View {
                     presetTime: TimeInterval(timer.preset2),
                     timeStringConverter: timeString,
                     action: {
-                        // First stop any running timer
                         state.stop()
-                        
-                        // Set new interval time without changing the initial reset value
                         state.setCurrentIntervalTime(TimeInterval(timer.preset2))
-                        
-                        // Add a small delay to ensure state updates are processed
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            // Start the timer after a slight delay
                             state.start {
                                 if settings.soundEnabled {
                                     state.playSound()
@@ -1067,9 +1062,8 @@ struct ContentView: View {
                     }
                 )
             }
-            .padding(.top, 4) // Reduced padding from 8 to 4
+            .padding(.top, 4)
             
-            // RED: Control buttons for start/stop and reset functions
             TimerControlButtons(
                 state: state,
                 settings: settings,
@@ -1077,21 +1071,25 @@ struct ContentView: View {
             )
         }
         .padding()
-        .frame(maxWidth: .infinity) // Use full width of parent container
-        .background(Color(UIColor(red: 250/255, green: 166/255, blue: 72/255, alpha: 0.5)))
-        .cornerRadius(15)
-        .overlay(
-            RoundedRectangle(cornerRadius: 15)
-                .stroke(Color.black, lineWidth: 2)
+        .frame(maxWidth: .infinity)
+        .timerContainerAppearance(
+            timerState: state, 
+            onTimerComplete: { timerId in
+                print("Timer \(timerId) completed, scrolling to view")
+                lastCompletedTimerId = timerId
+            }
         )
-        .padding(.horizontal, 12) // Add horizontal padding
-        .padding(.bottom, 5) // Add more space between containers
+        .padding(.horizontal, 12)
+        .padding(.bottom, 5)
     }
     
     // Add a method for the preheat button view with debug visualization
     private func preheatButtonView() -> some View {
+        // Check if any timer is running
+        let anyTimerRunning = timerStates.states.contains { $0.isRunning }
+        
         // RED: This button starts a countdown for preheating the grill
-        Button(action: {
+        return Button(action: {
             startPreheatTimer()
         }) {
             VStack {
@@ -1112,7 +1110,9 @@ struct ContentView: View {
             .frame(width: UIScreen.main.bounds.width * 0.8) // Make button 80% of screen width
             .background(
                 LinearGradient(
-                    gradient: Gradient(colors: [Color.orange, Color.red]),
+                    gradient: Gradient(colors: anyTimerRunning ? 
+                                      [Color.gray.opacity(0.7), Color.gray.opacity(0.5)] : 
+                                      [Color.orange, Color.red]),
                     startPoint: .leading,
                     endPoint: .trailing
                 )
@@ -1127,6 +1127,17 @@ struct ContentView: View {
             // RED: Makes the button pulse when preheat is complete
             .modifier(PreheatCompleteModifier(isPreheatComplete: isPreheatComplete))
         }
+        .disabled(anyTimerRunning) // Disable the button when any timer is running
+        .contextMenu {
+            // Only show reset option if preheat timer is active
+            if preheatTimeRemaining > 0 {
+                Button(action: {
+                    resetPreheatTimer()
+                }) {
+                    Label("Reset Preheat Timer", systemImage: "arrow.counterclockwise")
+                }
+            }
+        }
         .if(debugSettings.isEnabled && debugSettings.showLabels) { view in
             view.debugFrame(
                 debugSettings.showFrames,
@@ -1138,56 +1149,74 @@ struct ContentView: View {
         }
     }
     
+    private func resetPreheatTimer() {
+        preheatTimer?.invalidate()
+        preheatTimer = nil
+        preheatTimeRemaining = 0
+        isPreheatComplete = false
+        showPreheatAlert = false
+    }
+    
     var body: some View {
         NavigationView {
             // RED: Main layout uses ZStack with content on top and fixed buttons at bottom
             ZStack(alignment: .bottom) {
                 // Main content with timers
-                ScrollView(.vertical, showsIndicators: true) {
-                    VStack(spacing: 10) { // Spacing between timer containers
-                        // Add a spacer at the top to ensure content starts below the header
-                        Spacer()
-                            .frame(height: 40)
+                ScrollViewReader { scrollProxy in
+                    ScrollView(.vertical, showsIndicators: true) {
+                        VStack(spacing: 10) { // Spacing between timer containers
+                            // Add a spacer at the top to ensure content starts below the header
+                            Spacer()
+                                .frame(height: 40)
+                                
+                            // RED: Timer 1 is the first default timer
+                            if let timer1 = settings.legacyTimersAsBBQTimers.first,
+                               let timer1State = timerStates.state(for: timer1.id) {
+                                additionalTimerView(for: timer1, state: timer1State)
+                                    .id(timer1.id) // Add id to force layout refresh
+                            }
                             
-                        // RED: Timer 1 is the first default timer
-                        if let timer1 = settings.legacyTimersAsBBQTimers.first,
-                           let timer1State = timerStates.state(for: timer1.id) {
-                            additionalTimerView(for: timer1, state: timer1State)
-                                .id(timer1.id) // Add id to force layout refresh
+                            // RED: Timer 2 is the second default timer
+                            if settings.legacyTimersAsBBQTimers.count > 1,
+                               let timer2State = timerStates.state(for: settings.legacyTimersAsBBQTimers[1].id) {
+                                additionalTimerView(for: settings.legacyTimersAsBBQTimers[1], state: timer2State)
+                                    .id(settings.legacyTimersAsBBQTimers[1].id) // Add id to force layout refresh
+                            }
+                            
+                            // RED: Shows any additional timers the user has created
+                            ForEach(settings.additionalTimers.filter { $0.isVisible }) { timer in
+                                if let timerState = timerStates.state(for: timer.id) {
+                                    additionalTimerView(for: timer, state: timerState)
+                                        .id(timer.id) // Add id to force layout refresh
+                                }
+                            }
+                            
+                            // RED: Empty space at bottom to prevent content being hidden by preheat button
+                            Spacer()
+                                .frame(height: 100) // Increased height for the taller button area
                         }
-                        
-                        // RED: Timer 2 is the second default timer
-                        if settings.legacyTimersAsBBQTimers.count > 1,
-                           let timer2State = timerStates.state(for: settings.legacyTimersAsBBQTimers[1].id) {
-                            additionalTimerView(for: settings.legacyTimersAsBBQTimers[1], state: timer2State)
-                                .id(settings.legacyTimersAsBBQTimers[1].id) // Add id to force layout refresh
-                        }
-                        
-                        // RED: Shows any additional timers the user has created
-                        ForEach(settings.additionalTimers.filter { $0.isVisible }) { timer in
-                            if let timerState = timerStates.state(for: timer.id) {
-                                additionalTimerView(for: timer, state: timerState)
-                                    .id(timer.id) // Add id to force layout refresh
+                        .padding(.top, 30) // Increase top padding
+                    }
+                    .onChange(of: lastCompletedTimerId) { oldValue, newValue in
+                        if let timerId = newValue {
+                            // Scroll to the completed timer
+                            withAnimation {
+                                scrollProxy.scrollTo(timerId, anchor: .center)
                             }
                         }
-                        
-                        // RED: Empty space at bottom to prevent content being hidden by preheat button
-                        Spacer()
-                            .frame(height: 100) // Increased height for the taller button area
                     }
-                    .padding(.top, 30) // Increase top padding
-                }
-                .safeAreaInset(edge: .top) {
-                     // Empty view with height to create space below the navigation bar
-                      Color.clear.frame(height: 25)
-                }
-                .scrollIndicators(.hidden)
-                .if(debugSettings.isEnabled && debugSettings.showGrid) { view in
-                    view.gridOverlay(
-                        spacing: debugSettings.gridSpacing,
-                        color: .blue.opacity(0.2),
-                        lineWidth: 0.5
-                    )
+                    .safeAreaInset(edge: .top) {
+                         // Empty view with height to create space below the navigation bar
+                          Color.clear.frame(height: 25)
+                    }
+                    .scrollIndicators(.hidden)
+                    .if(debugSettings.isEnabled && debugSettings.showGrid) { view in
+                        view.gridOverlay(
+                            spacing: debugSettings.gridSpacing,
+                            color: .blue.opacity(0.2),
+                            lineWidth: 0.5
+                        )
+                    }
                 }
                 
                 // RED: Fixed area at bottom containing the preheat button
@@ -1199,10 +1228,10 @@ struct ContentView: View {
                 .padding(.bottom, 30) // More bottom padding
                 .padding(.top, 20) // Increased top padding
                 .frame(width: UIScreen.main.bounds.width) // Ensure full width
-                .background(Color(UIColor(red: 201/255, green: 48/255, blue: 32/255, alpha: 1.0)))
+                .background(Color(UIColor(red: 225/255, green: 139/255, blue: 130/255, alpha: 1.0)))
                 .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: -2)
             }
-            .background(Color(UIColor(red: 201/255, green: 48/255, blue: 32/255, alpha: 0.75)))
+            .background(Color(UIColor(red: 225/255, green: 139/255, blue: 130/255, alpha: 1.0)))
             .edgesIgnoringSafeArea(.all)
             .sheet(isPresented: $showSettings) {
                 NewSettingsView(settings: settings)
@@ -1230,7 +1259,7 @@ struct ContentView: View {
                 // Set navigation bar appearance to match the app's background color
                 let appearance = UINavigationBarAppearance()
                 appearance.configureWithOpaqueBackground()
-                appearance.backgroundColor = UIColor(red: 201/255, green: 48/255, blue: 32/255, alpha: 1.0)
+                appearance.backgroundColor = UIColor(red: 225/255, green: 139/255, blue: 130/255, alpha: 1.0)
                 appearance.titleTextAttributes = [.foregroundColor: UIColor.white]
                 UINavigationBar.appearance().standardAppearance = appearance
                 UINavigationBar.appearance().scrollEdgeAppearance = appearance
@@ -1427,10 +1456,13 @@ class TimerState: ObservableObject {
     @Published var elapsedTime: TimeInterval = 0
     // RED: Whether this timer is currently running
     @Published var isRunning: Bool = false
+    // RED: Whether the timer has just completed
+    @Published var isCompleted: Bool = false
     
     private var intervalTimer: Timer?
     private var elapsedTimer: Timer?
     private var onCompleteAction: (() -> Void)?
+    private var completionTimer: Timer?
     // RED: Stores the original interval time for proper resets
     private var initialIntervalTime: TimeInterval
     
@@ -1438,6 +1470,74 @@ class TimerState: ObservableObject {
         self.id = id
         self.intervalTime = interval
         self.initialIntervalTime = interval
+    }
+    
+    func reset() {
+        // Stop all timers
+        stopIntervalTimer()
+        stopElapsedTimer()
+        completionTimer?.invalidate()
+        completionTimer = nil
+        
+        // Reset state
+        isRunning = false
+        isCompleted = false
+        elapsedTime = 0
+        intervalTime = initialIntervalTime
+        
+        // Notify observers
+        objectWillChange.send()
+    }
+    
+    private func createAndStartIntervalTimer() {
+        print("Creating interval timer")
+        
+        // Double check we're on the main thread
+        if !Thread.isMainThread {
+            DispatchQueue.main.async { [weak self] in
+                self?.createAndStartIntervalTimer()
+            }
+            return
+        }
+        
+        // Create and schedule interval timer
+        self.intervalTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            
+            if self.intervalTime > 0 {
+                self.intervalTime -= 1
+                print("Interval timer tick: \(self.intervalTime)")
+                self.objectWillChange.send()
+            } else {
+                print("Interval timer complete")
+                self.stopIntervalTimer()
+                
+                // Set completion state
+                self.isCompleted = true
+                self.objectWillChange.send()
+                
+                // Call completion action
+                self.onCompleteAction?()
+                
+                // Set up timer to reset completion state
+                self.completionTimer?.invalidate() // Invalidate any existing timer
+                self.completionTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: false) { [weak self] _ in
+                    guard let self = self else { return }
+                    print("Resetting completion state")
+                    self.isCompleted = false
+                    self.objectWillChange.send()
+                }
+                // Add to RunLoop to ensure it fires
+                if let timer = self.completionTimer {
+                    RunLoop.main.add(timer, forMode: .common)
+                }
+            }
+        }
+        
+        // Add timer to RunLoop
+        if let timer = self.intervalTimer {
+            RunLoop.main.add(timer, forMode: .common)
+        }
     }
     
     // RED: Sets both current and initial interval times - use when changing presets
@@ -1477,6 +1577,7 @@ class TimerState: ObservableObject {
         intervalTimer?.invalidate()
         intervalTimer = nil
         self.isRunning = false
+        self.isCompleted = false // Reset completion state when starting
         
         // Store completion handler
         self.onCompleteAction = onComplete
@@ -1536,45 +1637,6 @@ class TimerState: ObservableObject {
         }
     }
     
-    private func createAndStartIntervalTimer() {
-        print("Creating interval timer")
-        
-        // Double check we're on the main thread
-        if !Thread.isMainThread {
-            DispatchQueue.main.async { [weak self] in
-                self?.createAndStartIntervalTimer()
-            }
-            return
-        }
-        
-        // Create and schedule interval timer
-        self.intervalTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            guard let self = self else { return }
-            
-            // Ensure timer updates happen on main thread
-            DispatchQueue.main.async {
-                if self.intervalTime > 0 {
-                    self.intervalTime -= 1
-                    print("Interval timer tick: \(self.intervalTime)")
-                    // Explicitly notify observers of changes
-                    self.objectWillChange.send()
-                } else {
-                    print("Interval timer complete")
-                    self.stopIntervalTimer() // Only stop the interval timer
-                    self.onCompleteAction?()
-                }
-            }
-        }
-        
-        // Add timer to RunLoop to ensure it runs while scrolling
-        if let timer = self.intervalTimer {
-            RunLoop.main.add(timer, forMode: .common)
-            print("Timer added to RunLoop")
-        } else {
-            print("⚠️ Failed to create timer")
-        }
-    }
-    
     private func stopIntervalTimer() {
         intervalTimer?.invalidate()
         intervalTimer = nil
@@ -1598,24 +1660,24 @@ class TimerState: ObservableObject {
     }
     
     // RED: Resets both timers to zero values
-    func reset() {
-        // Stop both timers and reset elapsed time
+    func resetToZero() {
+        // Stop both timers
         stopIntervalTimer()
         stopElapsedTimer()
         
-        // Reset on main thread
+        // Reset on main thread - ensure all values go to zero
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             
             // Reset both timers - set elapsed to zero and interval to initial value
             self.elapsedTime = 0
-            self.intervalTime = self.initialIntervalTime // Restore to initial value instead of zero
+            self.intervalTime = self.initialIntervalTime
             self.isRunning = false
             
             // Explicitly notify observers
             self.objectWillChange.send()
             
-            print("Timer reset. Interval time restored to: \(self.intervalTime)")
+            print("Timer reset to zero. Interval time is now: \(self.intervalTime)")
         }
     }
     
@@ -1632,28 +1694,6 @@ class TimerState: ObservableObject {
             self.intervalTime = time
             self.initialIntervalTime = time  // Also update initial time when setting a preset
             self.objectWillChange.send()
-        }
-    }
-    
-    // RED: Fully resets both timers to zero and stops them
-    func resetToZero() {
-        // Stop both timers
-        stopIntervalTimer()
-        stopElapsedTimer()
-        
-        // Reset on main thread - ensure all values go to zero
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            
-            // Reset both timers - set everything to zero
-            self.elapsedTime = 0
-            self.intervalTime = 0
-            self.isRunning = false
-            
-            // Explicitly notify observers
-            self.objectWillChange.send()
-            
-            print("Timer reset to zero. Interval time is now: \(self.intervalTime)")
         }
     }
 }
@@ -1717,6 +1757,91 @@ class TimerStatesManager: ObservableObject {
                 return false
             }
         }
+    }
+}
+
+struct TimerContainerModifier: ViewModifier {
+    let isCompleted: Bool
+    
+    func body(content: Content) -> some View {
+        content
+            .overlay(
+                RoundedRectangle(cornerRadius: 15)
+                    .stroke(isCompleted ? Color.red : Color.black, lineWidth: isCompleted ? 12 : 2)
+            )
+            .animation(.easeInOut(duration: 0.3), value: isCompleted)
+    }
+}
+
+extension View {
+    func timerContainer(isCompleted: Bool) -> some View {
+        modifier(TimerContainerModifier(isCompleted: isCompleted))
+    }
+}
+
+// Create a separate modifier for handling the timer container appearance
+struct TimerContainerAppearance: ViewModifier {
+    @ObservedObject var timerState: TimerState
+    @State private var isShowingRedBorder = false
+    @State private var resetTimer: Timer?
+    var onTimerComplete: ((UUID) -> Void)?
+    var skipBorder: Bool = false
+    
+    func body(content: Content) -> some View {
+        content
+            .background(Color(UIColor(red: 250/255, green: 166/255, blue: 72/255, alpha: 0.5)))
+            .cornerRadius(15)
+            .overlay(
+                Group {
+                    if !skipBorder {
+                        RoundedRectangle(cornerRadius: 15)
+                            .stroke(isShowingRedBorder ? Color.red : Color.black, 
+                                    lineWidth: isShowingRedBorder ? 12 : 2)
+                            .animation(.easeInOut(duration: 0.3), value: isShowingRedBorder)
+                    }
+                }
+            )
+            .onChange(of: timerState.intervalTime) { oldValue, newValue in
+                // If timer hit zero (and was not reset)
+                if oldValue > 0 && newValue == 0 {
+                    print("Animation triggered - Timer completed")
+                    resetTimer?.invalidate()
+                    
+                    // Show red border
+                    withAnimation(.easeIn(duration: 0.3)) {
+                        isShowingRedBorder = true
+                    }
+                    
+                    // Notify parent view to scroll to this timer
+                    onTimerComplete?(timerState.id)
+                    
+                    // Reset after 3 seconds
+                    resetTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
+                        print("Animation reset timer fired")
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            isShowingRedBorder = false
+                        }
+                    }
+                    
+                    if let timer = resetTimer {
+                        RunLoop.main.add(timer, forMode: .common)
+                    }
+                }
+                
+                // Reset appearance on timer reset
+                if oldValue == 0 && newValue > 0 {
+                    resetTimer?.invalidate()
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        isShowingRedBorder = false
+                    }
+                }
+            }
+    }
+}
+
+extension View {
+    func timerContainerAppearance(timerState: TimerState, onTimerComplete: ((UUID) -> Void)? = nil, skipBorder: Bool = false) -> some View {
+        modifier(TimerContainerAppearance(timerState: timerState, onTimerComplete: onTimerComplete, skipBorder: skipBorder))
     }
 }
 
