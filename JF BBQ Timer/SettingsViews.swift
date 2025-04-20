@@ -174,20 +174,6 @@ struct TimerManagementView: View {
         .sheet(isPresented: $showingAddTimerSheet) {
             addTimerSheet
         }
-        .sheet(isPresented: $showPreset1Picker) {
-            TimerPickerSheet(
-                title: "Preset 1",
-                seconds: $tempPreset1,
-                isPresented: $showPreset1Picker
-            )
-        }
-        .sheet(isPresented: $showPreset2Picker) {
-            TimerPickerSheet(
-                title: "Preset 2",
-                seconds: $tempPreset2,
-                isPresented: $showPreset2Picker
-            )
-        }
     }
     
     // Updated timer row to handle both legacy and additional timers
@@ -253,25 +239,111 @@ struct TimerManagementView: View {
                     TextField("Timer Name", text: $newTimerName)
                         .autocapitalization(.words)
                     
-                    Button(action: {
-                        showPreset1Picker = true
-                    }) {
-                        HStack {
-                            Text("Preset 1")
-                            Spacer()
-                            Text(timeString(from: tempPreset1))
-                                .foregroundColor(.gray)
+                    if !showPreset1Picker && !showPreset2Picker {
+                        Button(action: {
+                            showPreset1Picker = true
+                        }) {
+                            HStack {
+                                Text("Preset 1")
+                                Spacer()
+                                Text(timeString(from: tempPreset1))
+                                    .foregroundColor(.gray)
+                            }
+                        }
+                        
+                        Button(action: {
+                            showPreset2Picker = true
+                        }) {
+                            HStack {
+                                Text("Preset 2")
+                                Spacer()
+                                Text(timeString(from: tempPreset2))
+                                    .foregroundColor(.gray)
+                            }
                         }
                     }
                     
-                    Button(action: {
-                        showPreset2Picker = true
-                    }) {
-                        HStack {
-                            Text("Preset 2")
-                            Spacer()
-                            Text(timeString(from: tempPreset2))
-                                .foregroundColor(.gray)
+                    if showPreset1Picker {
+                        VStack {
+                            HStack {
+                                Text("Preset 1").font(.headline)
+                                Spacer()
+                                Button("Done") {
+                                    showPreset1Picker = false
+                                }
+                                .bold()
+                            }
+                            .padding(.vertical, 8)
+                            
+                            HStack(spacing: 8) {
+                                Picker("Minutes", selection: Binding(
+                                    get: { tempPreset1 / 60 },
+                                    set: { tempPreset1 = $0 * 60 + tempPreset1 % 60 }
+                                )) {
+                                    ForEach(0..<60) { minute in
+                                        Text("\(minute)").tag(minute)
+                                    }
+                                }
+                                .pickerStyle(.wheel)
+                                .frame(width: 100)
+                                
+                                Text("min")
+                                
+                                Picker("Seconds", selection: Binding(
+                                    get: { tempPreset1 % 60 },
+                                    set: { tempPreset1 = (tempPreset1 / 60) * 60 + $0 }
+                                )) {
+                                    ForEach(0..<60) { second in
+                                        Text("\(second)").tag(second)
+                                    }
+                                }
+                                .pickerStyle(.wheel)
+                                .frame(width: 100)
+                                
+                                Text("sec")
+                            }
+                        }
+                    }
+                    
+                    if showPreset2Picker {
+                        VStack {
+                            HStack {
+                                Text("Preset 2").font(.headline)
+                                Spacer()
+                                Button("Done") {
+                                    showPreset2Picker = false
+                                }
+                                .bold()
+                            }
+                            .padding(.vertical, 8)
+                            
+                            HStack(spacing: 8) {
+                                Picker("Minutes", selection: Binding(
+                                    get: { tempPreset2 / 60 },
+                                    set: { tempPreset2 = $0 * 60 + tempPreset2 % 60 }
+                                )) {
+                                    ForEach(0..<60) { minute in
+                                        Text("\(minute)").tag(minute)
+                                    }
+                                }
+                                .pickerStyle(.wheel)
+                                .frame(width: 100)
+                                
+                                Text("min")
+                                
+                                Picker("Seconds", selection: Binding(
+                                    get: { tempPreset2 % 60 },
+                                    set: { tempPreset2 = (tempPreset2 / 60) * 60 + $0 }
+                                )) {
+                                    ForEach(0..<60) { second in
+                                        Text("\(second)").tag(second)
+                                    }
+                                }
+                                .pickerStyle(.wheel)
+                                .frame(width: 100)
+                                
+                                Text("sec")
+                            }
                         }
                     }
                 }
