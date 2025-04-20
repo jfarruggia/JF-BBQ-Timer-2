@@ -447,14 +447,6 @@ struct CompactTimerView: View {
     
     var body: some View {
         VStack(spacing: 4) {
-            // Header with timer name
-            HStack {
-                Text(name)
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                Spacer()
-            }
-            .padding(.horizontal, 6)
-            
             // Main timer content
             HStack(spacing: 8) {
                 // Timer info - vertically stacked
@@ -595,9 +587,11 @@ struct CompactTimerView: View {
                 }
             }
             .padding(8)
-            .background(Color.white)
-            .cornerRadius(12)
-            .shadow(radius: 2)
+            .background(Color(UIColor(red: 250/255, green: 166/255, blue: 72/255, alpha: 0.5)))
+            .cornerRadius(15)
+            .padding(.horizontal, 12) // Add horizontal padding
+            .padding(.bottom, 5) // Add more space between containers
+            .frame(maxWidth: .infinity) // Use full available width
         }
     }
 }
@@ -1090,10 +1084,14 @@ struct ContentView: View {
             )
         }
         .padding(8)
-        .background(Color.black.opacity(0.5))
+        .background(Color(UIColor(red: 250/255, green: 166/255, blue: 72/255, alpha: 0.5)))
         .cornerRadius(15)
+        .overlay(
+            RoundedRectangle(cornerRadius: 15)
+                .stroke(Color.black, lineWidth: 2)
+        )
         .padding(.horizontal, 12) // Add horizontal padding
-        .padding(.bottom, 16) // Add more space between containers
+        .padding(.bottom, 5) // Add more space between containers
         .frame(maxWidth: .infinity) // Use full available width
     }
     
@@ -1176,10 +1174,14 @@ struct ContentView: View {
         }
         .padding()
         .frame(maxWidth: .infinity) // Use full width of parent container
-        .background(Color.black.opacity(0.5))
+        .background(Color(UIColor(red: 250/255, green: 166/255, blue: 72/255, alpha: 0.5)))
         .cornerRadius(15)
+        .overlay(
+            RoundedRectangle(cornerRadius: 15)
+                .stroke(Color.black, lineWidth: 2)
+        )
         .padding(.horizontal, 12) // Add horizontal padding
-        .padding(.bottom, 16) // Add more space between containers
+        .padding(.bottom, 5) // Add more space between containers
     }
     
     // Add a method for the preheat button view with debug visualization
@@ -1191,7 +1193,7 @@ struct ContentView: View {
                 Text("Preheat Grill")
                     .font(.system(size: 20, weight: .bold))
                 
-                Text(preheatTimeRemaining > 0 ? timeString(from: preheatTimeRemaining) : "15:00")
+                Text(preheatTimeRemaining > 0 ? timeString(from: preheatTimeRemaining) : timeString(from: TimeInterval(settings.preheatDuration)))
                     .font(.system(size: 24, weight: .bold))
             }
             .padding()
@@ -1205,6 +1207,10 @@ struct ContentView: View {
             )
             .foregroundColor(.white)
             .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.black, lineWidth: 2)
+            )
             .modifier(PreheatCompleteModifier(isPreheatComplete: isPreheatComplete))
         }
         .if(debugSettings.isEnabled && debugSettings.showLabels) { view in
@@ -1218,90 +1224,16 @@ struct ContentView: View {
         }
     }
     
-    @ViewBuilder
-    private func resetButtonView() -> some View {
-        VStack(spacing: 12) {
-            Button(action: {
-                // Reset the UserDefaults values
-                let defaults = UserDefaults.standard
-                
-                // Reset timer presets
-                defaults.set(60, forKey: "timer1Preset1") // 1 minute
-                defaults.set(120, forKey: "timer1Preset2") // 2 minutes
-                defaults.set(180, forKey: "timer2Preset1") // 3 minutes
-                defaults.set(240, forKey: "timer2Preset2") // 4 minutes
-                
-                // Reset timer names
-                defaults.set("Timer 1", forKey: "timer1Name")
-                defaults.set("Timer 2", forKey: "timer2Name")
-                
-                // Reset compact mode
-                defaults.set(false, forKey: "compactMode")
-                
-                // Reset other settings
-                defaults.set(900, forKey: "preheatDuration") // 15 minutes
-                defaults.set(true, forKey: "soundEnabled")
-                defaults.set(true, forKey: "hapticsEnabled")
-                
-                // Clear additional timers
-                defaults.removeObject(forKey: "additionalTimers")
-                settings.additionalTimers = []
-                
-                // Update the settings object
-                settings.timer1Preset1 = 60
-                settings.timer1Preset2 = 120
-                settings.timer2Preset1 = 180
-                settings.timer2Preset2 = 240
-                settings.timer1Name = "Timer 1"
-                settings.timer2Name = "Timer 2"
-                settings.compactMode = false
-                settings.preheatDuration = 900
-                settings.soundEnabled = true
-                settings.hapticsEnabled = true
-                
-                // Reset timer states
-                initializeTimerStates()
-            }) {
-                HStack {
-                    Image(systemName: "wrench.and.screwdriver.fill")
-                    Text("Reset Settings")
-                }
-                .font(.system(size: 16, weight: .bold, design: .rounded))
-                                        .foregroundColor(.white)
-                .padding(.vertical, 8)
-                                        .frame(maxWidth: .infinity)
-                .background(Color.gray)
-                .cornerRadius(12)
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(Color.white)
-        .cornerRadius(16)
-        .shadow(radius: 5)
-    }
-    
     var body: some View {
         NavigationView {
             ZStack(alignment: .bottom) {
                 // Main content with timers
                 ScrollView(.vertical, showsIndicators: true) {
-                    VStack(spacing: 24) { // Increase spacing further between timer containers
-                        // Settings Button
-                        HStack {
-                            Spacer()
-                            Button(action: {
-                                showSettings = true
-                            }) {
-                                Image(systemName: "gear")
-                                    .font(.system(size: 24))
-                                    .foregroundColor(.gray)
-                                    .padding(.horizontal)
-                                    .padding(.top, 8)
-                            }
-                        }
-                        .padding(.horizontal, 12) // Add padding just for the settings button
-                        
+                    VStack(spacing: 10) { // Spacing between timer containers
+                        // Add a spacer at the top to ensure content starts below the header
+                        Spacer()
+                            .frame(height: 40)
+                            
                         // Timer 1
                         if let timer1 = settings.legacyTimersAsBBQTimers.first,
                            let timer1State = timerStates.state(for: timer1.id) {
@@ -1326,10 +1258,15 @@ struct ContentView: View {
                         
                         // Add padding at bottom to make room for the fixed buttons
                         Spacer()
-                            .frame(height: 180) // Height for preheat and reset buttons plus padding
+                            .frame(height: 100) // Height for preheat button plus padding
                     }
-                    .padding(.top, 8) // Add top padding to the VStack
+                    .padding(.top, 30) // Increase top padding
                 }
+                .safeAreaInset(edge: .top) {
+                     // Empty view with height to create space below the navigation bar
+                      Color.clear.frame(height: 25)
+                }
+                .scrollIndicators(.hidden)
                 .if(debugSettings.isEnabled && debugSettings.showGrid) { view in
                     view.gridOverlay(
                         spacing: debugSettings.gridSpacing,
@@ -1342,27 +1279,15 @@ struct ContentView: View {
                 VStack(spacing: 16) {
                     // Preheat Button
                     preheatButtonView()
-                    
-                    // Reset Button
-                    resetButtonView()
                 }
                 .padding(.horizontal, 12)
-                .padding(.bottom, 16)
-                                        .background(
-                    Color(.systemGray6)
-                        .shadow(color: Color.black.opacity(0.1), radius: 6, x: 0, y: -3)
-                )
-                .if(debugSettings.isEnabled && debugSettings.showLabels) { view in
-                    view.debugFrame(
-                        debugSettings.showFrames,
-                        color: .purple,
-                        showPadding: debugSettings.showPadding,
-                        showBackground: debugSettings.showBackgrounds,
-                        label: "Bottom Buttons"
-                    )
-                }
+                .padding(.bottom, 30)
+                .padding(.top, 12)
+                .background(Color(UIColor(red: 201/255, green: 48/255, blue: 32/255, alpha: 1.0)))
+                .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: -2)
             }
-            .background(Color(.systemGray6))
+            .background(Color(UIColor(red: 201/255, green: 48/255, blue: 32/255, alpha: 0.75)))
+            .edgesIgnoringSafeArea(.all)
             .sheet(isPresented: $showSettings) {
                 NewSettingsView(settings: settings)
             }
@@ -1385,6 +1310,15 @@ struct ContentView: View {
             .onAppear {
                 // Initialize timer states when view appears
                 initializeTimerStates()
+                
+                // Set navigation bar appearance to match the app's background color
+                let appearance = UINavigationBarAppearance()
+                appearance.configureWithOpaqueBackground()
+                appearance.backgroundColor = UIColor(red: 201/255, green: 48/255, blue: 32/255, alpha: 0.75)
+                appearance.titleTextAttributes = [.foregroundColor: UIColor.white]
+                UINavigationBar.appearance().standardAppearance = appearance
+                UINavigationBar.appearance().scrollEdgeAppearance = appearance
+                UINavigationBar.appearance().compactAppearance = appearance
             }
             .onChange(of: settings.additionalTimers) {
                 // Update timer states when timers are added or removed
@@ -1393,13 +1327,24 @@ struct ContentView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
+                        showSettings = true
+                    }) {
+                        Image(systemName: "gear")
+                            .font(.system(size: 20))
+                            .foregroundColor(.white)
+                    }
+                }
+                
+                // Debug toggle button - hidden in release builds
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: {
                         debugSettings.isEnabled.toggle()
                         if !debugSettings.isEnabled {
                             showDebugPanel = false
                         }
                     }) {
                         Image(systemName: debugSettings.isEnabled ? "rectangle.dashed" : "rectangle")
-                            .foregroundColor(debugSettings.isEnabled ? .red : .blue)
+                            .foregroundColor(debugSettings.isEnabled ? .red : .gray)
                     }
                 }
                 
@@ -1414,6 +1359,8 @@ struct ContentView: View {
                     }
                 }
             }
+            .navigationTitle("JF BBQ Timer")
+            .navigationBarTitleDisplayMode(.inline)
             
             // Add debug panel overlay when debug mode is enabled
             if debugSettings.isEnabled && showDebugPanel {
@@ -1462,7 +1409,7 @@ struct ContentView_Previews: PreviewProvider {
             .cornerRadius(16)
             .shadow(radius: 3)
             .padding()
-            .background(Color(.systemGray6))
+            .background(Color(UIColor(red: 201/255, green: 48/255, blue: 32/255, alpha: 0.75)))
             .previewLayout(.sizeThatFits)
             .previewDisplayName("Timer Component")
         }
