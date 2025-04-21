@@ -518,7 +518,9 @@ struct CompactTimerView: View {
                         .foregroundColor(.white)
                         .frame(width: 80) // Set a fixed width for P1 button
                         .padding(.vertical, 8)
-                        .background(Color.blue)
+                        .background(
+                            Color(UIColor(red: 70/255, green: 70/255, blue: 70/255, alpha: 1.0))
+                        )
                         .cornerRadius(8)
                         
                         Button(timeString(from: preset2)) {
@@ -547,22 +549,14 @@ struct CompactTimerView: View {
                         .foregroundColor(.white)
                         .frame(width: 80) // Set a fixed width for P2 button
                         .padding(.vertical, 8)
-                        .background(Color.blue)
+                        .background(
+                            Color(UIColor(red: 70/255, green: 70/255, blue: 70/255, alpha: 1.0))
+                        )
                         .cornerRadius(8)
                     }
                     
                     // Action buttons
                     HStack(spacing: 8) {
-                        Button("Reset") {
-                            print("Direct reset tap")
-                            state.reset()
-                        }
-                        .foregroundColor(.white)
-                        .frame(width: 80) // Set a fixed width for Reset button
-                        .padding(.vertical, 8)
-                        .background(Color.red)
-                        .cornerRadius(8)
-                        
                         Button(state.isRunning ? "Stop" : "Start") {
                             print("Direct start/stop tap")
                             if state.isRunning {
@@ -582,6 +576,16 @@ struct CompactTimerView: View {
                         .frame(width: 80) // Set a fixed width for Start/Stop button
                         .padding(.vertical, 8)
                         .background(state.isRunning ? Color.red : Color.green)
+                        .cornerRadius(8)
+                        
+                        Button("Reset") {
+                            print("Direct reset tap")
+                            state.reset()
+                        }
+                        .foregroundColor(.white)
+                        .frame(width: 80) // Set a fixed width for Reset button
+                        .padding(.vertical, 8)
+                        .background(Color.blue)
                         .cornerRadius(8)
                     }
                 }
