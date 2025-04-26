@@ -68,6 +68,62 @@ struct BBQTimer: Identifiable, Codable, Equatable {
 }
 
 class Settings: ObservableObject {
+    // Define sound options
+    enum AlertSound: String, CaseIterable, Identifiable, Codable {
+        case system = "System Sound"
+        case bell = "Bell Sound" 
+        case ding = "Ding Sound"
+        case horn = "Horn Sound"
+        case beep = "Beep Sound"
+        case alarm = "Alarm Sound"
+        case electronic = "Electronic Sound"
+        case anticipate = "Anticipate Sound"
+        case bloom = "Bloom Sound"
+        case calypso = "Calypso Sound"
+        case chime = "Chime Sound"
+        case complete = "Complete Sound"
+        
+        var id: String { self.rawValue }
+        
+        var displayName: String { self.rawValue }
+        
+        var systemSoundID: SystemSoundID {
+            switch self {
+                case .system: return 1005 // Default system sound
+                case .bell: return 1013   // Glass sound
+                case .ding: return 1103   // New Mail sound  
+                case .horn: return 1016   // Low Power sound
+                case .beep: return 1000   // Tock sound
+                case .alarm: return 1034  // Ringtone sound
+                case .electronic: return 1057 // SMS sound
+                case .anticipate: return 1020 // Anticipate sound
+                case .bloom: return 1021   // Bloom sound
+                case .calypso: return 1022  // Calypso sound 
+                case .chime: return 1023    // Chime sound
+                case .complete: return 1034  // Complete sound
+            }
+        }
+        
+        // Premium sounds require premium membership
+        var isPremiumSound: Bool {
+            switch self {
+                case .system, .bell, .ding: return false
+                case .horn, .beep, .alarm, .electronic, 
+                     .anticipate, .bloom, .calypso, .chime, .complete: return true
+            }
+        }
+        
+        // Group sounds by categories like in Apple's Timer app
+        static var standardSounds: [AlertSound] {
+            return [.system, .bell, .ding]
+        }
+        
+        static var premiumSounds: [AlertSound] {
+            return [.horn, .beep, .alarm, .electronic, .anticipate, 
+                   .bloom, .calypso, .chime, .complete]
+        }
+    }
+    
     // Legacy timer settings for backward compatibility
     @Published var timer1Name: String
     @Published var timer2Name: String
@@ -84,6 +140,7 @@ class Settings: ObservableObject {
     @Published var soundEnabled: Bool
     @Published var hapticsEnabled: Bool
     @Published var compactMode: Bool
+    @Published var selectedAlertSound: AlertSound
     
     // Premium features flag - one-time purchase
     @Published var isPremiumUser: Bool
@@ -106,6 +163,16 @@ class Settings: ObservableObject {
         
         // Initialize premium status
         self.isPremiumUser = UserDefaults.standard.bool(forKey: "isPremiumUser")
+        
+        // Initialize selectedAlertSound
+        if let soundString = UserDefaults.standard.string(forKey: "selectedAlertSound"),
+           let sound = AlertSound(rawValue: soundString) {
+            self.selectedAlertSound = sound
+        } else {
+            self.selectedAlertSound = AlertSound.system
+        }
+        
+        // Custom sound selection is now automatically loaded via computed property
         
         // Set default values if not previously set
         if timer1Preset1 == 0 {
@@ -149,6 +216,11 @@ class Settings: ObservableObject {
         
         // Save premium status
         UserDefaults.standard.set(isPremiumUser, forKey: "isPremiumUser")
+        
+        // Save selected alert sound
+        UserDefaults.standard.set(selectedAlertSound.rawValue, forKey: "selectedAlertSound")
+        
+        // Custom sound selection is now automatically saved via computed property
         
         // Save additional timers
         if let encodedData = try? JSONEncoder().encode(additionalTimers) {
@@ -409,21 +481,21 @@ enum ActiveSheet: Identifiable {
 
 // Add this before ContentView struct
 struct BouncyButtonStyle: ButtonStyle {
-    let id: UUID
+    let buttonID: UUID
     @Binding var pressedButtonId: UUID?
     
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed || pressedButtonId == id ? 0.95 : 1.0)
-            .brightness(configuration.isPressed || pressedButtonId == id ? -0.05 : 0)
+            .scaleEffect(configuration.isPressed || pressedButtonId == buttonID ? 0.95 : 1.0)
+            .brightness(configuration.isPressed || pressedButtonId == buttonID ? -0.05 : 0)
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
-            .onChange(of: configuration.isPressed) { oldValue, newValue in
-                if newValue {
-                    pressedButtonId = id
+            .onChange(of: configuration.isPressed) {
+                if configuration.isPressed {
+                    pressedButtonId = buttonID
                     // Add a slight delay before resetting the pressed state
                     // This makes the animation visible even for quick taps
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                        if pressedButtonId == id {
+                        if pressedButtonId == buttonID {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                                 pressedButtonId = nil
                             }
@@ -436,24 +508,24 @@ struct BouncyButtonStyle: ButtonStyle {
 
 // Special animation style for the Start/Stop button
 struct PulsatingButtonStyle: ButtonStyle {
-    let id: UUID
+    let buttonID: UUID
     @Binding var pressedButtonId: UUID?
     
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed || pressedButtonId == id ? 0.92 : 1.0)
-            .brightness(configuration.isPressed || pressedButtonId == id ? -0.08 : 0)
+            .scaleEffect(configuration.isPressed || pressedButtonId == buttonID ? 0.92 : 1.0)
+            .brightness(configuration.isPressed || pressedButtonId == buttonID ? -0.08 : 0)
             .animation(.spring(response: 0.4, dampingFraction: 0.5, blendDuration: 0.2), value: configuration.isPressed)
-            .onChange(of: configuration.isPressed) { oldValue, newValue in
-                if newValue {
+            .onChange(of: configuration.isPressed) {
+                if configuration.isPressed {
                     // Add haptic feedback
                     let feedback = UIImpactFeedbackGenerator(style: .heavy)
                     feedback.impactOccurred()
                     
-                    pressedButtonId = id
+                    pressedButtonId = buttonID
                     // Delay reset for more visible animation
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        if pressedButtonId == id {
+                        if pressedButtonId == buttonID {
                             withAnimation(.spring(response: 0.5, dampingFraction: 0.5, blendDuration: 0.3)) {
                                 pressedButtonId = nil
                             }
@@ -896,10 +968,18 @@ struct DebugPanel: View {
 // Remove the duplicate NewSettingsView declaration and keep only the most complete version
 struct ContentView: View {
     @StateObject private var settings = Settings()
-    @StateObject private var timerStates = TimerStatesManager()
+    @StateObject private var timerStates: TimerStatesManager
     @State private var showSettings = false
     @State private var showDebugPanel = false
     @State private var showPremiumUpgrade = false
+    
+    // Initialize with the settings
+    init() {
+        // Use _timerStates to initialize the StateObject
+        let settings = Settings() // Create settings first
+        _settings = StateObject(wrappedValue: settings) // Initialize the settings StateObject
+        _timerStates = StateObject(wrappedValue: TimerStatesManager(settings: settings)) // Pass settings to TimerStatesManager
+    }
     
     // Add a namespace for scroll identification
     @Namespace private var scrollNamespace
@@ -938,6 +1018,11 @@ struct ContentView: View {
     
     // Initialize timer states when view appears
     private func initializeTimerStates() {
+        // Update the settings in the TimerStatesManager first
+        print("ContentView: Initializing timer states with settings")
+        timerStates.updateSettings(settings)
+        
+        // Then initialize and sync the timer states
         timerStates.syncTimerStates(timers: settings.allTimers)
     }
     
@@ -1243,8 +1328,8 @@ struct ContentView: View {
                         }
                         .padding(.top, 30)
                     }
-                    .onChange(of: lastCompletedTimerId) { oldValue, newValue in
-                        if let timerId = newValue {
+                    .onChange(of: lastCompletedTimerId) {
+                        if let timerId = lastCompletedTimerId {
                             // Scroll to the completed timer
                             withAnimation {
                                 scrollProxy.scrollTo(timerId, anchor: .center)
@@ -1305,6 +1390,9 @@ struct ContentView: View {
                 }
             )
             .onAppear {
+                // First, update settings in timerStatesManager
+                timerStates.updateSettings(settings)
+                
                 // Initialize timer states when view appears
                 initializeTimerStates()
                 
@@ -1320,6 +1408,16 @@ struct ContentView: View {
             .onChange(of: settings.additionalTimers) {
                 // Update timer states when timers are added or removed
                 initializeTimerStates()
+            }
+            .onChange(of: settings.selectedAlertSound) { _, _ in
+                // Update timer states when sound settings change
+                print("Alert sound changed to \(settings.selectedAlertSound.displayName), updating timer states")
+                timerStates.updateSettings(settings)
+            }
+            .onChange(of: settings.soundEnabled) { _, _ in
+                // Update timer states when sound settings change
+                print("Sound enabled changed to \(settings.soundEnabled), updating timer states")
+                timerStates.updateSettings(settings)
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -1510,28 +1608,41 @@ struct PulsatingBorderModifier: ViewModifier {
 
 // Add this class to manage timer states
 class TimerState: ObservableObject {
-    // RED: Unique identifier for each timer instance
+    // Unique identifier for each timer instance
     let id: UUID
-    // RED: The countdown timer showing time until next flip
+    // The countdown timer showing time until next flip
     @Published var intervalTime: TimeInterval
-    // RED: The time counter showing how long since you lit the grill
+    // The time counter showing how long since you lit the grill
     @Published var elapsedTime: TimeInterval = 0
-    // RED: Whether this timer is currently running
+    // Whether this timer is currently running
     @Published var isRunning: Bool = false
-    // RED: Whether the timer has just completed
+    // Whether the timer has just completed
     @Published var isCompleted: Bool = false
+    
+    // Reference to app settings - change from weak to strong reference
+    private var settings: Settings?
     
     private var intervalTimer: Timer?
     private var elapsedTimer: Timer?
     private var onCompleteAction: (() -> Void)?
     private var completionTimer: Timer?
-    // RED: Stores the original interval time for proper resets
+    // Stores the original interval time for proper resets
     private var initialIntervalTime: TimeInterval
     
-    init(id: UUID, interval: TimeInterval) {
+    init(id: UUID, interval: TimeInterval, settings: Settings? = nil) {
         self.id = id
         self.intervalTime = interval
         self.initialIntervalTime = interval
+        self.settings = settings
+    }
+    
+    // Add a method to update settings
+    func updateSettings(_ newSettings: Settings) {
+        print("TimerState (\(self.id)): Updating settings reference")
+        let previousSetting = self.settings?.selectedAlertSound.displayName ?? "nil"
+        self.settings = newSettings
+        let newSetting = self.settings?.selectedAlertSound.displayName ?? "nil"
+        print("TimerState (\(self.id)): Sound changed from \(previousSetting) to \(newSetting)")
     }
     
     func reset() {
@@ -1578,6 +1689,13 @@ class TimerState: ObservableObject {
                 self.isCompleted = true
                 self.objectWillChange.send()
                 
+                // Print debug info about settings
+                if let settingsObj = self.settings {
+                    print("TimerState (\(self.id)): Timer complete with settings: \(settingsObj.selectedAlertSound.displayName)")
+                } else {
+                    print("TimerState (\(self.id)): ⚠️ Timer complete but settings is nil")
+                }
+                
                 // Call completion action
                 self.onCompleteAction?()
                 
@@ -1602,7 +1720,7 @@ class TimerState: ObservableObject {
         }
     }
     
-    // RED: Sets both current and initial interval times - use when changing presets
+    // Sets both current and initial interval times - use when changing presets
     func setIntervalTime(_ time: TimeInterval) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
@@ -1612,7 +1730,7 @@ class TimerState: ObservableObject {
         }
     }
     
-    // RED: Only updates current interval time, not the initial value
+    // Only updates current interval time, not the initial value
     func setCurrentIntervalTime(_ time: TimeInterval) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
@@ -1621,7 +1739,7 @@ class TimerState: ObservableObject {
         }
     }
     
-    // RED: Manually set the elapsed time value
+    // Manually set the elapsed time value
     func setElapsedTime(_ time: TimeInterval) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
@@ -1630,7 +1748,7 @@ class TimerState: ObservableObject {
         }
     }
     
-    // RED: Starts both interval (countdown) and elapsed (countup) timers
+    // Starts both interval (countdown) and elapsed (countup) timers
     func start(onComplete: @escaping () -> Void) {
         print("Starting timer with interval: \(intervalTime)")
         
@@ -1653,7 +1771,7 @@ class TimerState: ObservableObject {
             return
         }
         
-        // RED: Start elapsed timer only if not already running
+        // Start elapsed timer only if not already running
         startElapsedTimerIfNeeded()
         
         // IMPORTANT: Set isRunning to true immediately on the main thread
@@ -1715,13 +1833,13 @@ class TimerState: ObservableObject {
         elapsedTimer = nil
     }
     
-    // RED: Stops the countDOWN timer only - elapsed time keeps counting
+    // Stops the countDOWN timer only - elapsed time keeps counting
     func stop() {
         // Only stop the interval timer, leave the elapsed timer running
         stopIntervalTimer()
     }
     
-    // RED: Resets both timers to zero values
+    // Resets both timers to zero values
     func resetToZero() {
         // Stop both timers
         stopIntervalTimer()
@@ -1744,18 +1862,18 @@ class TimerState: ObservableObject {
     }
     
     func playSound() {
-        // Implementation for sound playing
-        let systemSoundID: SystemSoundID = 1005
-        AudioServicesPlaySystemSound(systemSoundID)
-    }
-    
-    // Add this method to explicitly set the interval time and update the initial value
-    func setPresetIntervalTime(_ time: TimeInterval) {
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            self.intervalTime = time
-            self.initialIntervalTime = time  // Also update initial time when setting a preset
-            self.objectWillChange.send()
+        // Default sound ID to use if settings is nil
+        let defaultSoundID: SystemSoundID = 1005
+        
+        // Try to access settings directly if the weak reference is nil
+        if let settingsObj = self.settings, settingsObj.soundEnabled {
+            // Use the comprehensive sound playing method that handles both custom and system sounds
+            print("TimerState (\(self.id)): Playing timer completion sound")
+            settingsObj.playTimerCompletionSound()
+        } else {
+            // Log the error and use default sound
+            print("TimerState (\(self.id)): ⚠️ Settings reference is nil or sound disabled")
+            AudioServicesPlaySystemSound(defaultSoundID)
         }
     }
 }
@@ -1763,9 +1881,22 @@ class TimerState: ObservableObject {
 // Add this class to manage multiple timer states
 class TimerStatesManager: ObservableObject {
     @Published var states: [TimerState] = []
+    // Use a strong reference to settings
+    private var settings: Settings?
+    
+    init(settings: Settings? = nil) {
+        print("TimerStatesManager: Initializing with settings \(settings != nil ? "provided" : "nil")")
+        self.settings = settings
+    }
     
     // Initialize with existing timers from settings
     func initializeTimerStates(timers: [BBQTimer]) {
+        print("TimerStatesManager: Initializing timer states for \(timers.count) timers")
+        print("TimerStatesManager: Current settings reference: \(settings != nil ? "valid" : "nil")")
+        if let sound = settings?.selectedAlertSound {
+            print("TimerStatesManager: Current alert sound: \(sound.displayName)")
+        }
+        
         // Clear existing states
         for state in states {
             state.stop()
@@ -1776,13 +1907,15 @@ class TimerStatesManager: ObservableObject {
         // Each timer state's initialIntervalTime will be set to preset1
         // This becomes the default value used when resetting the timer
         for timer in timers {
-            states.append(TimerState(id: timer.id, interval: TimeInterval(timer.preset1)))
+            states.append(TimerState(id: timer.id, interval: TimeInterval(timer.preset1), settings: settings))
         }
+        
+        print("TimerStatesManager: Created \(states.count) timer states")
     }
     
     // Add a new timer state for a new BBQTimer
     func addTimerState(for timer: BBQTimer) -> TimerState {
-        let state = TimerState(id: timer.id, interval: TimeInterval(timer.preset1))
+        let state = TimerState(id: timer.id, interval: TimeInterval(timer.preset1), settings: settings)
         states.append(state)
         return state
     }
@@ -1820,6 +1953,28 @@ class TimerStatesManager: ObservableObject {
             }
         }
     }
+    
+    // Update settings
+    func updateSettings(_ settings: Settings) {
+        print("TimerStatesManager: Updating settings reference")
+        self.settings = settings
+        
+        // Update settings in all timer states
+        for (index, state) in states.enumerated() {
+            print("TimerStatesManager: Updating settings for timer state #\(index)")
+            state.updateSettings(settings)
+        }
+        
+        // Log sound settings for debugging
+        if settings.isUsingCustomSound {
+            print("TimerStatesManager: Using custom sound with ID: \(settings.selectedCustomSoundID?.uuidString ?? "nil")")
+        } else {
+            print("TimerStatesManager: Using system sound: \(settings.selectedAlertSound.displayName)")
+        }
+        
+        // Force a refresh
+        objectWillChange.send()
+    }
 }
 
 struct TimerContainerModifier: ViewModifier {
@@ -1846,6 +2001,7 @@ struct TimerContainerAppearance: ViewModifier {
     @ObservedObject var timerState: TimerState
     @State private var isShowingRedBorder = false
     @State private var resetTimer: Timer?
+    @State private var previousIntervalTime: TimeInterval = 0
     var onTimerComplete: ((UUID) -> Void)?
     var skipBorder: Bool = false
     var isLargeTimer: Bool = false
@@ -1872,7 +2028,10 @@ struct TimerContainerAppearance: ViewModifier {
                     // Use minHeight instead of fixed height to allow content to expand if needed
                     .frame(minHeight: calculateAdaptiveHeight())
             }
-            .onChange(of: timerState.intervalTime) { oldValue, newValue in
+            .onChange(of: timerState.intervalTime) {
+                let newValue = timerState.intervalTime
+                let oldValue = previousIntervalTime
+                
                 // If timer hit zero (and was not reset)
                 if oldValue > 0 && newValue == 0 {
                     print("Animation triggered - Timer completed")
@@ -1906,6 +2065,13 @@ struct TimerContainerAppearance: ViewModifier {
                         isShowingRedBorder = false
                     }
                 }
+                
+                // Save current value as previous for next change
+                previousIntervalTime = newValue
+            }
+            .onAppear {
+                // Initialize the previous interval time when the view appears
+                previousIntervalTime = timerState.intervalTime
             }
     }
     

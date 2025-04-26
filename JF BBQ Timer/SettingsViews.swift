@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFoundation
 // Import the file with PremiumFeatureBadge - not needed if they are in the same file
 // import JF_BBQ_Timer
 
@@ -61,6 +62,25 @@ struct NewSettingsView: View {
                     Section(header: Text("Alerts")) {
                         Toggle("Sound Alerts", isOn: $settings.soundEnabled)
                         Toggle("Haptic Feedback", isOn: $settings.hapticsEnabled)
+                        
+                        if settings.soundEnabled {
+                            NavigationLink(destination: AlertSoundsView(settings: settings)) {
+                                HStack {
+                                    Text("Alert Sound")
+                                    Spacer()
+                                    Text(settings.selectedAlertSound.displayName)
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                            
+                            Button(action: {
+                                // Test the current alert sound
+                                AudioServicesPlaySystemSound(settings.selectedAlertSound.systemSoundID)
+                            }) {
+                                Text("Test Sound")
+                                    .foregroundColor(.blue)
+                            }
+                        }
                     }
                     
                     // Accessibility Section
@@ -130,9 +150,9 @@ struct NewSettingsView: View {
                     }
                     
                     // Future Features Section
-                    Section(header: Text("Future Features")) {
-                        NavigationLink(destination: Text("Custom alert sounds - Coming Soon")) {
-                            Text("Custom Alert Sounds")
+                    Section(header: Text("Timer Customization")) {
+                        NavigationLink(destination: AlertSoundsView(settings: settings)) {
+                            Text("Alert Sounds")
                         }
                         .premiumFeatureBadge(settings: settings)
                         
@@ -807,5 +827,153 @@ struct TimerPresetStylesPreview: View {
             }
         }
         .navigationTitle("Timer Preset Options")
+    }
+}
+
+// View for selecting and previewing alert sounds
+struct AlertSoundsView: View {
+    @ObservedObject var settings: Settings
+    @State private var isPlaying = false
+    @State private var selectedSound: Settings.AlertSound
+    @State private var audioPlayer: AVAudioPlayer?
+    
+    init(settings: Settings) {
+        self.settings = settings
+        // Initialize with the currently selected sound
+        _selectedSound = State(initialValue: settings.selectedAlertSound)
+    }
+    
+    var body: some View {
+        List {
+            Section(header: Text("Standard Sounds")) {
+                ForEach(Settings.AlertSound.standardSounds) { sound in
+                    soundRow(sound: sound)
+                }
+            }
+            
+            Section(header: Text("Premium Sounds")) {
+                ForEach(Settings.AlertSound.premiumSounds) { sound in
+                    soundRow(sound: sound, isPremium: true)
+                }
+            }
+            
+            Section(header: Text("Custom Sounds")) {
+                if let customSoundID = settings.selectedCustomSoundID {
+                    HStack {
+                        Text("Using Custom Sound")
+                            .foregroundColor(.blue)
+                        Spacer()
+                        Image(systemName: "checkmark")
+                            .foregroundColor(.blue)
+                    }
+                }
+                
+                NavigationLink(destination: CustomSoundsView(settings: settings)) {
+                    if settings.isPremiumUser {
+                        Text("Manage Custom Sounds")
+                    } else {
+                        HStack {
+                            Text("Add Custom Sounds")
+                            Spacer()
+                            Image(systemName: "crown.fill")
+                                .foregroundColor(.yellow)
+                        }
+                    }
+                }
+                .disabled(!settings.isPremiumUser)
+            }
+            
+            Section {
+                Button(action: {
+                    settings.selectedAlertSound = selectedSound
+                    settings.save()
+                }) {
+                    Text("Save Selection")
+                        .foregroundColor(.blue)
+                        .bold()
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+            }
+            
+            Section(header: Text("About Alert Sounds")) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Different sounds can help you identify which timer is complete when multiple timers are running.")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                    
+                    if !settings.isPremiumUser {
+                        HStack {
+                            Text("Unlock premium sounds with premium")
+                                .font(.footnote)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Image(systemName: "crown.fill")
+                                .foregroundColor(.yellow)
+                                .font(.footnote)
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Alert Sounds")
+        .onDisappear {
+            audioPlayer?.stop()
+        }
+    }
+    
+    private func soundRow(sound: Settings.AlertSound, isPremium: Bool = false) -> some View {
+        Button(action: {
+            if !isPremium || settings.isPremiumUser {
+                selectedSound = sound
+                playSound(sound: sound)
+            } else {
+                // Show premium upgrade prompt
+                playSound(sound: Settings.AlertSound.system) // Play preview
+            }
+        }) {
+            HStack {
+                Text(sound.displayName)
+                    .foregroundColor(isPremium && !settings.isPremiumUser ? .gray : .primary)
+                
+                Spacer()
+                
+                if selectedSound == sound {
+                    Image(systemName: "checkmark")
+                        .foregroundColor(.blue)
+                }
+                
+                if isPremium && !settings.isPremiumUser {
+                    Image(systemName: "crown.fill")
+                        .foregroundColor(.yellow)
+                        .font(.footnote)
+                } else {
+                    Button(action: {
+                        playSound(sound: sound)
+                    }) {
+                        Image(systemName: "play.circle")
+                            .foregroundColor(.blue)
+                    }
+                    .buttonStyle(BorderlessButtonStyle())
+                }
+            }
+        }
+        .disabled(isPremium && !settings.isPremiumUser)
+        .contentShape(Rectangle())
+    }
+    
+    private func playSound(sound: Settings.AlertSound) {
+        // Clear any custom sound selection when selecting a system sound
+        if settings.isUsingCustomSound {
+            settings.deselectCustomSound()
+        }
+        
+        // Use AudioServices for system sounds
+        if sound.isPremiumSound && !settings.isPremiumUser {
+            // Play a preview but inform user this is premium
+            AudioServicesPlaySystemSound(Settings.AlertSound.system.systemSoundID)
+            return
+        }
+        
+        AudioServicesPlaySystemSound(sound.systemSoundID)
     }
 } 
