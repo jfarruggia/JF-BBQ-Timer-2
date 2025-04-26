@@ -85,6 +85,12 @@ class Settings: ObservableObject {
     @Published var hapticsEnabled: Bool
     @Published var compactMode: Bool
     
+    // Premium features flag - one-time purchase
+    @Published var isPremiumUser: Bool
+    
+    // Premium feature limits
+    let maxFreeTimers: Int = 2 // Only 2 additional timers for free users
+    
     init() {
         // Initialize all stored properties first
         self.timer1Name = UserDefaults.standard.string(forKey: "timer1Name") ?? "Timer 1"
@@ -97,6 +103,9 @@ class Settings: ObservableObject {
         self.soundEnabled = UserDefaults.standard.bool(forKey: "soundEnabled")
         self.hapticsEnabled = UserDefaults.standard.bool(forKey: "hapticsEnabled")
         self.compactMode = UserDefaults.standard.bool(forKey: "compactMode")
+        
+        // Initialize premium status
+        self.isPremiumUser = UserDefaults.standard.bool(forKey: "isPremiumUser")
         
         // Set default values if not previously set
         if timer1Preset1 == 0 {
@@ -138,6 +147,9 @@ class Settings: ObservableObject {
         UserDefaults.standard.set(hapticsEnabled, forKey: "hapticsEnabled")
         UserDefaults.standard.set(compactMode, forKey: "compactMode")
         
+        // Save premium status
+        UserDefaults.standard.set(isPremiumUser, forKey: "isPremiumUser")
+        
         // Save additional timers
         if let encodedData = try? JSONEncoder().encode(additionalTimers) {
             UserDefaults.standard.set(encodedData, forKey: "additionalTimers")
@@ -146,9 +158,31 @@ class Settings: ObservableObject {
     
     // MARK: - Timer Management
     
-    func addTimer(name: String, preset1: Int = 60, preset2: Int = 120) {
-        let newTimer = BBQTimer(name: name, preset1: preset1, preset2: preset2)
-        additionalTimers.append(newTimer)
+    func addTimer(name: String, preset1: Int = 60, preset2: Int = 120) -> Bool {
+        // Check if user can add more timers
+        if canAddMoreTimers() {
+            let newTimer = BBQTimer(name: name, preset1: preset1, preset2: preset2)
+            additionalTimers.append(newTimer)
+            save()
+            return true
+        }
+        return false // Can't add more timers unless premium
+    }
+    
+    // Helper function to check if user can add more timers
+    func canAddMoreTimers() -> Bool {
+        return isPremiumUser
+    }
+    
+    // Unlock premium features (call this when purchase is successful)
+    func unlockPremiumFeatures() {
+        isPremiumUser = true
+        save()
+    }
+    
+    // Reset premium status (for testing)
+    func resetPremiumStatus() {
+        isPremiumUser = false
         save()
     }
     
@@ -625,10 +659,10 @@ struct TimerHeaderView: View {
     
     var body: some View {
         Text(name)
-            .font(.system(size: 28, weight: .bold))
+            .font(.system(size: 24, weight: .bold))
             .foregroundColor(.black)
             .shadow(color: .white.opacity(0.7), radius: 1, x: 0, y: 1)
-            .padding(.vertical, 4)
+            .padding(.vertical, 4) // Increased from 2 to 4
             .if(debugSettings.isEnabled && debugSettings.showLabels) { view in
                 view.debugFrame(
                     debugSettings.showFrames,
@@ -667,10 +701,10 @@ struct FlipTimerView: View {
     
     var body: some View {
         Text(timeString(from: timeInterval))
-            .font(.system(size: 96, weight: .bold, design: .rounded))
+            .font(.system(size: 84, weight: .bold, design: .rounded)) // Reduced from 90 to 84
             .foregroundColor(theme.accentColor)
             .shadow(color: Color.black.opacity(0.7), radius: 4, x: 0, y: 2)
-            .frame(height: 130)
+            .frame(height: 100) // Reduced from 110 to 100
             .minimumScaleFactor(0.5)
             .lineLimit(1)
             .contentTransition(.numericText())
@@ -690,15 +724,18 @@ struct IntervalTimerView: View {
     var theme: Theme
     
     var body: some View {
-        VStack(spacing: 5) {
+        VStack(spacing: 2) { // Increased spacing from 0 to 2
             Text("FLIP IN")
-                .font(.system(size: 36, weight: .bold))
+                .font(.system(size: 28, weight: .bold))
                 .foregroundColor(.orange)
                 .shadow(color: Color.black.opacity(0.7), radius: 3, x: 0, y: 2)
+                .padding(.top, 2)
             
             FlipTimerView(timeInterval: timerState.intervalTime, theme: theme)
+                .padding(.bottom, 2)
         }
-        .padding(20)
+        .padding(.vertical, 10) // Vertical padding
+        .padding(.horizontal, 10)
         .background(theme.backgroundColor.opacity(0.8))
         .cornerRadius(16)
         .frame(maxWidth: .infinity)
@@ -710,29 +747,32 @@ struct ElapsedTimerView: View {
     var theme: Theme
     
     var body: some View {
-        VStack(spacing: 5) {
+        VStack(spacing: 2) { // Increased spacing from 0 to 2
             HStack(spacing: 8) {
                 Image(systemName: "flame.fill")
                     .foregroundColor(.red)
-                    .font(.system(size: 32))
+                    .font(.system(size: 24))
                     .shadow(color: Color.black.opacity(0.5), radius: 2, x: 0, y: 1)
                 
                 Text("LIT TIME")
-                    .font(.system(size: 36, weight: .bold))
+                    .font(.system(size: 28, weight: .bold))
                     .foregroundColor(.orange)
                     .shadow(color: Color.black.opacity(0.7), radius: 3, x: 0, y: 2)
             }
+            .padding(.top, 2)
             
             Text(timeString(from: timerState.elapsedTime))
-                .font(.system(size: 80, weight: .bold, design: .rounded))
+                .font(.system(size: 72, weight: .bold, design: .rounded))
                 .foregroundColor(theme.accentColor)
                 .shadow(color: Color.black.opacity(0.7), radius: 4, x: 0, y: 2)
                 .minimumScaleFactor(0.5)
                 .lineLimit(1)
                 .animation(.easeInOut, value: timerState.elapsedTime)
                 .id("elapsed-\(timerState.elapsedTime)")
+                .padding(.bottom, 2)
         }
-        .padding(20)
+        .padding(.vertical, 10) // Vertical padding
+        .padding(.horizontal, 10)
         .background(theme.backgroundColor.opacity(0.8))
         .cornerRadius(16)
         .frame(maxWidth: .infinity)
@@ -754,10 +794,10 @@ struct TimerPresetButton: View {
     var body: some View {
         Button(action: action) {
             Text(timeStringConverter(presetTime))
-                .font(.system(size: 22, weight: .bold))
+                .font(.system(size: 20, weight: .bold)) // Reduced from 22 to 20
                 .foregroundColor(.white)
-                .padding(.vertical, 12)
-                .padding(.horizontal, 20)
+                .padding(.vertical, 8) // Reduced from 12 to 8
+                .padding(.horizontal, 16) // Reduced from 20 to 16
                 .background(
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color(UIColor(red: 70/255, green: 70/255, blue: 70/255, alpha: 1.0)))
@@ -790,10 +830,10 @@ struct TimerControlButtons: View {
                 }
             }) {
                 Text(state.isRunning ? "Stop" : "Start")
-                    .font(.system(size: 22, weight: .bold))
+                    .font(.system(size: 20, weight: .bold)) // Reduced from 22 to 20
                     .foregroundColor(.white)
-                    .padding(.vertical, 12)
-                    .frame(width: 120)
+                    .padding(.vertical, 8) // Reduced from 12 to 8
+                    .frame(width: 110) // Reduced from 120 to 110
                     .background(
                         RoundedRectangle(cornerRadius: 10)
                             .fill(state.isRunning ? Color.red : Color.green)
@@ -805,10 +845,10 @@ struct TimerControlButtons: View {
                 state.reset()
             }) {
                 Text("Reset")
-                    .font(.system(size: 22, weight: .bold))
+                    .font(.system(size: 20, weight: .bold)) // Reduced from 22 to 20
                     .foregroundColor(.white)
-                    .padding(.vertical, 12)
-                    .frame(width: 120)
+                    .padding(.vertical, 8) // Reduced from 12 to 8
+                    .frame(width: 110) // Reduced from 120 to 110
                     .background(
                         RoundedRectangle(cornerRadius: 10)
                             .fill(Color.blue)
@@ -858,6 +898,8 @@ struct ContentView: View {
     @StateObject private var settings = Settings()
     @StateObject private var timerStates = TimerStatesManager()
     @State private var showSettings = false
+    @State private var showDebugPanel = false
+    @State private var showPremiumUpgrade = false
     
     // Add a namespace for scroll identification
     @Namespace private var scrollNamespace
@@ -893,9 +935,6 @@ struct ContentView: View {
     @State private var preheatTimeRemaining: TimeInterval = 0
     @State private var preheatTimer: Timer?
     @State private var isPreheatComplete = false
-    
-    // For debug panel positioning
-    @State private var showDebugPanel = false
     
     // Initialize timer states when view appears
     private func initializeTimerStates() {
@@ -1018,16 +1057,17 @@ struct ContentView: View {
     
     @ViewBuilder
     private func largeTimerView(for timer: BBQTimer, state: TimerState) -> some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 8) { // Increased spacing for better fit
             TimerHeaderView(name: timer.name)
+                .padding(.top, 4) // Add top padding to header
             
             IntervalTimerView(timerState: state, theme: Theme.defaultTheme)
-                .padding(.top, 6)
+                .padding(.top, 4)
             
             ElapsedTimerView(timerState: state, theme: Theme.defaultTheme)
-                .padding(.bottom, 6)
+                .padding(.bottom, 4)
             
-            HStack(spacing: 16) {
+            HStack(spacing: 14) {
                 TimerPresetButton(
                     presetTime: TimeInterval(timer.preset1),
                     timeStringConverter: timeString,
@@ -1073,18 +1113,20 @@ struct ContentView: View {
                 settings: settings,
                 alertState: alertState
             )
+            .padding(.bottom, 4) // Add bottom padding to controls
         }
-        .padding()
-        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 10) // Add horizontal padding
+        .padding(.vertical, 6) // Add more vertical padding
         .timerContainerAppearance(
             timerState: state, 
             onTimerComplete: { timerId in
                 print("Timer \(timerId) completed, scrolling to view")
                 lastCompletedTimerId = timerId
-            }
+            },
+            isLargeTimer: true
         )
-        .padding(.horizontal, 12)
-        .padding(.bottom, 5)
+        .padding(.horizontal, 8)
+        .padding(.bottom, 8)
     }
     
     // Add a method for the preheat button view with debug visualization
@@ -1168,7 +1210,7 @@ struct ContentView: View {
                 // Main content with timers
                 ScrollViewReader { scrollProxy in
                     ScrollView(.vertical, showsIndicators: true) {
-                        VStack(spacing: 10) { // Spacing between timer containers
+                        VStack(spacing: 20) { // Increased spacing between timer containers for more separation
                             // Add a spacer at the top to ensure content starts below the header
                             Spacer()
                                 .frame(height: 40)
@@ -1197,9 +1239,9 @@ struct ContentView: View {
                             
                             // RED: Empty space at bottom to prevent content being hidden by preheat button
                             Spacer()
-                                .frame(height: 100) // Increased height for the taller button area
+                                .frame(height: 130) // Further increased height for more bottom space
                         }
-                        .padding(.top, 30) // Increase top padding
+                        .padding(.top, 30)
                     }
                     .onChange(of: lastCompletedTimerId) { oldValue, newValue in
                         if let timerId = newValue {
@@ -1254,6 +1296,12 @@ struct ContentView: View {
                             }
                         )
                     }
+                    
+                    if showPremiumUpgrade {
+                        PremiumUpgradeView(settings: settings, isPresented: $showPremiumUpgrade)
+                            .transition(.opacity)
+                            .zIndex(100) // Ensure it appears on top
+                    }
                 }
             )
             .onAppear {
@@ -1275,12 +1323,22 @@ struct ContentView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        showSettings = true
-                    }) {
-                        Image(systemName: "gear")
-                            .font(.system(size: 20))
-                            .foregroundColor(.white)
+                    HStack {
+                        // Premium indicator
+                        if settings.isPremiumUser {
+                            Image(systemName: "crown.fill")
+                                .foregroundColor(.yellow)
+                                .font(.system(size: 18))
+                                .padding(.trailing, 8)
+                        }
+                        
+                        Button(action: {
+                            showSettings = true
+                        }) {
+                            Image(systemName: "gear")
+                                .font(.system(size: 20))
+                                .foregroundColor(.white)
+                        }
                     }
                 }
                 
@@ -1790,9 +1848,11 @@ struct TimerContainerAppearance: ViewModifier {
     @State private var resetTimer: Timer?
     var onTimerComplete: ((UUID) -> Void)?
     var skipBorder: Bool = false
+    var isLargeTimer: Bool = false
     
     func body(content: Content) -> some View {
         content
+            .padding(.vertical, isLargeTimer ? 8 : 0) // Add vertical padding for large timers
             .background(Color(UIColor(red: 250/255, green: 166/255, blue: 72/255, alpha: 0.5)))
             .cornerRadius(15)
             .overlay(
@@ -1805,6 +1865,13 @@ struct TimerContainerAppearance: ViewModifier {
                     }
                 }
             )
+            // Apply layout constraints
+            .if(isLargeTimer) { view in
+                view
+                    .frame(maxWidth: .infinity)
+                    // Use minHeight instead of fixed height to allow content to expand if needed
+                    .frame(minHeight: calculateAdaptiveHeight())
+            }
             .onChange(of: timerState.intervalTime) { oldValue, newValue in
                 // If timer hit zero (and was not reset)
                 if oldValue > 0 && newValue == 0 {
@@ -1841,11 +1908,141 @@ struct TimerContainerAppearance: ViewModifier {
                 }
             }
     }
+    
+    // Calculate adaptive height based on device screen size
+    private func calculateAdaptiveHeight() -> CGFloat {
+        let screenHeight = UIScreen.main.bounds.height
+        let deviceIsPad = UIDevice.current.userInterfaceIdiom == .pad
+        
+        // For iPad, use a different proportion of the screen
+        if deviceIsPad {
+            return min(screenHeight * 0.31, 460)
+        }
+        
+        // For iPhone - use more modest height values
+        switch screenHeight {
+        case 0...667: // iPhone SE, iPhone 8
+            return screenHeight * 0.36
+        case 668...812: // iPhone X, 11 Pro, 12 mini
+            return screenHeight * 0.30
+        case 813...926: // iPhone 11, 12, 13, 14
+            return screenHeight * 0.28
+        default: // iPhone 11 Pro Max, 12 Pro Max, 13 Pro Max, 14 Pro Max
+            return screenHeight * 0.26
+        }
+    }
 }
 
 extension View {
-    func timerContainerAppearance(timerState: TimerState, onTimerComplete: ((UUID) -> Void)? = nil, skipBorder: Bool = false) -> some View {
-        modifier(TimerContainerAppearance(timerState: timerState, onTimerComplete: onTimerComplete, skipBorder: skipBorder))
+    func timerContainerAppearance(timerState: TimerState, onTimerComplete: ((UUID) -> Void)? = nil, skipBorder: Bool = false, isLargeTimer: Bool = false) -> some View {
+        modifier(TimerContainerAppearance(timerState: timerState, onTimerComplete: onTimerComplete, skipBorder: skipBorder, isLargeTimer: isLargeTimer))
+    }
+}
+
+// Create a view modifier to add a premium badge to features
+struct PremiumFeatureBadge: ViewModifier {
+    @ObservedObject var settings: Settings
+    
+    func body(content: Content) -> some View {
+        ZStack(alignment: .topTrailing) {
+            content
+            
+            if !settings.isPremiumUser {
+                Image(systemName: "crown.fill")
+                    .font(.system(size: 12))
+                    .foregroundColor(.yellow)
+                    .padding(4)
+                    .background(Color.black.opacity(0.6))
+                    .clipShape(Circle())
+                    .offset(x: 4, y: -4)
+            }
+        }
+    }
+}
+
+// Add an extension to use this modifier
+extension View {
+    func premiumFeatureBadge(settings: Settings) -> some View {
+        modifier(PremiumFeatureBadge(settings: settings))
+    }
+}
+
+// Premium upgrade view
+struct PremiumUpgradeView: View {
+    @ObservedObject var settings: Settings
+    @Binding var isPresented: Bool
+    
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.3)
+                .edgesIgnoringSafeArea(.all)
+                .onTapGesture {
+                    isPresented = false
+                }
+            
+            VStack(spacing: 20) {
+                Text("Upgrade to Premium")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundColor(.orange)
+                
+                Image(systemName: "crown.fill")
+                    .font(.system(size: 60))
+                    .foregroundColor(.yellow)
+                    .padding()
+                    .background(Color.orange.opacity(0.2))
+                    .clipShape(Circle())
+                
+                Text("Unlock all premium features")
+                    .font(.headline)
+                
+                VStack(alignment: .leading, spacing: 12) {
+                    premiumFeatureRow("Unlimited timers")
+                    premiumFeatureRow("Advanced timer settings")
+                    premiumFeatureRow("Custom themes")
+                    premiumFeatureRow("Priority support")
+                }
+                .padding()
+                
+                Button(action: {
+                    // This would typically be where you implement the in-app purchase
+                    settings.unlockPremiumFeatures()
+                    isPresented = false
+                }) {
+                    Text("Upgrade Now - $4.99")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color.orange)
+                        .cornerRadius(12)
+                }
+                .padding(.horizontal)
+                
+                Button(action: {
+                    isPresented = false
+                }) {
+                    Text("Not Now")
+                        .foregroundColor(.gray)
+                }
+                .padding(.bottom)
+            }
+            .padding()
+            .background(Color.white)
+            .cornerRadius(20)
+            .shadow(radius: 10)
+            .padding(.horizontal, 20)
+            .frame(maxWidth: 400)
+        }
+    }
+    
+    private func premiumFeatureRow(_ text: String) -> some View {
+        HStack {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundColor(.green)
+            Text(text)
+                .font(.body)
+            Spacer()
+        }
     }
 }
 

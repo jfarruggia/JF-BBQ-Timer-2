@@ -1,4 +1,6 @@
 import SwiftUI
+// Import the file with PremiumFeatureBadge - not needed if they are in the same file
+// import JF_BBQ_Timer
 
 struct NewSettingsView: View {
     @ObservedObject var settings: Settings
@@ -10,100 +12,176 @@ struct NewSettingsView: View {
     @State private var showTimer2Preset2Picker = false
     @State private var showPreheatDurationPicker = false
     @State private var showTimerManagement = false
+    @State private var showPremiumUpgrade = false // For premium upgrade modal
     
     var body: some View {
-        NavigationView {
-            List {
-                // Timer Management Section (now includes all timers)
-                Section(header: Text("Manage Timers")) {
-                    NavigationLink(destination: TimerManagementView(settings: settings)) {
-                        HStack {
-                            Image(systemName: "timer")
-                                .foregroundColor(.blue)
-                            Text("Manage All Timers")
+        ZStack {
+            NavigationView {
+                List {
+                    // Timer Management Section (now includes all timers)
+                    Section(header: Text("Manage Timers")) {
+                        NavigationLink(destination: TimerManagementView(settings: settings)) {
+                            HStack {
+                                Image(systemName: "timer")
+                                    .foregroundColor(.blue)
+                                Text("Manage All Timers")
+                            }
                         }
-                    }
-                    
-                    Text("Configure all timers including presets")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-                }
-                
-                // Preheat Duration Section
-                Section(header: Text("Preheat Duration")) {
-                    Button(action: {
-                        showPreheatDurationPicker = true
-                    }) {
-                        HStack {
-                            Text("Duration")
-                            Spacer()
-                            Text(timeString(from: settings.preheatDuration))
-                                .foregroundColor(.gray)
-                        }
-                    }
-                    .sheet(isPresented: $showPreheatDurationPicker) {
-                        TimerPickerSheet(
-                            title: "Preheat Duration",
-                            seconds: Binding(
-                                get: { settings.preheatDuration },
-                                set: { settings.preheatDuration = $0 }
-                            ),
-                            isPresented: $showPreheatDurationPicker
-                        )
-                    }
-                }
-                
-                // Alerts Section
-                Section(header: Text("Alerts")) {
-                    Toggle("Sound Alerts", isOn: $settings.soundEnabled)
-                    Toggle("Haptic Feedback", isOn: $settings.hapticsEnabled)
-                }
-                
-                // Accessibility Section
-                Section(header: Text("Accessibility")) {
-                    Toggle("Compact Display Mode", isOn: $settings.compactMode)
-                        .tint(.blue)
-                    
-                    if !settings.compactMode {
-                        Text("Large display mode enabled for better visibility")
-                            .font(.footnote)
-                            .foregroundColor(.secondary)
-                    } else {
-                        Text("Compact mode saves space for more timers")
+                        
+                        Text("Configure all timers including presets")
                             .font(.footnote)
                             .foregroundColor(.secondary)
                     }
+                    
+                    // Preheat Duration Section
+                    Section(header: Text("Preheat Duration")) {
+                        Button(action: {
+                            showPreheatDurationPicker = true
+                        }) {
+                            HStack {
+                                Text("Duration")
+                                Spacer()
+                                Text(timeString(from: settings.preheatDuration))
+                                    .foregroundColor(.gray)
+                            }
+                        }
+                        .sheet(isPresented: $showPreheatDurationPicker) {
+                            TimerPickerSheet(
+                                title: "Preheat Duration",
+                                seconds: Binding(
+                                    get: { settings.preheatDuration },
+                                    set: { settings.preheatDuration = $0 }
+                                ),
+                                isPresented: $showPreheatDurationPicker
+                            )
+                        }
+                    }
+                    
+                    // Alerts Section
+                    Section(header: Text("Alerts")) {
+                        Toggle("Sound Alerts", isOn: $settings.soundEnabled)
+                        Toggle("Haptic Feedback", isOn: $settings.hapticsEnabled)
+                    }
+                    
+                    // Accessibility Section
+                    Section(header: Text("Accessibility")) {
+                        Toggle("Compact Display Mode", isOn: $settings.compactMode)
+                            .tint(.blue)
+                        
+                        if !settings.compactMode {
+                            Text("Large display mode enabled for better visibility")
+                                .font(.footnote)
+                                .foregroundColor(.secondary)
+                        } else {
+                            Text("Compact mode saves space for more timers")
+                                .font(.footnote)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    
+                    // Premium Features Section
+                    Section(header: Text("Premium Features")) {
+                        if settings.isPremiumUser {
+                            HStack {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .foregroundColor(.green)
+                                Text("Premium Unlocked")
+                                    .bold()
+                            }
+                            
+                            Text("Thank you for supporting JF BBQ Timer!")
+                                .font(.footnote)
+                                .foregroundColor(.secondary)
+                        } else {
+                            Button(action: {
+                                showPremiumUpgrade = true
+                            }) {
+                                HStack {
+                                    Image(systemName: "crown.fill")
+                                        .foregroundColor(.yellow)
+                                    Text("Upgrade to Premium")
+                                        .bold()
+                                    Spacer()
+                                    Text("$4.99")
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            
+                            // Feature list
+                            VStack(alignment: .leading, spacing: 4) {
+                                premiumFeatureRow("Unlimited timers")
+                                premiumFeatureRow("Advanced timer settings")
+                                premiumFeatureRow("Custom themes (coming soon)")
+                                premiumFeatureRow("Priority support")
+                            }
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                        }
+                        
+                        // For testing purposes
+                        if settings.isPremiumUser {
+                            Button(action: {
+                                settings.resetPremiumStatus()
+                            }) {
+                                Text("Reset Premium Status (Testing)")
+                                    .foregroundColor(.red)
+                            }
+                        }
+                    }
+                    
+                    // Future Features Section
+                    Section(header: Text("Future Features")) {
+                        NavigationLink(destination: Text("Custom alert sounds - Coming Soon")) {
+                            Text("Custom Alert Sounds")
+                        }
+                        .premiumFeatureBadge(settings: settings)
+                        
+                        NavigationLink(destination: Text("Temperature monitoring - Coming Soon")) {
+                            Text("Temperature Monitoring")
+                        }
+                        .premiumFeatureBadge(settings: settings)
+                        
+                        NavigationLink(destination: Text("Recipe integration - Coming Soon")) {
+                            Text("Recipe Integration")
+                        }
+                        
+                        NavigationLink(destination: Text("Cloud sync - Coming Soon")) {
+                            Text("Cloud Sync")
+                        }
+                        .premiumFeatureBadge(settings: settings)
+                    }
+                    
+                    // Timer Preset Styles Preview Link
+                    Section {
+                        NavigationLink(destination: TimerPresetStylesPreview()) {
+                            Text("View Timer Preset Style Options")
+                        }
+                    }
                 }
-                
-                // Future Features Section
-                Section(header: Text("Future Features")) {
-                    NavigationLink(destination: Text("Custom alert sounds - Coming Soon")) {
-                        Text("Custom Alert Sounds")
-                    }
-                    NavigationLink(destination: Text("Temperature monitoring - Coming Soon")) {
-                        Text("Temperature Monitoring")
-                    }
-                    NavigationLink(destination: Text("Recipe integration - Coming Soon")) {
-                        Text("Recipe Integration")
-                    }
-                    NavigationLink(destination: Text("Cloud sync - Coming Soon")) {
-                        Text("Cloud Sync")
-                    }
-                }
-                
-                // Timer Preset Styles Preview Link
-                Section {
-                    NavigationLink(destination: TimerPresetStylesPreview()) {
-                        Text("View Timer Preset Style Options")
-                    }
-                }
+                .listStyle(InsetGroupedListStyle())
+                .navigationTitle("Settings")
+                .navigationBarItems(trailing: Button("Done") {
+                    settings.save()
+                    dismiss()
+                })
             }
-            .listStyle(InsetGroupedListStyle())
-            .navigationTitle("Settings")
-            .navigationBarItems(trailing: Button("Done") {
-                settings.save()
-                dismiss()
-            })
+            
+            // Show premium upgrade overlay when needed
+            if showPremiumUpgrade {
+                PremiumUpgradeView(settings: settings, isPresented: $showPremiumUpgrade)
+                    .transition(.opacity)
+                    .zIndex(1) // Ensure it appears on top
+            }
+        }
+    }
+    
+    private func premiumFeatureRow(_ text: String) -> some View {
+        HStack {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundColor(.green)
+                .font(.caption)
+            Text(text)
+            Spacer()
         }
     }
 }
@@ -119,60 +197,152 @@ struct TimerManagementView: View {
     @State private var tempPreset2 = 120 // 2 minutes default
     @State private var editingTimerIndex: Int? = nil
     @State private var editingLegacyTimer: Int? = nil // 0 for Timer 1, 1 for Timer 2
+    @State private var showPremiumUpgrade = false // For showing premium upgrade modal
+    @State private var timerToDelete: Int? = nil // Track which timer to delete
+    @State private var showDeleteConfirmation = false // Control delete confirmation
     
     var body: some View {
-        List {
-            // Default Timers Section
-            Section(header: Text("Default Timers")) {
-                // Timer 1
-                timerRow(
-                    for: settings.legacyTimersAsBBQTimers[0],
-                    isLegacy: true,
-                    legacyIndex: 0
-                )
-                
-                // Timer 2
-                timerRow(
-                    for: settings.legacyTimersAsBBQTimers[1],
-                    isLegacy: true,
-                    legacyIndex: 1
-                )
-            }
-            
-            // Additional Timers Section
-            Section(header: Text("Additional Timers")) {
-                ForEach(settings.additionalTimers.indices, id: \.self) { index in
+        ZStack {
+            List {
+                // Default Timers Section
+                Section(header: Text("Default Timers")) {
+                    // Timer 1
                     timerRow(
-                        for: settings.additionalTimers[index],
-                        at: index
+                        for: settings.legacyTimersAsBBQTimers[0],
+                        isLegacy: true,
+                        legacyIndex: 0
+                    )
+                    
+                    // Timer 2
+                    timerRow(
+                        for: settings.legacyTimersAsBBQTimers[1],
+                        isLegacy: true,
+                        legacyIndex: 1
                     )
                 }
-                .onDelete { indexSet in
-                    for index in indexSet {
-                        settings.removeTimer(at: index)
+                
+                // Additional Timers Section
+                Section(header: Text("Additional Timers")) {
+                    if settings.additionalTimers.isEmpty && settings.isPremiumUser {
+                        Text("No additional timers yet. Add one using the button below.")
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                    } else if !settings.additionalTimers.isEmpty {
+                        Text("Swipe left on a timer to delete")
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                            .padding(.bottom, 4)
+                    }
+                    
+                    ForEach(settings.additionalTimers.indices, id: \.self) { index in
+                        timerRow(
+                            for: settings.additionalTimers[index],
+                            at: index
+                        )
+                    }
+                    .onDelete { indexSet in
+                        for index in indexSet {
+                            settings.removeTimer(at: index)
+                        }
+                    }
+                    
+                    Button(action: {
+                        if !settings.canAddMoreTimers() {
+                            // Show premium upgrade modal if over free limit
+                            showPremiumUpgrade = true
+                        } else {
+                            // Set up for adding a new timer
+                            newTimerName = ""
+                            tempPreset1 = 60
+                            tempPreset2 = 120
+                            editingTimerIndex = nil
+                            editingLegacyTimer = nil
+                            showingAddTimerSheet = true
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                                .foregroundColor(.green)
+                            Text("Add New Timer")
+                            
+                            if !settings.isPremiumUser {
+                                Spacer()
+                                Image(systemName: "crown.fill")
+                                    .foregroundColor(.yellow)
+                            }
+                        }
+                    }
+                    
+                    if !settings.isPremiumUser {
+                        HStack {
+                            Text("Additional timers require premium")
+                                .font(.footnote)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Button("Upgrade") {
+                                showPremiumUpgrade = true
+                            }
+                            .font(.footnote)
+                            .foregroundColor(.blue)
+                        }
                     }
                 }
                 
-                Button(action: {
-                    // Set up for adding a new timer
-                    newTimerName = ""
-                    tempPreset1 = 60
-                    tempPreset2 = 120
-                    editingTimerIndex = nil
-                    editingLegacyTimer = nil
-                    showingAddTimerSheet = true
-                }) {
-                    HStack {
-                        Image(systemName: "plus.circle.fill")
-                            .foregroundColor(.green)
-                        Text("Add New Timer")
+                // Premium Features Section (only shown for non-premium users)
+                if !settings.isPremiumUser {
+                    Section(header: Text("Premium Features")) {
+                        Button(action: {
+                            showPremiumUpgrade = true
+                        }) {
+                            HStack {
+                                Image(systemName: "crown.fill")
+                                    .foregroundColor(.yellow)
+                                Text("Upgrade to Premium")
+                                    .bold()
+                                Spacer()
+                                Text("$4.99")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
+                        Text("Unlock additional timers and premium features")
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
                     }
                 }
             }
+            .navigationTitle("Manage Timers")
+            .sheet(isPresented: $showingAddTimerSheet) {
+                addTimerSheet
+            }
+            
+            // Show premium upgrade overlay when needed
+            if showPremiumUpgrade {
+                PremiumUpgradeView(settings: settings, isPresented: $showPremiumUpgrade)
+                    .transition(.opacity)
+                    .zIndex(1) // Ensure it appears on top
+            }
         }
-        .navigationTitle("Manage Timers")
-        .sheet(isPresented: $showingAddTimerSheet) {
-            addTimerSheet
+        .confirmationDialog(
+            "Delete Timer",
+            isPresented: $showDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                if let index = timerToDelete {
+                    settings.removeTimer(at: index)
+                    timerToDelete = nil
+                }
+            }
+            Button("Cancel", role: .cancel) {
+                timerToDelete = nil
+            }
+        } message: {
+            if let index = timerToDelete, index < settings.additionalTimers.count {
+                Text("Are you sure you want to delete '\(settings.additionalTimers[index].name)'?")
+            } else {
+                Text("Are you sure you want to delete this timer?")
+            }
         }
     }
     
@@ -183,6 +353,8 @@ struct TimerManagementView: View {
                 Text(timer.name)
                     .font(.headline)
                 Spacer()
+                
+                // Edit button for all timers
                 Button(action: {
                     // Set up for editing this timer
                     newTimerName = timer.name
@@ -203,6 +375,19 @@ struct TimerManagementView: View {
                         .foregroundColor(.blue)
                 }
                 .buttonStyle(BorderlessButtonStyle())
+                
+                // Delete button only for additional timers
+                if !isLegacy, let index = index {
+                    Button(action: {
+                        timerToDelete = index
+                        showDeleteConfirmation = true
+                    }) {
+                        Image(systemName: "trash")
+                            .foregroundColor(.red)
+                    }
+                    .buttonStyle(BorderlessButtonStyle())
+                    .padding(.horizontal, 8)
+                }
                 
                 // Only show visibility toggle for additional timers
                 if !isLegacy, let index = index {
