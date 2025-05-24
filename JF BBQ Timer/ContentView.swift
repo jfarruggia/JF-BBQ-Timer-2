@@ -119,8 +119,8 @@ class Settings: ObservableObject {
         }
         
         static var premiumSounds: [AlertSound] {
-            return [.horn, .beep, .alarm, .electronic, .anticipate, 
-                   .bloom, .calypso, .chime, .complete]
+            // We're removing these from the enum since we'll use custom bundled sounds instead
+            return []
         }
     }
     
@@ -142,6 +142,12 @@ class Settings: ObservableObject {
     @Published var compactMode: Bool
     @Published var selectedAlertSound: AlertSound
     
+    // Voice announcement settings
+    @Published var voiceAnnouncementsEnabled: Bool
+    @Published var customAnnouncementMessage: String
+    @Published var selectedVoiceIdentifier: String
+    @Published var announceOnlyWithHeadphones: Bool
+    
     // Premium features flag - one-time purchase
     @Published var isPremiumUser: Bool
     
@@ -157,8 +163,20 @@ class Settings: ObservableObject {
         self.timer2Preset1 = UserDefaults.standard.integer(forKey: "timer2Preset1")
         self.timer2Preset2 = UserDefaults.standard.integer(forKey: "timer2Preset2")
         self.preheatDuration = UserDefaults.standard.integer(forKey: "preheatDuration")
-        self.soundEnabled = UserDefaults.standard.bool(forKey: "soundEnabled")
-        self.hapticsEnabled = UserDefaults.standard.bool(forKey: "hapticsEnabled")
+        
+        // Set sound and haptic feedback ON by default
+        if UserDefaults.standard.object(forKey: "soundEnabled") != nil {
+            self.soundEnabled = UserDefaults.standard.bool(forKey: "soundEnabled")
+        } else {
+            self.soundEnabled = true // Default to ON
+        }
+        
+        if UserDefaults.standard.object(forKey: "hapticsEnabled") != nil {
+            self.hapticsEnabled = UserDefaults.standard.bool(forKey: "hapticsEnabled")
+        } else {
+            self.hapticsEnabled = true // Default to ON
+        }
+        
         self.compactMode = UserDefaults.standard.bool(forKey: "compactMode")
         
         // Initialize premium status
@@ -170,6 +188,20 @@ class Settings: ObservableObject {
             self.selectedAlertSound = sound
         } else {
             self.selectedAlertSound = AlertSound.system
+        }
+        
+        // Initialize voice announcement settings
+        self.voiceAnnouncementsEnabled = UserDefaults.standard.bool(forKey: "voiceAnnouncementsEnabled")
+        self.customAnnouncementMessage = UserDefaults.standard.string(forKey: "customAnnouncementMessage") ?? "Your timer has completed"
+        self.announceOnlyWithHeadphones = UserDefaults.standard.bool(forKey: "announceOnlyWithHeadphones")
+        
+        // Initialize selectedVoiceIdentifier
+        if let voiceIdentifier = UserDefaults.standard.string(forKey: "selectedVoiceIdentifier") {
+            self.selectedVoiceIdentifier = voiceIdentifier
+        } else {
+            // Default to Samantha voice (common on iOS) or fall back to first available voice
+            let defaultVoice = AVSpeechSynthesisVoice(language: "en-US")
+            self.selectedVoiceIdentifier = defaultVoice?.identifier ?? "com.apple.ttsbundle.Samantha-compact"
         }
         
         // Custom sound selection is now automatically loaded via computed property
@@ -219,6 +251,14 @@ class Settings: ObservableObject {
         
         // Save selected alert sound
         UserDefaults.standard.set(selectedAlertSound.rawValue, forKey: "selectedAlertSound")
+        
+        // Save voice announcement settings
+        UserDefaults.standard.set(voiceAnnouncementsEnabled, forKey: "voiceAnnouncementsEnabled")
+        UserDefaults.standard.set(customAnnouncementMessage, forKey: "customAnnouncementMessage")
+        UserDefaults.standard.set(announceOnlyWithHeadphones, forKey: "announceOnlyWithHeadphones")
+        
+        // Save selectedVoiceIdentifier
+        UserDefaults.standard.set(selectedVoiceIdentifier, forKey: "selectedVoiceIdentifier")
         
         // Custom sound selection is now automatically saved via computed property
         
@@ -412,6 +452,8 @@ struct AlertView: View {
     @ObservedObject var alertState: AlertState
     let audioPlayer: AVAudioPlayer?
     let isPreheat: Bool
+    let settings: Settings // Pass settings to allow stopping looping sound
+    @ObservedObject var timerState: TimerState // Add timerState for targeted reset
     
     var body: some View {
         GeometryReader { geometry in
@@ -421,20 +463,24 @@ struct AlertView: View {
                     .onTapGesture {
                         print("Background tapped")
                         audioPlayer?.stop()
+                        settings.stopLoopingAlertSound() // Stop looping sound when alert is dismissed
+                        timerState.resetCompletionState() // Reset timer completion state
                         if isPreheat {
                             alertState.showPreheatAlert = false
                         } else {
-                        alertState.isPresented = false
+                            alertState.isPresented = false
                         }
                     }
                 
                 Button(action: {
                     print("Button tapped")
                     audioPlayer?.stop()
+                    settings.stopLoopingAlertSound() // Stop looping sound when alert is dismissed
+                    timerState.resetCompletionState() // Reset timer completion state
                     if isPreheat {
                         alertState.showPreheatAlert = false
                     } else {
-                    alertState.isPresented = false
+                        alertState.isPresented = false
                     }
                 }) {
                     VStack(spacing: 8) {
@@ -444,20 +490,20 @@ struct AlertView: View {
                             Text("Complete! 🔥")
                                 .font(.system(size: 36, weight: .bold, design: .rounded))
                         } else {
-                    Text("Interval Complete!")
-                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                            Text("Interval Complete!")
+                                .font(.system(size: 32, weight: .bold, design: .rounded))
                         }
                     }
-                        .foregroundColor(.white)
-                        .multilineTextAlignment(.center)
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
                     .frame(width: 220, height: 220)
-                        .background(Color.red)
-                        .cornerRadius(20)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 20)
-                                .stroke(Color.white, lineWidth: 3)
-                        )
-                        .shadow(radius: 10)
+                    .background(Color.red)
+                    .cornerRadius(20)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 20)
+                            .stroke(Color.white, lineWidth: 3)
+                    )
+                    .shadow(radius: 10)
                 }
                 .buttonStyle(PlainButtonStyle())
             }
@@ -890,6 +936,7 @@ struct TimerControlButtons: View {
             Button(action: {
                 if state.isRunning {
                     state.stop()
+                    settings.stopLoopingAlertSound() // Stop looping alert sound
                 } else {
                     state.start {
                         if settings.soundEnabled {
@@ -915,17 +962,14 @@ struct TimerControlButtons: View {
             
             Button(action: {
                 state.reset()
+                settings.stopLoopingAlertSound() // Stop looping alert sound
             }) {
                 Text("Reset")
-                    .font(.system(size: 20, weight: .bold)) // Reduced from 22 to 20
                     .foregroundColor(.white)
-                    .padding(.vertical, 8) // Reduced from 12 to 8
-                    .frame(width: 110) // Reduced from 120 to 110
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.blue)
-                            .shadow(color: Color.black.opacity(0.2), radius: 2, x: 1, y: 1)
-                    )
+                    .frame(width: 80) // Set a fixed width for Reset button
+                    .padding(.vertical, 8)
+                    .background(Color.blue)
+                    .cornerRadius(8)
             }
         }
     }
@@ -1369,10 +1413,9 @@ struct ContentView: View {
             }
             .overlay(
                 Group {
-                    if alertState.isPresented {
-                        AlertView(alertState: alertState, audioPlayer: nil, isPreheat: false)
+                    if alertState.isPresented, let timer1 = settings.legacyTimersAsBBQTimers.first, let timer1State = timerStates.state(for: timer1.id) {
+                        AlertView(alertState: alertState, audioPlayer: Settings.sharedAudioPlayer, isPreheat: false, settings: settings, timerState: timer1State)
                     }
-                    
                     if showPreheatAlert {
                         PreheatAlertView(
                             isPresented: $showPreheatAlert,
@@ -1381,7 +1424,6 @@ struct ContentView: View {
                             }
                         )
                     }
-                    
                     if showPremiumUpgrade {
                         PremiumUpgradeView(settings: settings, isPresented: $showPremiumUpgrade)
                             .transition(.opacity)
@@ -1867,14 +1909,20 @@ class TimerState: ObservableObject {
         
         // Try to access settings directly if the weak reference is nil
         if let settingsObj = self.settings, settingsObj.soundEnabled {
-            // Use the comprehensive sound playing method that handles both custom and system sounds
-            print("TimerState (\(self.id)): Playing timer completion sound")
-            settingsObj.playTimerCompletionSound()
+            // Use the method that handles both sound and voice announcement
+            print("TimerState (\(self.id)): Playing timer completion sound with announcement")
+            settingsObj.playTimerCompletionWithAnnouncement(timerId: self.id)
         } else {
             // Log the error and use default sound
             print("TimerState (\(self.id)): ⚠️ Settings reference is nil or sound disabled")
             AudioServicesPlaySystemSound(defaultSoundID)
         }
+    }
+    
+    func resetCompletionState() {
+        print("[DEBUG] TimerState.resetCompletionState() called for timer: \(id)")
+        isCompleted = false
+        objectWillChange.send()
     }
 }
 

@@ -6,202 +6,128 @@ import AVFoundation
 struct NewSettingsView: View {
     @ObservedObject var settings: Settings
     @Environment(\.dismiss) var dismiss
-    
-    @State private var showTimer1Preset1Picker = false
-    @State private var showTimer1Preset2Picker = false
-    @State private var showTimer2Preset1Picker = false
-    @State private var showTimer2Preset2Picker = false
+    @State private var showPremiumUpgrade = false
     @State private var showPreheatDurationPicker = false
-    @State private var showTimerManagement = false
-    @State private var showPremiumUpgrade = false // For premium upgrade modal
-    
+
     var body: some View {
-        ZStack {
-            NavigationView {
-                List {
-                    // Timer Management Section (now includes all timers)
-                    Section(header: Text("Manage Timers")) {
-                        NavigationLink(destination: TimerManagementView(settings: settings)) {
+        NavigationView {
+            List {
+                // Premium Banner (if not premium)
+                if !settings.isPremiumUser {
+                    Section {
+                        Button(action: { showPremiumUpgrade = true }) {
                             HStack {
-                                Image(systemName: "timer")
-                                    .foregroundColor(.blue)
-                                Text("Manage All Timers")
-                            }
-                        }
-                        
-                        Text("Configure all timers including presets")
-                            .font(.footnote)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    // Preheat Duration Section
-                    Section(header: Text("Preheat Duration")) {
-                        Button(action: {
-                            showPreheatDurationPicker = true
-                        }) {
-                            HStack {
-                                Text("Duration")
-                                Spacer()
-                                Text(timeString(from: settings.preheatDuration))
-                                    .foregroundColor(.gray)
-                            }
-                        }
-                        .sheet(isPresented: $showPreheatDurationPicker) {
-                            TimerPickerSheet(
-                                title: "Preheat Duration",
-                                seconds: Binding(
-                                    get: { settings.preheatDuration },
-                                    set: { settings.preheatDuration = $0 }
-                                ),
-                                isPresented: $showPreheatDurationPicker
-                            )
-                        }
-                    }
-                    
-                    // Alerts Section
-                    Section(header: Text("Alerts")) {
-                        Toggle("Sound Alerts", isOn: $settings.soundEnabled)
-                        Toggle("Haptic Feedback", isOn: $settings.hapticsEnabled)
-                        
-                        if settings.soundEnabled {
-                            NavigationLink(destination: AlertSoundsView(settings: settings)) {
-                                HStack {
-                                    Text("Alert Sound")
-                                    Spacer()
-                                    Text(settings.selectedAlertSound.displayName)
-                                        .foregroundColor(.gray)
-                                }
-                            }
-                            
-                            Button(action: {
-                                // Test the current alert sound
-                                AudioServicesPlaySystemSound(settings.selectedAlertSound.systemSoundID)
-                            }) {
-                                Text("Test Sound")
-                                    .foregroundColor(.blue)
-                            }
-                        }
-                    }
-                    
-                    // Accessibility Section
-                    Section(header: Text("Accessibility")) {
-                        Toggle("Compact Display Mode", isOn: $settings.compactMode)
-                            .tint(.blue)
-                        
-                        if !settings.compactMode {
-                            Text("Large display mode enabled for better visibility")
-                                .font(.footnote)
-                                .foregroundColor(.secondary)
-                        } else {
-                            Text("Compact mode saves space for more timers")
-                                .font(.footnote)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    
-                    // Premium Features Section
-                    Section(header: Text("Premium Features")) {
-                        if settings.isPremiumUser {
-                            HStack {
-                                Image(systemName: "checkmark.seal.fill")
-                                    .foregroundColor(.green)
-                                Text("Premium Unlocked")
-                                    .bold()
-                            }
-                            
-                            Text("Thank you for supporting JF BBQ Timer!")
-                                .font(.footnote)
-                                .foregroundColor(.secondary)
-                        } else {
-                            Button(action: {
-                                showPremiumUpgrade = true
-                            }) {
-                                HStack {
-                                    Image(systemName: "crown.fill")
-                                        .foregroundColor(.yellow)
+                                Image(systemName: "crown.fill")
+                                    .foregroundColor(.yellow)
+                                VStack(alignment: .leading) {
                                     Text("Upgrade to Premium")
                                         .bold()
-                                    Spacer()
-                                    Text("$4.99")
+                                    Text("Unlock unlimited timers, custom sounds, and more!")
+                                        .font(.footnote)
                                         .foregroundColor(.secondary)
                                 }
+                                Spacer()
+                                Text("$4.99")
+                                    .foregroundColor(.secondary)
                             }
-                            
-                            // Feature list
-                            VStack(alignment: .leading, spacing: 4) {
-                                premiumFeatureRow("Unlimited timers")
-                                premiumFeatureRow("Advanced timer settings")
-                                premiumFeatureRow("Custom themes (coming soon)")
-                                premiumFeatureRow("Priority support")
-                            }
-                            .font(.footnote)
-                            .foregroundColor(.secondary)
-                        }
-                        
-                        // For testing purposes
-                        if settings.isPremiumUser {
-                            Button(action: {
-                                settings.resetPremiumStatus()
-                            }) {
-                                Text("Reset Premium Status (Testing)")
-                                    .foregroundColor(.red)
-                            }
-                        }
-                    }
-                    
-                    // Future Features Section
-                    Section(header: Text("Timer Customization")) {
-                        NavigationLink(destination: AlertSoundsView(settings: settings)) {
-                            Text("Alert Sounds")
-                        }
-                        .premiumFeatureBadge(settings: settings)
-                        
-                        NavigationLink(destination: Text("Temperature monitoring - Coming Soon")) {
-                            Text("Temperature Monitoring")
-                        }
-                        .premiumFeatureBadge(settings: settings)
-                        
-                        NavigationLink(destination: Text("Recipe integration - Coming Soon")) {
-                            Text("Recipe Integration")
-                        }
-                        
-                        NavigationLink(destination: Text("Cloud sync - Coming Soon")) {
-                            Text("Cloud Sync")
-                        }
-                        .premiumFeatureBadge(settings: settings)
-                    }
-                    
-                    // Timer Preset Styles Preview Link
-                    Section {
-                        NavigationLink(destination: TimerPresetStylesPreview()) {
-                            Text("View Timer Preset Style Options")
                         }
                     }
                 }
-                .listStyle(InsetGroupedListStyle())
-                .navigationTitle("Settings")
-                .navigationBarItems(trailing: Button("Done") {
-                    settings.save()
-                    dismiss()
-                })
+
+                // Timer Management
+                Section(header: Text("Timers")) {
+                    NavigationLink("Manage All Timers", destination: TimerManagementView(settings: settings))
+                    Button(action: { showPreheatDurationPicker = true }) {
+                        HStack {
+                            Text("Preheat Duration")
+                            Spacer()
+                            Text(timeString(from: settings.preheatDuration))
+                                .foregroundColor(.gray)
+                        }
+                    }
+                    .sheet(isPresented: $showPreheatDurationPicker) {
+                        TimerPickerSheet(
+                            title: "Preheat Duration",
+                            seconds: Binding(
+                                get: { settings.preheatDuration },
+                                set: { settings.preheatDuration = $0 }
+                            ),
+                            isPresented: $showPreheatDurationPicker
+                        )
+                    }
+                }
+
+                // Alerts & Feedback
+                Section(header: Text("Alerts & Feedback")) {
+                    Toggle("Sound Alerts", isOn: $settings.soundEnabled)
+                    Toggle("Haptic Feedback", isOn: $settings.hapticsEnabled)
+                    if settings.soundEnabled {
+                        Toggle("Voice Announcements", isOn: $settings.voiceAnnouncementsEnabled)
+                        if settings.voiceAnnouncementsEnabled {
+                            NavigationLink("Voice Announcement Settings", destination: VoiceAnnouncementSettingsView(settings: settings))
+                        }
+                        Button("Test Sound") {
+                            AudioServicesPlaySystemSound(settings.selectedAlertSound.systemSoundID)
+                        }
+                        .foregroundColor(.blue)
+                    }
+                }
+
+                // Display & Accessibility
+                Section(header: Text("Display & Accessibility")) {
+                    Toggle("Compact Display Mode", isOn: $settings.compactMode)
+                        .tint(.blue)
+                    Text(settings.compactMode ? "Compact mode saves space for more timers" : "Large display mode enabled for better visibility")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                }
+
+                // Timer Customization & Advanced
+                Section(header: Text("Timer Customization")) {
+                    NavigationLink("Alert Sound", destination: AlertSoundsView(settings: settings))
+                    NavigationLink("Temperature Monitoring (Coming Soon)", destination: Text("Temperature monitoring - Coming Soon"))
+                    NavigationLink("Recipe Integration (Coming Soon)", destination: Text("Recipe integration - Coming Soon"))
+                    NavigationLink("Cloud Sync (Coming Soon)", destination: Text("Cloud sync - Coming Soon"))
+                }
+
+                // Thank you message for premium users
+                if settings.isPremiumUser {
+                    Section {
+                        HStack {
+                            Image(systemName: "checkmark.seal.fill")
+                                .foregroundColor(.green)
+                            Text("Premium Unlocked")
+                                .bold()
+                        }
+                        Text("Thank you for supporting JF BBQ Timer!")
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                // DEBUG: Toggle for premium status (for testing only)
+                Section(header: Text("Debug")) {
+                    Toggle(isOn: Binding(
+                        get: { settings.isPremiumUser },
+                        set: { newValue in
+                            settings.isPremiumUser = newValue
+                            settings.save()
+                        }
+                    )) {
+                        Text("[DEBUG] Premium Features Enabled")
+                            .foregroundColor(.red)
+                    }
+                }
             }
-            
-            // Show premium upgrade overlay when needed
-            if showPremiumUpgrade {
+            .listStyle(InsetGroupedListStyle())
+            .navigationTitle("Settings")
+            .navigationBarItems(trailing: Button("Done") {
+                settings.save()
+                dismiss()
+            })
+            .sheet(isPresented: $showPremiumUpgrade) {
                 PremiumUpgradeView(settings: settings, isPresented: $showPremiumUpgrade)
-                    .transition(.opacity)
-                    .zIndex(1) // Ensure it appears on top
             }
-        }
-    }
-    
-    private func premiumFeatureRow(_ text: String) -> some View {
-        HStack {
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundColor(.green)
-                .font(.caption)
-            Text(text)
-            Spacer()
         }
     }
 }
@@ -609,7 +535,7 @@ struct TimerManagementView: View {
                 preset2: tempPreset2
             )
         } else {
-            settings.addTimer(
+            _ = settings.addTimer(
                 name: newTimerName,
                 preset1: tempPreset1,
                 preset2: tempPreset2
@@ -836,119 +762,262 @@ struct AlertSoundsView: View {
     @State private var isPlaying = false
     @State private var selectedSound: Settings.AlertSound
     @State private var audioPlayer: AVAudioPlayer?
+    @State private var showPremiumUpgrade = false
+    @StateObject private var bundledSoundsManager = BundledSoundsManager()
+    @State private var selectedBundledSoundID: UUID? = nil
+    @State private var expandedCategory: String? = nil
     
     init(settings: Settings) {
         self.settings = settings
         // Initialize with the currently selected sound
         _selectedSound = State(initialValue: settings.selectedAlertSound)
+        
+        // Initialize with the currently selected bundled sound
+        _selectedBundledSoundID = State(initialValue: settings.selectedBundledSoundID)
     }
     
     var body: some View {
-        List {
-            Section(header: Text("Standard Sounds")) {
-                ForEach(Settings.AlertSound.standardSounds) { sound in
-                    soundRow(sound: sound)
-                }
-            }
-            
-            Section(header: Text("Premium Sounds")) {
-                ForEach(Settings.AlertSound.premiumSounds) { sound in
-                    soundRow(sound: sound, isPremium: true)
-                }
-            }
-            
-            Section(header: Text("Custom Sounds")) {
-                if let customSoundID = settings.selectedCustomSoundID {
-                    HStack {
-                        Text("Using Custom Sound")
-                            .foregroundColor(.blue)
-                        Spacer()
-                        Image(systemName: "checkmark")
-                            .foregroundColor(.blue)
+        ZStack {
+            List {
+                // Show premium upgrade banner for non-premium users
+                if !settings.isPremiumUser {
+                    Section {
+                        Button(action: {
+                            showPremiumUpgrade = true
+                        }) {
+                            HStack {
+                                Image(systemName: "crown.fill")
+                                    .foregroundColor(.yellow)
+                                Text("Upgrade to Premium")
+                                    .bold()
+                                Spacer()
+                                Text("Unlock All Sounds")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
                     }
                 }
                 
-                NavigationLink(destination: CustomSoundsView(settings: settings)) {
-                    if settings.isPremiumUser {
-                        Text("Manage Custom Sounds")
-                    } else {
-                        HStack {
-                            Text("Add Custom Sounds")
-                            Spacer()
-                            Image(systemName: "crown.fill")
-                                .foregroundColor(.yellow)
+                // System Sounds Section - always visible
+                Section(header: Text("System Sounds")) {
+                    ForEach(Settings.AlertSound.standardSounds) { sound in
+                        systemSoundRow(sound: sound)
+                    }
+                }
+                
+                // Premium Sounds - With categorized list
+                if bundledSoundsManager.categories.isEmpty {
+                    Section(header: Text("Premium Sounds")
+                        .premiumFeatureBadge(settings: settings)
+                    ) {
+                        Text("No premium sounds available")
+                            .foregroundColor(.secondary)
+                            .italic()
+                        // Debug information
+                        Text("Debug: \(bundledSoundsManager.allSounds.count) sounds loaded")
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    }
+                } else {
+                    // Add a header for the premium section
+                    Section(header: Text("Premium Sounds")
+                        .premiumFeatureBadge(settings: settings)
+                    ) {
+                        EmptyView() // Just to show the section header
+                    }
+                    // Now, for each category, create a section
+                    ForEach(bundledSoundsManager.categories, id: \.self) { category in
+                        Section(header: Text(category).font(.headline)) {
+                            ForEach(bundledSoundsManager.sounds(in: category)) { sound in
+                                bundledSoundRow(sound: sound)
+                            }
                         }
                     }
                 }
-                .disabled(!settings.isPremiumUser)
-            }
-            
-            Section {
-                Button(action: {
-                    settings.selectedAlertSound = selectedSound
-                    settings.save()
-                }) {
-                    Text("Save Selection")
-                        .foregroundColor(.blue)
-                        .bold()
-                        .frame(maxWidth: .infinity, alignment: .center)
-                }
-            }
-            
-            Section(header: Text("About Alert Sounds")) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Different sounds can help you identify which timer is complete when multiple timers are running.")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
+                
+                // Custom Sounds Section
+                Section(header: Text("Custom Sounds")) {
+                    if settings.isUsingCustomSound {
+                        HStack {
+                            Text("Using Custom Sound")
+                                .foregroundColor(.blue)
+                            Spacer()
+                            Image(systemName: "checkmark")
+                                .foregroundColor(.blue)
+                        }
+                    }
                     
-                    if !settings.isPremiumUser {
-                        HStack {
-                            Text("Unlock premium sounds with premium")
-                                .font(.footnote)
-                                .foregroundColor(.secondary)
-                            Spacer()
-                            Image(systemName: "crown.fill")
-                                .foregroundColor(.yellow)
-                                .font(.footnote)
+                    NavigationLink(destination: CustomSoundsView(settings: settings)) {
+                        if settings.isPremiumUser {
+                            Text("Manage Custom Sounds")
+                        } else {
+                            HStack {
+                                Text("Add Custom Sounds")
+                                Spacer()
+                                Image(systemName: "crown.fill")
+                                    .foregroundColor(.yellow)
+                            }
+                        }
+                    }
+                    .disabled(!settings.isPremiumUser)
+                }
+                
+                // Save Button Section
+                Section {
+                    Button(action: {
+                        // Debug: print what is being saved
+                        print("[DEBUG] Save Selection tapped")
+                        print("[DEBUG] selectedBundledSoundID: \(String(describing: selectedBundledSoundID))")
+                        print("[DEBUG] selectedSound: \(selectedSound.displayName)")
+                        // Save the selected sound option
+                        if let bundledID = selectedBundledSoundID {
+                            // Use the helper to select bundled sound
+                            print("[DEBUG] Saving bundled sound with ID: \(bundledID)")
+                            settings.selectBundledSound(id: bundledID)
+                        } else if selectedSound != .system {
+                            // Using system sound
+                            print("[DEBUG] Saving system sound: \(selectedSound.displayName)")
+                            settings.deselectBundledSound()
+                            settings.deselectCustomSound()
+                            settings.selectedAlertSound = selectedSound
+                        }
+                        settings.save()
+                        print("[DEBUG] Settings after save: bundledSoundID=\(String(describing: settings.selectedBundledSoundID)), alertSound=\(settings.selectedAlertSound.displayName)")
+                    }) {
+                        Text("Save Selection")
+                            .foregroundColor(.blue)
+                            .bold()
+                            .frame(maxWidth: .infinity, alignment: .center)
+                    }
+                }
+                
+                // About Section
+                Section(header: Text("About Alert Sounds")) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Different sounds can help you identify which timer is complete when multiple timers are running.")
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                        
+                        if !settings.isPremiumUser {
+                            HStack {
+                                Text("Upgrade to premium to unlock all sounds")
+                                    .font(.footnote)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                                Image(systemName: "crown.fill")
+                                    .foregroundColor(.yellow)
+                                    .font(.footnote)
+                            }
                         }
                     }
                 }
             }
-        }
-        .navigationTitle("Alert Sounds")
-        .onDisappear {
-            audioPlayer?.stop()
+            .navigationTitle("Alert Sounds")
+            .onDisappear {
+                audioPlayer?.stop()
+            }
+            .onAppear {
+                // Initialize selection based on current settings
+                if let bundledID = settings.selectedBundledSoundID {
+                    selectedBundledSoundID = bundledID
+                    selectedSound = .system
+                    
+                    // Find and expand the category containing the selected sound
+                    if let sound = bundledSoundsManager.getSound(with: bundledID) {
+                        expandedCategory = sound.category
+                    }
+                }
+            }
+            
+            // Show premium upgrade overlay when needed
+            if showPremiumUpgrade {
+                PremiumUpgradeView(settings: settings, isPresented: $showPremiumUpgrade)
+                    .transition(.opacity)
+                    .zIndex(1) // Ensure it appears on top
+            }
         }
     }
     
-    private func soundRow(sound: Settings.AlertSound, isPremium: Bool = false) -> some View {
+    private func systemSoundRow(sound: Settings.AlertSound) -> some View {
         Button(action: {
-            if !isPremium || settings.isPremiumUser {
-                selectedSound = sound
-                playSound(sound: sound)
-            } else {
-                // Show premium upgrade prompt
-                playSound(sound: Settings.AlertSound.system) // Play preview
-            }
+            // Clear any selected bundled sound
+            selectedBundledSoundID = nil
+            
+            // Select this system sound
+            selectedSound = sound
+            playSystemSound(sound: sound)
         }) {
             HStack {
                 Text(sound.displayName)
-                    .foregroundColor(isPremium && !settings.isPremiumUser ? .gray : .primary)
+                    .foregroundColor(.primary)
                 
                 Spacer()
                 
-                if selectedSound == sound {
+                if selectedSound == sound && selectedBundledSoundID == nil {
                     Image(systemName: "checkmark")
                         .foregroundColor(.blue)
                 }
                 
-                if isPremium && !settings.isPremiumUser {
+                Button(action: {
+                    playSystemSound(sound: sound)
+                }) {
+                    Image(systemName: "play.circle")
+                        .foregroundColor(.blue)
+                }
+                .buttonStyle(BorderlessButtonStyle())
+            }
+        }
+        .contentShape(Rectangle())
+        .padding(.vertical, 2) // Add consistent padding
+    }
+    
+    private func bundledSoundRow(sound: BundledSoundsManager.BundledSound) -> some View {
+        Button(action: {
+            if !settings.isPremiumUser {
+                // Show premium upgrade prompt for non-premium users
+                showPremiumUpgrade = true
+                // Play a preview
+                audioPlayer?.stop()
+                audioPlayer = bundledSoundsManager.playSound(with: sound.id)
+            } else {
+                // Select this bundled sound
+                selectedBundledSoundID = sound.id
+                selectedSound = .system // Disable system sounds when using bundled
+                
+                // Play a preview
+                audioPlayer?.stop()
+                audioPlayer = bundledSoundsManager.playSound(with: sound.id)
+            }
+        }) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(sound.displayName)
+                        .font(.body)
+                        .foregroundColor(!settings.isPremiumUser ? .gray : .primary)
+                    
+                    if !sound.description.isEmpty {
+                        Text(sound.description)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                
+                Spacer()
+                
+                if let selectedID = selectedBundledSoundID, selectedID == sound.id {
+                    Image(systemName: "checkmark")
+                        .foregroundColor(.blue)
+                }
+                
+                if !settings.isPremiumUser {
                     Image(systemName: "crown.fill")
                         .foregroundColor(.yellow)
                         .font(.footnote)
                 } else {
                     Button(action: {
-                        playSound(sound: sound)
+                        audioPlayer?.stop()
+                        audioPlayer = bundledSoundsManager.playSound(with: sound.id)
                     }) {
                         Image(systemName: "play.circle")
                             .foregroundColor(.blue)
@@ -957,23 +1026,194 @@ struct AlertSoundsView: View {
                 }
             }
         }
-        .disabled(isPremium && !settings.isPremiumUser)
+        .disabled(!settings.isPremiumUser)
         .contentShape(Rectangle())
+        .padding(.vertical, 6) // Increased padding for better spacing
+        .background(Color(UIColor.systemBackground))
     }
     
-    private func playSound(sound: Settings.AlertSound) {
+    private func playSystemSound(sound: Settings.AlertSound) {
         // Clear any custom sound selection when selecting a system sound
         if settings.isUsingCustomSound {
             settings.deselectCustomSound()
         }
         
-        // Use AudioServices for system sounds
-        if sound.isPremiumSound && !settings.isPremiumUser {
-            // Play a preview but inform user this is premium
-            AudioServicesPlaySystemSound(Settings.AlertSound.system.systemSoundID)
-            return
+        // Clear any bundled sound selection
+        if settings.isUsingBundledSound {
+            settings.deselectBundledSound()
         }
         
+        // Use AudioServices for system sounds
         AudioServicesPlaySystemSound(sound.systemSoundID)
     }
+}
+
+// Voice Announcement Settings View
+struct VoiceAnnouncementSettingsView: View {
+    @ObservedObject var settings: Settings
+    @State private var customMessage: String
+    @State private var availableVoices: [AVSpeechSynthesisVoice] = []
+    @State private var selectedVoiceIndex: Int = 0
+    
+    init(settings: Settings) {
+        self.settings = settings
+        _customMessage = State(initialValue: settings.customAnnouncementMessage)
+        
+        // Get available voices
+        let voices = settings.availableVoices()
+        _availableVoices = State(initialValue: voices)
+        
+        // Find index of selected voice
+        let initialIndex = voices.firstIndex(where: { $0.identifier == settings.selectedVoiceIdentifier }) ?? 0
+        _selectedVoiceIndex = State(initialValue: initialIndex)
+    }
+    
+    var body: some View {
+        Form {
+            Section(header: Text("Customization")) {
+                TextField("Custom announcement message", text: $customMessage)
+                    .onSubmit {
+                        settings.customAnnouncementMessage = customMessage
+                        settings.save()
+                    }
+                
+                Button(action: {
+                    // Reset to default message
+                    customMessage = "Your timer has completed"
+                    settings.customAnnouncementMessage = customMessage
+                    settings.save()
+                }) {
+                    Text("Reset to Default Message")
+                        .foregroundColor(.blue)
+                }
+            }
+            
+            Section(header: Text("Options")) {
+                Toggle("Announce only when AirPods/headphones connected", isOn: $settings.announceOnlyWithHeadphones)
+                
+                if settings.announceOnlyWithHeadphones {
+                    HStack {
+                        Text("Current status")
+                        Spacer()
+                        Text(settings.hasBluetoothHeadphonesConnected ? "Headphones connected" : "No headphones detected")
+                            .foregroundColor(settings.hasBluetoothHeadphonesConnected ? .green : .secondary)
+                        Button(action: {
+                            // Force a refresh of the UI to update headphone status
+                            settings.objectWillChange.send()
+                        }) {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.footnote)
+                        }
+                        .buttonStyle(BorderlessButtonStyle())
+                    }
+                }
+            }
+            
+            Section(header: Text("Voice Selection")) {
+                if availableVoices.isEmpty {
+                    Text("No voices available")
+                        .foregroundColor(.secondary)
+                } else {
+                    Picker("Voice", selection: $selectedVoiceIndex) {
+                        ForEach(0..<availableVoices.count, id: \.self) { index in
+                            Text(availableVoices[index].name)
+                                .tag(index)
+                        }
+                    }
+                    .onChange(of: selectedVoiceIndex) { oldValue, newValue in
+                        // Update the selected voice
+                        if availableVoices.indices.contains(newValue) {
+                            settings.selectedVoiceIdentifier = availableVoices[newValue].identifier
+                            settings.save()
+                        }
+                    }
+                    
+                    HStack {
+                        Text("Language")
+                        Spacer()
+                        if availableVoices.indices.contains(selectedVoiceIndex) {
+                            Text(availableVoices[selectedVoiceIndex].language)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+            }
+            
+            Section(header: Text("Test Speech")) {
+                Button(action: {
+                    print("Test announcement button pressed")
+                    
+                    // Get the timer name for the test
+                    let timerName = settings.legacyTimersAsBBQTimers.first?.name ?? "Test"
+                    
+                    // Create simple message
+                    let message = "\(timerName) timer is complete."
+                    
+                    // Call the super simple direct announcement method
+                    directAnnouncement(message: message)
+                    
+                }) {
+                    HStack {
+                        Image(systemName: "speaker.wave.2")
+                        Text("Test Voice Announcement")
+                    }
+                    .foregroundColor(.blue)
+                }
+                
+                Button(action: {
+                    print("Ultra basic test")
+                    
+                    // Play a system sound first
+                    AudioServicesPlaySystemSound(1005)
+                    
+                    // Just try to speak a single word
+                    let utterance = AVSpeechUtterance(string: "Testing")
+                    utterance.rate = 0.5
+                    utterance.volume = 1.0
+                    
+                    // Create fresh synthesizer
+                    let synth = AVSpeechSynthesizer()
+                    
+                    // Play
+                    synth.speak(utterance)
+                    
+                    // Keep reference
+                    TestSpeech.shared.synthesizer = synth
+                    
+                }) {
+                    HStack {
+                        Image(systemName: "bell")
+                        Text("Ultra Basic Test")
+                    }
+                    .foregroundColor(.orange)
+                }
+            }
+            
+            Section(header: Text("About Voice Announcements")) {
+                Text("Voice announcements are played when a timer completes.")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+                
+                Text("The announcement will include the timer name and your custom message.")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+                
+                Text("You can set announcements to play only when headphones or AirPods are connected.")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .navigationTitle("Voice Announcements")
+        .onDisappear {
+            // Save any changes when view disappears
+            settings.customAnnouncementMessage = customMessage
+            settings.save()
+        }
+    }
+}
+
+// Simple class to retain the speech synthesizer
+class TestSpeech {
+    static let shared = TestSpeech()
+    var synthesizer: AVSpeechSynthesizer?
 } 

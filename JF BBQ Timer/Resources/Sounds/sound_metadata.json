@@ -1,0 +1,93 @@
+[
+  {
+    "id": "b1e1a1c0-1a2b-4c3d-8e9f-000000000001",
+    "filename": "Danger Alert.mp3",
+    "displayName": "Danger Alert",
+    "category": "Get My Attention",
+    "description": "A alert to get my attention"
+  },
+  {
+    "id": "b1e1a1c0-1a2b-4c3d-8e9f-000000000002",
+    "filename": "Air Raid Siren.mp3",
+    "displayName": "Air Raid Siren",
+    "category": "Get My Attention",
+    "description": "This alert might scar you"
+  },
+  {
+    "id": "b1e1a1c0-1a2b-4c3d-8e9f-000000000003",
+    "filename": "CartoonAccet.mp3",
+    "displayName": "CartoonAccet",
+    "category": "Annoying",
+    "description": "An attention-grabbing buzzer for busy environments"
+  },
+  {
+    "id": "b1e1a1c0-1a2b-4c3d-8e9f-000000000004",
+    "filename": "Clasic Guitar.mp3",
+    "displayName": "Classic Guitar",
+    "category": "For the Faint of Heart",
+    "description": "A easy sounding alarm that won't scare you"
+  },
+  {
+    "id": "b1e1a1c0-1a2b-4c3d-8e9f-000000000005",
+    "filename": "Electric Guitar 1.mp3",
+    "displayName": "Electric Guitar 1",
+    "category": "Get My Attention",
+    "description": "An attention-grabbing Guitar lick"
+  },
+  {
+    "id": "b1e1a1c0-1a2b-4c3d-8e9f-000000000006",
+    "filename": "Electric Guitar Stinger 2.mp3",
+    "displayName": "Electric Guitar Stinger 2",
+    "category": "Get My Attention",
+    "description": "An attention-grabbing Guitar lick"
+  },
+  {
+    "id": "b1e1a1c0-1a2b-4c3d-8e9f-000000000007",
+    "filename": "Goofy Sound.mp3",
+    "displayName": "Goofy Sound",
+    "category": "Annoying",
+    "description": "An annoying sound for busy environments"
+  },
+  {
+    "id": "b1e1a1c0-1a2b-4c3d-8e9f-000000000008",
+    "filename": "Harp Intro.mp3",
+    "displayName": "Harp Intro",
+    "category": "For the Faint of Heart",
+    "description": "This might make you take a nap"
+  },
+  {
+    "id": "b1e1a1c0-1a2b-4c3d-8e9f-000000000009",
+    "filename": "Jack Hammer.mp3",
+    "displayName": "Jack Hammer",
+    "category": "Get My Attention",
+    "description": "An attention-grabbing alert"
+  },
+  {
+    "id": "b1e1a1c0-1a2b-4c3d-8e9f-000000000010",
+    "filename": "Male Angry Scream.mp3",
+    "displayName": "Male Angry Scream",
+    "category": "Get My Attention",
+    "description": "An attention-grabbing scream"
+  },
+  {
+    "id": "b1e1a1c0-1a2b-4c3d-8e9f-000000000011",
+    "filename": "Scream-Female.mp3",
+    "displayName": "Scream-Female",
+    "category": "Get My Attention",
+    "description": "An attention-grabbing scream"
+  },
+  {
+    "id": "b1e1a1c0-1a2b-4c3d-8e9f-000000000012",
+    "filename": "SIREN-POLICE.mp3",
+    "displayName": "SIREN-POLICE",
+    "category": "Annoying",
+    "description": "An attention-grabbing siren"
+  },
+  {
+    "id": "b1e1a1c0-1a2b-4c3d-8e9f-000000000013",
+    "filename": "Woman Screaming 1.mp3",
+    "displayName": "Woman Screaming 1",
+    "category": "Get My Attention",
+    "description": "An attention-grabbing scream"
+  }
+]
