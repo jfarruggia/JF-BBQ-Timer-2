@@ -163,11 +163,7 @@ extension Settings {
         AudioServicesPlaySystemSound(selectedAlertSound.systemSoundID)
     }
     
-    // Stop any looping alert sound
-    func stopLoopingAlertSound() {
-        print("[DEBUG] stopLoopingAlertSound() called on Settings instance: \(Unmanaged.passUnretained(self).toOpaque())")
-        AudioManager.shared.stopAlertSound()
-    }
+   
 }
 
 // Extension for voice announcements
@@ -256,7 +252,7 @@ extension Settings {
         if let timerName = getTimerName(for: timerId) {
             // Create message and use the direct announcement
             let message = "\(timerName) timer is complete."
-            directAnnouncement(message: message)
+            directAnnouncement(message: message, settings: self)
         } else {
             print("⚠️ Could not find timer name for ID: \(timerId)")
         }
@@ -266,7 +262,7 @@ extension Settings {
     func announceTimerCompletion(for name: String) {
         print("Timer completion for: \(name)")
         let message = "\(name) timer is complete."
-        directAnnouncement(message: message)
+        directAnnouncement(message: message, settings: self)
     }
     
     // Get the selected voice based on the stored identifier
@@ -288,13 +284,52 @@ extension Settings {
         return englishVoices.sorted { $0.name < $1.name }
     }
     
+    // Class to manage repeating announcements
+    class AnnouncementRepeater {
+        static let shared = AnnouncementRepeater()
+        private var timer: Timer?
+        private var message: String = ""
+        private var settings: Settings?
+        
+        func startRepeating(message: String, settings: Settings) {
+            stopRepeating()
+            self.message = message
+            self.settings = settings
+            // Announce immediately, then every 2 seconds
+            announce()
+            timer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+                self?.announce()
+            }
+            if let timer = timer {
+                RunLoop.main.add(timer, forMode: .common)
+            }
+        }
+        
+        func stopRepeating() {
+            timer?.invalidate()
+            timer = nil
+        }
+        
+        private func announce() {
+            guard let settings = settings else { return }
+            directAnnouncement(message: message, settings: settings)
+        }
+    }
+    
+    // Start repeating announcement
+    func startRepeatingAnnouncement(message: String) {
+        AnnouncementRepeater.shared.startRepeating(message: message, settings: self)
+    }
+    
+    // Stop repeating announcement
+    func stopRepeatingAnnouncement() {
+        AnnouncementRepeater.shared.stopRepeating()
+    }
+    
     // Play sound and make announcement when timer completes
     func playTimerCompletionWithAnnouncement(timerId: UUID) {
         print("===== PLAY TIMER COMPLETION WITH ANNOUNCEMENT =====")
         print("Timer with ID \(timerId) completed")
-        
-        // Play the sound (looping)
-        playTimerCompletionSound(loop: true)
         
         // Check if voice announcements are enabled using class property
         print("Voice announcements enabled: \(voiceAnnouncementsEnabled)")
@@ -304,37 +339,58 @@ extension Settings {
         let headphonesConnected = hasBluetoothHeadphonesConnected
         print("Headphones required: \(requiresHeadphones), Connected: \(headphonesConnected)")
         
-        // Only make announcement if settings allow it
         let shouldAnnounce = voiceAnnouncementsEnabled && (!requiresHeadphones || headphonesConnected)
-        
-        // FOR TESTING - Always announce regardless of settings
         let forceAnnouncement = false
         
+        // Helper to get the message with timer name if needed
+        func announcementMessage(for timerName: String) -> String {
+            // If the custom message contains {timer}, replace it
+            if customAnnouncementMessage.contains("{timer}") {
+                return customAnnouncementMessage.replacingOccurrences(of: "{timer}", with: timerName)
+            } else {
+                // Otherwise, append the timer name to the end of the custom message
+                return customAnnouncementMessage + " " + timerName
+            }
+        }
+        
         if shouldAnnounce || forceAnnouncement {
-            print("Making announcement after short delay")
-            
-            // Small delay to let sound finish playing first
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                guard let self = self else { 
-                    print("Self was deallocated before announcement could be made")
-                    return 
-                }
-                
-                // Get timer name
-                if let timerName = self.getTimerName(for: timerId) {
-                    let message = "\(timerName) timer is complete."
-                    
-                    // Use the new simplified direct announcement
-                    directAnnouncement(message: message)
+            if headphonesConnected {
+                print("[LOGIC] Headphones connected: Only playing repeating voice announcement, skipping sound alert.")
+                // Only play the repeating announcement
+                if let timerName = getTimerName(for: timerId) {
+                    let message = announcementMessage(for: timerName)
+                    startRepeatingAnnouncement(message: message)
                 } else {
                     print("Could not find timer name for ID: \(timerId)")
                 }
+                print("===== END PLAY TIMER COMPLETION =====")
+                return
+            } else {
+                // Play both sound and announcement (repeating announcement)
+                playTimerCompletionSound(loop: true)
+                print("[LOGIC] No headphones: Playing both sound and repeating announcement.")
+                if let timerName = getTimerName(for: timerId) {
+                    let message = announcementMessage(for: timerName)
+                    startRepeatingAnnouncement(message: message)
+                } else {
+                    print("Could not find timer name for ID: \(timerId)")
+                }
+                print("===== END PLAY TIMER COMPLETION =====")
+                return
             }
         } else {
-            print("Announcement skipped based on settings")
+            // Play only the sound
+            playTimerCompletionSound(loop: true)
+            print("[LOGIC] Announcements not enabled: Playing only sound alert.")
+            print("===== END PLAY TIMER COMPLETION =====")
         }
-        
-        print("===== END PLAY TIMER COMPLETION =====")
+    }
+    
+    // Stop any looping alert sound and repeating announcement
+    func stopLoopingAlertSound() {
+        print("[DEBUG] stopLoopingAlertSound() called on Settings instance: \(Unmanaged.passUnretained(self).toOpaque())")
+        AudioManager.shared.stopAlertSound()
+        stopRepeatingAnnouncement()
     }
 }
 
@@ -366,7 +422,7 @@ class SpeechSynthesizerDelegate: NSObject, AVSpeechSynthesizerDelegate {
 }
 
 // Function for direct announcement
-func directAnnouncement(message: String) {
+func directAnnouncement(message: String, settings: Settings) {
     print("🔊 SUPER SIMPLE DIRECT ANNOUNCEMENT 🔊")
     
     // Configure audio session first - this is critical
@@ -389,10 +445,14 @@ func directAnnouncement(message: String) {
     utterance.volume = 1.0  // Maximum volume
     print("✓ Created utterance: \"\(message)\"")
     
-    // Try to get a good English voice
-    if let voice = AVSpeechSynthesisVoice(language: "en-US") {
-        utterance.voice = voice
-        print("✓ Using voice: \(voice.name)")
+    // Try to get the selected voice from settings
+    if let selectedVoice = AVSpeechSynthesisVoice(identifier: settings.selectedVoiceIdentifier) {
+        utterance.voice = selectedVoice
+        print("✓ Using selected voice: \(selectedVoice.name)")
+    } else {
+        // fallback to default
+        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+        print("✓ Using default voice: en-US")
     }
     
     // Keep a reference to prevent deallocation

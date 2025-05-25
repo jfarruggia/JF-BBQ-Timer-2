@@ -58,19 +58,35 @@ struct NewSettingsView: View {
                 }
 
                 // Alerts & Feedback
-                Section(header: Text("Alerts & Feedback")) {
+                Section(header: Text("Alerts & Feedback"), footer: Text("You can choose to play a sound, a voice announcement, or both when a timer completes.")) {
                     Toggle("Sound Alerts", isOn: $settings.soundEnabled)
                     Toggle("Haptic Feedback", isOn: $settings.hapticsEnabled)
-                    if settings.soundEnabled {
-                        Toggle("Voice Announcements", isOn: $settings.voiceAnnouncementsEnabled)
-                        if settings.voiceAnnouncementsEnabled {
-                            NavigationLink("Voice Announcement Settings", destination: VoiceAnnouncementSettingsView(settings: settings))
-                        }
-                        Button("Test Sound") {
-                            AudioServicesPlaySystemSound(settings.selectedAlertSound.systemSoundID)
-                        }
-                        .foregroundColor(.blue)
+                    Toggle("Voice Announcements", isOn: $settings.voiceAnnouncementsEnabled)
+                    if settings.voiceAnnouncementsEnabled {
+                        Text("Hear a spoken message when your timer completes.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
+                    NavigationLink(destination: VoiceAnnouncementSettingsView(settings: settings)) {
+                        HStack {
+                            Text("Voice Announcement Settings")
+                            if !settings.voiceAnnouncementsEnabled {
+                                Text("(Off)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    .disabled(!settings.voiceAnnouncementsEnabled)
+                    Button("Test Alert") {
+                        // Play both sound and voice announcement for preview
+                        AudioServicesPlaySystemSound(settings.selectedAlertSound.systemSoundID)
+                        let timerName = settings.legacyTimersAsBBQTimers.first?.name ?? "Test"
+                        let message = "\(timerName) timer is complete."
+                        directAnnouncement(message: message, settings: settings)
+                    }
+                    .foregroundColor(.blue)
+                    .accessibilityLabel("Test both sound and voice announcement")
                 }
 
                 // Display & Accessibility
@@ -806,10 +822,19 @@ struct AlertSoundsView: View {
                 }
                 
                 // Premium Sounds - With categorized list
-                if bundledSoundsManager.categories.isEmpty {
-                    Section(header: Text("Premium Sounds")
-                        .premiumFeatureBadge(settings: settings)
-                    ) {
+                Section(header:
+                    HStack(spacing: 6) {
+                        Text("Premium Sounds")
+                            .font(.headline)
+                        if !settings.isPremiumUser {
+                            Image(systemName: "crown.fill")
+                                .foregroundColor(.yellow)
+                                .font(.headline)
+                                .padding(.bottom, 1)
+                        }
+                    }
+                ) {
+                    if bundledSoundsManager.categories.isEmpty {
                         Text("No premium sounds available")
                             .foregroundColor(.secondary)
                             .italic()
@@ -817,19 +842,16 @@ struct AlertSoundsView: View {
                         Text("Debug: \(bundledSoundsManager.allSounds.count) sounds loaded")
                             .font(.caption)
                             .foregroundColor(.red)
-                    }
-                } else {
-                    // Add a header for the premium section
-                    Section(header: Text("Premium Sounds")
-                        .premiumFeatureBadge(settings: settings)
-                    ) {
-                        EmptyView() // Just to show the section header
-                    }
-                    // Now, for each category, create a section
-                    ForEach(bundledSoundsManager.categories, id: \.self) { category in
-                        Section(header: Text(category).font(.headline)) {
-                            ForEach(bundledSoundsManager.sounds(in: category)) { sound in
-                                bundledSoundRow(sound: sound)
+                    } else {
+                        // For each category, show a sub-section header and its sounds
+                        ForEach(bundledSoundsManager.categories, id: \.self) { category in
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text(category)
+                                    .font(.headline)
+                                    .padding(.top, 8)
+                                ForEach(bundledSoundsManager.sounds(in: category)) { sound in
+                                    bundledSoundRow(sound: sound)
+                                }
                             }
                         }
                     }
@@ -883,6 +905,9 @@ struct AlertSoundsView: View {
                         }
                         settings.save()
                         print("[DEBUG] Settings after save: bundledSoundID=\(String(describing: settings.selectedBundledSoundID)), alertSound=\(settings.selectedAlertSound.displayName)")
+                        // Haptic feedback for save
+                        let generator = UINotificationFeedbackGenerator()
+                        generator.notificationOccurred(.success)
                     }) {
                         Text("Save Selection")
                             .foregroundColor(.blue)
@@ -1058,25 +1083,31 @@ struct VoiceAnnouncementSettingsView: View {
     init(settings: Settings) {
         self.settings = settings
         _customMessage = State(initialValue: settings.customAnnouncementMessage)
-        
-        // Get available voices
         let voices = settings.availableVoices()
         _availableVoices = State(initialValue: voices)
-        
-        // Find index of selected voice
         let initialIndex = voices.firstIndex(where: { $0.identifier == settings.selectedVoiceIdentifier }) ?? 0
         _selectedVoiceIndex = State(initialValue: initialIndex)
     }
     
     var body: some View {
         Form {
-            Section(header: Text("Customization")) {
-                TextField("Custom announcement message", text: $customMessage)
-                    .onSubmit {
-                        settings.customAnnouncementMessage = customMessage
-                        settings.save()
+            Section(header: Text("Customization"), footer: Text("This message will be spoken when your timer completes.")) {
+                HStack {
+                    TextField("Custom announcement message", text: $customMessage)
+                        .onChange(of: customMessage) { newValue in
+                            settings.customAnnouncementMessage = newValue
+                            settings.save()
+                        }
+                        .accessibilityLabel("Custom announcement message")
+                    Button(action: {
+                        // Preview the custom message
+                        directAnnouncement(message: customMessage, settings: settings)
+                    }) {
+                        Image(systemName: "play.circle")
+                            .foregroundColor(.blue)
                     }
-                
+                    .accessibilityLabel("Preview announcement message")
+                }
                 Button(action: {
                     // Reset to default message
                     customMessage = "Your timer has completed"
@@ -1088,9 +1119,8 @@ struct VoiceAnnouncementSettingsView: View {
                 }
             }
             
-            Section(header: Text("Options")) {
+            Section(header: Text("Options"), footer: Text("Announcements can be limited to play only when headphones or AirPods are connected.")) {
                 Toggle("Announce only when AirPods/headphones connected", isOn: $settings.announceOnlyWithHeadphones)
-                
                 if settings.announceOnlyWithHeadphones {
                     HStack {
                         Text("Current status")
@@ -1098,36 +1128,36 @@ struct VoiceAnnouncementSettingsView: View {
                         Text(settings.hasBluetoothHeadphonesConnected ? "Headphones connected" : "No headphones detected")
                             .foregroundColor(settings.hasBluetoothHeadphonesConnected ? .green : .secondary)
                         Button(action: {
-                            // Force a refresh of the UI to update headphone status
                             settings.objectWillChange.send()
                         }) {
                             Image(systemName: "arrow.clockwise")
                                 .font(.footnote)
                         }
                         .buttonStyle(BorderlessButtonStyle())
+                        .accessibilityLabel("Refresh headphone status")
                     }
                 }
             }
             
-            Section(header: Text("Voice Selection")) {
+            Section(header: Text("Voice Selection"), footer: Text("Choose the voice for your announcements.")) {
                 if availableVoices.isEmpty {
                     Text("No voices available")
                         .foregroundColor(.secondary)
                 } else {
                     Picker("Voice", selection: $selectedVoiceIndex) {
                         ForEach(0..<availableVoices.count, id: \.self) { index in
-                            Text(availableVoices[index].name)
+                            let voice = availableVoices[index]
+                            Text("\(voice.name) (\(voice.language))")
                                 .tag(index)
                         }
                     }
-                    .onChange(of: selectedVoiceIndex) { oldValue, newValue in
-                        // Update the selected voice
+                    .onChange(of: selectedVoiceIndex) { newValue in
                         if availableVoices.indices.contains(newValue) {
                             settings.selectedVoiceIdentifier = availableVoices[newValue].identifier
                             settings.save()
                         }
                     }
-                    
+                    .accessibilityLabel("Select voice for announcements")
                     HStack {
                         Text("Language")
                         Spacer()
@@ -1139,19 +1169,12 @@ struct VoiceAnnouncementSettingsView: View {
                 }
             }
             
-            Section(header: Text("Test Speech")) {
+            Section(header: Text("Test Speech"), footer: Text("Test how your announcement will sound.")) {
                 Button(action: {
                     print("Test announcement button pressed")
-                    
-                    // Get the timer name for the test
                     let timerName = settings.legacyTimersAsBBQTimers.first?.name ?? "Test"
-                    
-                    // Create simple message
                     let message = "\(timerName) timer is complete."
-                    
-                    // Call the super simple direct announcement method
-                    directAnnouncement(message: message)
-                    
+                    directAnnouncement(message: message, settings: settings)
                 }) {
                     HStack {
                         Image(systemName: "speaker.wave.2")
@@ -1159,27 +1182,16 @@ struct VoiceAnnouncementSettingsView: View {
                     }
                     .foregroundColor(.blue)
                 }
-                
+                .accessibilityLabel("Test voice announcement")
                 Button(action: {
                     print("Ultra basic test")
-                    
-                    // Play a system sound first
                     AudioServicesPlaySystemSound(1005)
-                    
-                    // Just try to speak a single word
                     let utterance = AVSpeechUtterance(string: "Testing")
                     utterance.rate = 0.5
                     utterance.volume = 1.0
-                    
-                    // Create fresh synthesizer
                     let synth = AVSpeechSynthesizer()
-                    
-                    // Play
                     synth.speak(utterance)
-                    
-                    // Keep reference
                     TestSpeech.shared.synthesizer = synth
-                    
                 }) {
                     HStack {
                         Image(systemName: "bell")
@@ -1187,18 +1199,11 @@ struct VoiceAnnouncementSettingsView: View {
                     }
                     .foregroundColor(.orange)
                 }
+                .accessibilityLabel("Ultra basic test announcement")
             }
             
-            Section(header: Text("About Voice Announcements")) {
+            Section(header: Text("About Voice Announcements"), footer: Text("The announcement will include the timer name and your custom message. You can set announcements to play only when headphones or AirPods are connected.")) {
                 Text("Voice announcements are played when a timer completes.")
-                    .font(.footnote)
-                    .foregroundColor(.secondary)
-                
-                Text("The announcement will include the timer name and your custom message.")
-                    .font(.footnote)
-                    .foregroundColor(.secondary)
-                
-                Text("You can set announcements to play only when headphones or AirPods are connected.")
                     .font(.footnote)
                     .foregroundColor(.secondary)
             }

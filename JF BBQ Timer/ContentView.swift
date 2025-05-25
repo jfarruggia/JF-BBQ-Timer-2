@@ -668,8 +668,8 @@ struct CompactTimerView: View {
                             }
                         }
                         .foregroundColor(.white)
-                        .frame(width: 80) // Set a fixed width for P1 button
-                        .padding(.vertical, 8)
+                        // Make all four buttons the same width (80pt) for a consistent compact layout
+                        .frame(width: 80, height: 44)
                         .background(
                             Color(UIColor(red: 70/255, green: 70/255, blue: 70/255, alpha: 1.0))
                         )
@@ -699,8 +699,8 @@ struct CompactTimerView: View {
                             }
                         }
                         .foregroundColor(.white)
-                        .frame(width: 80) // Set a fixed width for P2 button
-                        .padding(.vertical, 8)
+                        // Make all four buttons the same width (80pt) for a consistent compact layout
+                        .frame(width: 80, height: 44)
                         .background(
                             Color(UIColor(red: 70/255, green: 70/255, blue: 70/255, alpha: 1.0))
                         )
@@ -725,8 +725,8 @@ struct CompactTimerView: View {
                             }
                         }
                         .foregroundColor(.white)
-                        .frame(width: 80) // Set a fixed width for Start/Stop button
-                        .padding(.vertical, 8)
+                        // Match the width and height of the preset buttons for a compact, consistent look
+                        .frame(width: 80, height: 44)
                         .background(state.isRunning ? Color.red : Color.green)
                         .cornerRadius(8)
                         
@@ -735,8 +735,8 @@ struct CompactTimerView: View {
                             state.reset()
                         }
                         .foregroundColor(.white)
-                        .frame(width: 80) // Set a fixed width for Reset button
-                        .padding(.vertical, 8)
+                        // Match the width and height of the preset buttons for a compact, consistent look
+                        .frame(width: 80, height: 44)
                         .background(Color.blue)
                         .cornerRadius(8)
                     }
@@ -912,10 +912,10 @@ struct TimerPresetButton: View {
     var body: some View {
         Button(action: action) {
             Text(timeStringConverter(presetTime))
-                .font(.system(size: 20, weight: .bold)) // Reduced from 22 to 20
+                .font(.system(size: 20, weight: .bold))
                 .foregroundColor(.white)
-                .padding(.vertical, 8) // Reduced from 12 to 8
-                .padding(.horizontal, 16) // Reduced from 20 to 16
+                // Match the width and height of Start/Reset buttons for visual consistency
+                .frame(width: 110, height: 44)
                 .background(
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color(UIColor(red: 70/255, green: 70/255, blue: 70/255, alpha: 1.0)))
@@ -952,7 +952,7 @@ struct TimerControlButtons: View {
                     .font(.system(size: 20, weight: .bold)) // Reduced from 22 to 20
                     .foregroundColor(.white)
                     .padding(.vertical, 8) // Reduced from 12 to 8
-                    .frame(width: 110) // Reduced from 120 to 110
+                    .frame(width: 110, height: 44) // Match width and height
                     .background(
                         RoundedRectangle(cornerRadius: 10)
                             .fill(state.isRunning ? Color.red : Color.green)
@@ -965,9 +965,9 @@ struct TimerControlButtons: View {
                 settings.stopLoopingAlertSound() // Stop looping alert sound
             }) {
                 Text("Reset")
+                    .font(.system(size: 20, weight: .bold)) // Match Start button font
                     .foregroundColor(.white)
-                    .frame(width: 80) // Set a fixed width for Reset button
-                    .padding(.vertical, 8)
+                    .frame(width: 110, height: 44) // Match width and height of Start button
                     .background(Color.blue)
                     .cornerRadius(8)
             }
@@ -1451,14 +1451,14 @@ struct ContentView: View {
                 // Update timer states when timers are added or removed
                 initializeTimerStates()
             }
-            .onChange(of: settings.selectedAlertSound) { _, _ in
+            .onChange(of: settings.selectedAlertSound) { newValue in
                 // Update timer states when sound settings change
-                print("Alert sound changed to \(settings.selectedAlertSound.displayName), updating timer states")
+                print("Alert sound changed to \(newValue.displayName), updating timer states")
                 timerStates.updateSettings(settings)
             }
-            .onChange(of: settings.soundEnabled) { _, _ in
+            .onChange(of: settings.soundEnabled) { newValue in
                 // Update timer states when sound settings change
-                print("Sound enabled changed to \(settings.soundEnabled), updating timer states")
+                print("Sound enabled changed to \(newValue), updating timer states")
                 timerStates.updateSettings(settings)
             }
             .toolbar {
@@ -1518,6 +1518,7 @@ struct ContentView: View {
                 .zIndex(100) // Make sure it's on top
             }
         }
+        .buttonStyle(HapticButtonStyle()) // Apply haptic feedback to all buttons in ContentView
     }
 }
 
@@ -1741,18 +1742,17 @@ class TimerState: ObservableObject {
                 // Call completion action
                 self.onCompleteAction?()
                 
-                // Set up timer to reset completion state
-                self.completionTimer?.invalidate() // Invalidate any existing timer
-                self.completionTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: false) { [weak self] _ in
-                    guard let self = self else { return }
-                    print("Resetting completion state")
-                    self.isCompleted = false
-                    self.objectWillChange.send()
-                }
-                // Add to RunLoop to ensure it fires
-                if let timer = self.completionTimer {
-                    RunLoop.main.add(timer, forMode: .common)
-                }
+                // Removed: auto-reset timer for isCompleted. Now, isCompleted will only be reset by resetCompletionState().
+                // self.completionTimer?.invalidate() // Invalidate any existing timer
+                // self.completionTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: false) { [weak self] _ in
+                //     guard let self = self else { return }
+                //     print("Resetting completion state")
+                //     self.isCompleted = false
+                //     self.objectWillChange.send()
+                // }
+                // if let timer = self.completionTimer {
+                //     RunLoop.main.add(timer, forMode: .common)
+                // }
             }
         }
         
@@ -2047,8 +2047,7 @@ extension View {
 // Create a separate modifier for handling the timer container appearance
 struct TimerContainerAppearance: ViewModifier {
     @ObservedObject var timerState: TimerState
-    @State private var isShowingRedBorder = false
-    @State private var resetTimer: Timer?
+    // Removed: isShowingRedBorder and resetTimer
     @State private var previousIntervalTime: TimeInterval = 0
     var onTimerComplete: ((UUID) -> Void)?
     var skipBorder: Bool = false
@@ -2056,69 +2055,36 @@ struct TimerContainerAppearance: ViewModifier {
     
     func body(content: Content) -> some View {
         content
-            .padding(.vertical, isLargeTimer ? 8 : 0) // Add vertical padding for large timers
+            .padding(.vertical, isLargeTimer ? 8 : 0)
             .background(Color(UIColor(red: 250/255, green: 166/255, blue: 72/255, alpha: 0.5)))
             .cornerRadius(15)
             .overlay(
                 Group {
                     if !skipBorder {
+                        // Directly use timerState.isCompleted for the red border
                         RoundedRectangle(cornerRadius: 15)
-                            .stroke(isShowingRedBorder ? Color.red : Color.black, 
-                                    lineWidth: isShowingRedBorder ? 12 : 2)
-                            .animation(.easeInOut(duration: 0.3), value: isShowingRedBorder)
+                            .stroke(timerState.isCompleted ? Color.red : Color.black,
+                                    lineWidth: timerState.isCompleted ? 12 : 2)
+                            .animation(.easeInOut(duration: 0.3), value: timerState.isCompleted)
                     }
                 }
             )
-            // Apply layout constraints
             .if(isLargeTimer) { view in
                 view
                     .frame(maxWidth: .infinity)
-                    // Use minHeight instead of fixed height to allow content to expand if needed
                     .frame(minHeight: calculateAdaptiveHeight())
             }
+            // Remove all timer-based logic for border reset
             .onChange(of: timerState.intervalTime) {
                 let newValue = timerState.intervalTime
                 let oldValue = previousIntervalTime
-                
-                // If timer hit zero (and was not reset)
+                // Optionally, still scroll to completed timer
                 if oldValue > 0 && newValue == 0 {
-                    print("Animation triggered - Timer completed")
-                    resetTimer?.invalidate()
-                    
-                    // Show red border
-                    withAnimation(.easeIn(duration: 0.3)) {
-                        isShowingRedBorder = true
-                    }
-                    
-                    // Notify parent view to scroll to this timer
                     onTimerComplete?(timerState.id)
-                    
-                    // Reset after 3 seconds
-                    resetTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
-                        print("Animation reset timer fired")
-                        withAnimation(.easeOut(duration: 0.3)) {
-                            isShowingRedBorder = false
-                        }
-                    }
-                    
-                    if let timer = resetTimer {
-                        RunLoop.main.add(timer, forMode: .common)
-                    }
                 }
-                
-                // Reset appearance on timer reset
-                if oldValue == 0 && newValue > 0 {
-                    resetTimer?.invalidate()
-                    withAnimation(.easeOut(duration: 0.3)) {
-                        isShowingRedBorder = false
-                    }
-                }
-                
-                // Save current value as previous for next change
                 previousIntervalTime = newValue
             }
             .onAppear {
-                // Initialize the previous interval time when the view appears
                 previousIntervalTime = timerState.intervalTime
             }
     }
@@ -2257,6 +2223,19 @@ struct PremiumUpgradeView: View {
                 .font(.body)
             Spacer()
         }
+    }
+}
+
+// Add this struct at the top-level (before ContentView)
+struct HapticButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .onChange(of: configuration.isPressed) { isPressed in
+                if isPressed {
+                    let generator = UIImpactFeedbackGenerator(style: .light)
+                    generator.impactOccurred()
+                }
+            }
     }
 }
 
