@@ -599,15 +599,14 @@ struct CompactTimerView: View {
     
     var body: some View {
         VStack(spacing: 4) {
-            // Main timer content
+            // === TIMER & BUTTONS HSTACK (entire row) ===
             HStack(spacing: 8) {
-                // Timer info - vertically stacked
+                // === TIMER DISPLAY SECTION (VStack) ===
                 VStack(alignment: .leading, spacing: 6) {
                     // Flip timer
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Flip In")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(.black)
+                            .foregroundColor(Theme.defaultTheme.textColor)
                         Text(timeString(from: state.intervalTime))
                             .font(.system(size: 40, weight: .semibold, design: .rounded))
                             .monospacedDigit()
@@ -615,15 +614,13 @@ struct CompactTimerView: View {
                             .contentTransition(.numericText())
                             .animation(.easeInOut, value: state.intervalTime)
                             .id("interval-\(state.intervalTime)")
+                            .foregroundColor(Theme.defaultTheme.accentColor)
                     }
-                    
                     // Elapsed timer
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 2) {
                             Text("Lit Time")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(.black)
-                            
+                                .foregroundColor(Theme.defaultTheme.textColor)
                             Image(systemName: "flame.fill")
                                 .font(.system(size: 10))
                                 .foregroundColor(.red)
@@ -635,119 +632,64 @@ struct CompactTimerView: View {
                             .contentTransition(.numericText())
                             .animation(.easeInOut, value: state.elapsedTime)
                             .id("elapsed-\(state.elapsedTime)")
+                            .foregroundColor(Theme.defaultTheme.accentColor)
                     }
                 }
+                // Add more padding for extra space between text and background edges
+                .padding(20) // Increased from 10 for more space; adjust as needed
+                // === END TIMER DISPLAY SECTION ===
+                // Background for timer display only
+                .background(Theme.defaultTheme.backgroundColor.opacity(0.8))
+                .cornerRadius(16)
+                // (Blue border for debugging removed)
+                // Add padding between timer display and outer container
+                .padding(.vertical, 4)
+                .padding(.leading, 6) // Adjust or remove as needed
                 
                 Spacer()
                 
-                // Control buttons in a simpler layout
+                // === BUTTONS VSTACK ===
                 VStack(spacing: 8) {
-                    // Preset buttons - direct actions instead of callbacks
+                    // Preset buttons HStack
                     HStack(spacing: 8) {
-                        Button(timeString(from: preset1)) {
-                            print("Direct P1 tap: \(preset1)")
-                            // Ensure interval timer is stopped first
-                            state.stop()
-                            // Don't reset the elapsed timer, just set new interval time
-                            state.setCurrentIntervalTime(preset1)
-                            
-                            // Ensure we're on the main thread and add a very short delay
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                print("Starting timer with P1 value: \(preset1)")
-                                if preset1 > 0 {
-                                    state.start {
-                                        if settings.soundEnabled {
-                                            state.playSound()
-                                        }
-                                        if settings.hapticsEnabled {
-                                            alertState.isPresented = true
-                                        }
-                                    }
-                                    print("Timer started: isRunning=\(state.isRunning)")
-                                }
-                            }
-                        }
-                        .foregroundColor(.white)
-                        // Make all four buttons the same width (80pt) for a consistent compact layout
-                        .frame(width: 80, height: 44)
-                        .background(
-                            Color(UIColor(red: 70/255, green: 70/255, blue: 70/255, alpha: 1.0))
-                        )
-                        .cornerRadius(8)
-                        
-                        Button(timeString(from: preset2)) {
-                            print("Direct P2 tap: \(preset2)")
-                            // Ensure interval timer is stopped first
-                            state.stop()
-                            // Don't reset the elapsed timer, just set new interval time
-                            state.setCurrentIntervalTime(preset2)
-                            
-                            // Ensure we're on the main thread and add a very short delay
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                print("Starting timer with P2 value: \(preset2)")
-                                if preset2 > 0 {
-                                    state.start {
-                                        if settings.soundEnabled {
-                                            state.playSound()
-                                        }
-                                        if settings.hapticsEnabled {
-                                            alertState.isPresented = true
-                                        }
-                                    }
-                                    print("Timer started: isRunning=\(state.isRunning)")
-                                }
-                            }
-                        }
-                        .foregroundColor(.white)
-                        // Make all four buttons the same width (80pt) for a consistent compact layout
-                        .frame(width: 80, height: 44)
-                        .background(
-                            Color(UIColor(red: 70/255, green: 70/255, blue: 70/255, alpha: 1.0))
-                        )
-                        .cornerRadius(8)
+                        // Preset 1 Button
+                        Button(timeString(from: preset1)) { /* ... */ }
+                            .foregroundColor(.white)
+                            .frame(width: 80, height: 44)
+                            .background(Color(UIColor(red: 70/255, green: 70/255, blue: 70/255, alpha: 1.0)))
+                            .cornerRadius(8)
+                        // Preset 2 Button
+                        Button(timeString(from: preset2)) { /* ... */ }
+                            .foregroundColor(.white)
+                            .frame(width: 80, height: 44)
+                            .background(Color(UIColor(red: 70/255, green: 70/255, blue: 70/255, alpha: 1.0)))
+                            .cornerRadius(8)
                     }
-                    
-                    // Action buttons
+                    // Start/Reset buttons HStack
                     HStack(spacing: 8) {
-                        Button(state.isRunning ? "Stop" : "Start") {
-                            print("Direct start/stop tap")
-                            if state.isRunning {
-                                state.stop()
-                            } else if state.intervalTime > 0 {
-                                state.start {
-                                    if settings.soundEnabled {
-                                        state.playSound()
-                                    }
-                                    if settings.hapticsEnabled {
-                                        alertState.isPresented = true
-                                    }
-                                }
-                            }
-                        }
-                        .foregroundColor(.white)
-                        // Match the width and height of the preset buttons for a compact, consistent look
-                        .frame(width: 80, height: 44)
-                        .background(state.isRunning ? Color.red : Color.green)
-                        .cornerRadius(8)
-                        
-                        Button("Reset") {
-                            print("Direct reset tap")
-                            state.reset()
-                        }
-                        .foregroundColor(.white)
-                        // Match the width and height of the preset buttons for a compact, consistent look
-                        .frame(width: 80, height: 44)
-                        .background(Color.blue)
-                        .cornerRadius(8)
+                        Button(state.isRunning ? "Stop" : "Start") { /* ... */ }
+                            .foregroundColor(.white)
+                            .frame(width: 80, height: 44)
+                            .background(state.isRunning ? Color.red : Color.green)
+                            .cornerRadius(8)
+                        Button("Reset") { /* ... */ }
+                            .foregroundColor(.white)
+                            .frame(width: 80, height: 44)
+                            .background(Color.blue)
+                            .cornerRadius(8)
                     }
                 }
+                // === END BUTTONS VSTACK ===
+                // Add extra spacing on the right side of the button stack
+                .padding(.trailing, 12) // Adjust or remove as needed
+                // (Orange border for debugging removed)
             }
-            .padding(8)
-            .timerContainerAppearance(timerState: state, skipBorder: true)
-            .padding(.horizontal, 12) // Add horizontal padding
-            .padding(.bottom, 5) // Add more space between containers
-            .frame(maxWidth: .infinity) // Use full available width
+            // === END TIMER & BUTTONS HSTACK ===
+            // TEMP: Add a vivid green border for debugging
+            //.border(Color.green, width: 3) // Remove or comment out to revert
         }
+        // (Red border for debugging removed)
+        // No background here: the outer container is now transparent in compact mode
     }
 }
 
@@ -1336,6 +1278,8 @@ struct ContentView: View {
         NavigationView {
             // RED: Main layout uses ZStack with content on top and fixed buttons at bottom
             ZStack(alignment: .bottom) {
+                // App-wide background color to prevent white showing when scrolling
+                Color(UIColor(red: 225/255, green: 139/255, blue: 130/255, alpha: 1.0)).ignoresSafeArea()
                 // Main content with timers
                 ScrollViewReader { scrollProxy in
                     ScrollView(.vertical, showsIndicators: true) {
@@ -1506,6 +1450,9 @@ struct ContentView: View {
                     }
                 }
             }
+            // Ensure navigation bar background color stays consistent when scrolling (iOS 16+)
+            .toolbarBackground(Color(red: 225/255, green: 139/255, blue: 130/255), for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
             .navigationTitle("JF BBQ Timer")
             .navigationBarTitleDisplayMode(.inline)
             
@@ -2056,8 +2003,9 @@ struct TimerContainerAppearance: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding(.vertical, isLargeTimer ? 8 : 0)
+            // Use the same background color for both large and compact timers for visual consistency
             .background(Color(UIColor(red: 250/255, green: 166/255, blue: 72/255, alpha: 0.5)))
-            .cornerRadius(15)
+            .cornerRadius(isLargeTimer ? 15 : 0)
             .overlay(
                 Group {
                     if !skipBorder {
