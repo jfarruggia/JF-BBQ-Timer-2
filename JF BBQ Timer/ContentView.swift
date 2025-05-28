@@ -195,13 +195,13 @@ class Settings: ObservableObject {
         self.customAnnouncementMessage = UserDefaults.standard.string(forKey: "customAnnouncementMessage") ?? "Your timer has completed"
         self.announceOnlyWithHeadphones = UserDefaults.standard.bool(forKey: "announceOnlyWithHeadphones")
         
-        // Initialize selectedVoiceIdentifier
+        // Initialize selectedVoiceIdentifier with safe fallback
         if let voiceIdentifier = UserDefaults.standard.string(forKey: "selectedVoiceIdentifier") {
             self.selectedVoiceIdentifier = voiceIdentifier
         } else {
-            // Default to Samantha voice (common on iOS) or fall back to first available voice
-            let defaultVoice = AVSpeechSynthesisVoice(language: "en-US")
-            self.selectedVoiceIdentifier = defaultVoice?.identifier ?? "com.apple.ttsbundle.Samantha-compact"
+            // Use a safe default identifier without accessing AVSpeechSynthesisVoice during init
+            // This prevents blocking the main thread during app startup on iPad
+            self.selectedVoiceIdentifier = "com.apple.ttsbundle.Samantha-compact"
         }
         
         // Custom sound selection is now automatically loaded via computed property
@@ -348,6 +348,24 @@ class Settings: ObservableObject {
     // Get all timers (legacy + additional)
     var allTimers: [BBQTimer] {
         legacyTimersAsBBQTimers + visibleAdditionalTimers
+    }
+    
+    // Safely initialize voice settings after app startup to prevent blocking main thread
+    func initializeVoiceSettings() {
+        DispatchQueue.global(qos: .background).async { [weak self] in
+            guard let self = self else { return }
+            
+            // Check if we need to update the voice identifier
+            if self.selectedVoiceIdentifier == "com.apple.ttsbundle.Samantha-compact" {
+                // Try to get a better default voice
+                if let defaultVoice = AVSpeechSynthesisVoice(language: "en-US") {
+                    DispatchQueue.main.async {
+                        self.selectedVoiceIdentifier = defaultVoice.identifier
+                        self.save()
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -592,9 +610,12 @@ struct CompactTimerView: View {
     var alertState: AlertState
     
     private func timeString(from timeInterval: TimeInterval) -> String {
-        let minutes = Int(timeInterval) / 60
-        let seconds = Int(timeInterval) % 60
-        return String(format: "%02d:%02d", minutes, seconds)
+        // Updated to show hours, minutes, and seconds (HH:mm:ss)
+        let totalSeconds = Int(timeInterval)
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let seconds = totalSeconds % 60
+        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
     
     var body: some View {
@@ -608,7 +629,7 @@ struct CompactTimerView: View {
                         Text("Flip In")
                             .foregroundColor(Theme.defaultTheme.textColor)
                         Text(timeString(from: state.intervalTime))
-                            .font(.system(size: 40, weight: .semibold, design: .rounded))
+                            .font(.system(size: 28, weight: .semibold, design: .rounded)) // Reduced further for a more compact view
                             .monospacedDigit()
                             .minimumScaleFactor(0.8)
                             .contentTransition(.numericText())
@@ -626,7 +647,7 @@ struct CompactTimerView: View {
                                 .foregroundColor(.red)
                         }
                         Text(timeString(from: state.elapsedTime))
-                            .font(.system(size: 28, weight: .semibold, design: .rounded))
+                            .font(.system(size: 16, weight: .semibold, design: .rounded)) // Reduced further for a more compact view
                             .monospacedDigit()
                             .minimumScaleFactor(0.8)
                             .contentTransition(.numericText())
@@ -635,23 +656,20 @@ struct CompactTimerView: View {
                             .foregroundColor(Theme.defaultTheme.accentColor)
                     }
                 }
-                // Add more padding for extra space between text and background edges
-                .padding(20) // Increased from 10 for more space; adjust as needed
-                // === END TIMER DISPLAY SECTION ===
-                // Background for timer display only
+                // Add horizontal-only padding for width, keep height unchanged
+                .padding(.horizontal, 20)
+                .padding(.vertical, 2)
                 .background(Theme.defaultTheme.backgroundColor.opacity(0.8))
-                .cornerRadius(16)
-                // (Blue border for debugging removed)
-                // Add padding between timer display and outer container
-                .padding(.vertical, 4)
-                .padding(.leading, 6) // Adjust or remove as needed
-                
-                Spacer()
+                .cornerRadius(14)
+                .padding(.leading, 2)
+                .frame(maxWidth: .infinity)
+                .frame(minWidth: 200)
+                // --- End of timer display section changes ---
                 
                 // === BUTTONS VSTACK ===
                 VStack(spacing: 8) {
                     // Preset buttons HStack
-                    HStack(spacing: 8) {
+                    HStack(spacing: 8) { // Match spacing to Start/Reset buttons
                         // Preset 1 Button
                         Button(timeString(from: preset1)) { /* ... */ }
                             .foregroundColor(.white)
@@ -680,8 +698,9 @@ struct CompactTimerView: View {
                     }
                 }
                 // === END BUTTONS VSTACK ===
-                // Add extra spacing on the right side of the button stack
-                .padding(.trailing, 12) // Adjust or remove as needed
+                // Fixed width for button stack (80+80+1 spacing for presets + 80+80+8 spacing for controls + padding)
+                .frame(width: 180) // Fixed width to constrain button area and give timer more space
+                .padding(.trailing, 8) // Reduced trailing padding
                 // (Orange border for debugging removed)
             }
             // === END TIMER & BUTTONS HSTACK ===
@@ -773,9 +792,12 @@ struct FlipTimerView: View {
     }
     
     private func timeString(from timeInterval: TimeInterval) -> String {
-        let minutes = Int(timeInterval) / 60
-        let seconds = Int(timeInterval) % 60
-        return String(format: "%02d:%02d", minutes, seconds)
+        // Updated to show hours, minutes, and seconds (HH:mm:ss)
+        let totalSeconds = Int(timeInterval)
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let seconds = totalSeconds % 60
+        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
 }
 
@@ -839,9 +861,12 @@ struct ElapsedTimerView: View {
     }
     
     private func timeString(from timeInterval: TimeInterval) -> String {
-        let minutes = Int(timeInterval) / 60
-        let seconds = Int(timeInterval) % 60
-        return String(format: "%02d:%02d", minutes, seconds)
+        // Updated to show hours, minutes, and seconds (HH:mm:ss)
+        let totalSeconds = Int(timeInterval)
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let seconds = totalSeconds % 60
+        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
 }
 
@@ -975,9 +1000,12 @@ struct ContentView: View {
     
     // Global timeString function to be used throughout the view
     private func timeString(from timeInterval: TimeInterval) -> String {
-        let minutes = Int(timeInterval) / 60
-        let seconds = Int(timeInterval) % 60
-        return String(format: "%02d:%02d", minutes, seconds)
+        // Updated to show hours, minutes, and seconds (HH:mm:ss)
+        let totalSeconds = Int(timeInterval)
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let seconds = totalSeconds % 60
+        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
     
     // Debug visualizer settings
@@ -1381,6 +1409,9 @@ struct ContentView: View {
                 
                 // Initialize timer states when view appears
                 initializeTimerStates()
+                
+                // Safely initialize voice settings in background to prevent blocking
+                settings.initializeVoiceSettings()
                 
                 // Set navigation bar appearance to match the app's background color
                 let appearance = UINavigationBarAppearance()

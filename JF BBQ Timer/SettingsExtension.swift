@@ -273,8 +273,24 @@ extension Settings {
     
     // Get list of available voices for the speech synthesizer
     func availableVoices() -> [AVSpeechSynthesisVoice] {
-        // Get all available voices
+        // Add safety check to prevent crashes on iPad when voice services are not available
+        guard Thread.isMainThread else {
+            // If not on main thread, dispatch to main thread
+            var result: [AVSpeechSynthesisVoice] = []
+            DispatchQueue.main.sync {
+                result = self.availableVoices()
+            }
+            return result
+        }
+        
+        // Get all available voices with safety checks
         let allVoices = AVSpeechSynthesisVoice.speechVoices()
+        
+        // If no voices are available (voice services not ready), return empty array
+        guard !allVoices.isEmpty else {
+            print("Warning: No speech voices available - voice services may not be ready")
+            return []
+        }
         
         // Filter to just English voices for simplicity
         let englishVoices = allVoices.filter { 
