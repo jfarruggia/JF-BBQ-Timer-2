@@ -198,14 +198,18 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 
 @main
 struct JF_BBQ_TimerApp: App {
+    @AppStorage("hasOnboarded") private var hasOnboarded: Bool = false
     // Add the app delegate and orientation lock
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject var orientationLock = OrientationLock()
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .preferredColorScheme(.light) // Force light mode for consistent appearance
+            if hasOnboarded {
+                ContentView()
+            } else {
+                OnboardingFlowView()
+            }
         }
     }
 }

@@ -1,7 +1,14 @@
 import SwiftUI
 import AVFoundation
-// Import the file with PremiumFeatureBadge - not needed if they are in the same file
-// import JF_BBQ_Timer
+
+struct PressableButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
+            .brightness(configuration.isPressed ? -0.08 : 0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
+    }
+}
 
 struct NewSettingsView: View {
     @ObservedObject var settings: Settings
@@ -41,7 +48,7 @@ struct NewSettingsView: View {
                         HStack {
                             Text("Preheat Duration")
                             Spacer()
-                            Text(timeString(from: settings.preheatDuration))
+                            Text(TimeFormatter.timeString(from: settings.preheatDuration))
                                 .foregroundColor(.gray)
                         }
                     }
@@ -54,6 +61,15 @@ struct NewSettingsView: View {
                             ),
                             isPresented: $showPreheatDurationPicker
                         )
+                    }
+                    // Add Reset to Default button for Preheat Duration
+                    Button(action: {
+                        settings.preheatDuration = 600 // 10 minutes
+                        settings.save()
+                    }) {
+                        Text("Reset to Default")
+                            .font(.footnote)
+                            .foregroundColor(.blue)
                     }
                 }
 
@@ -115,7 +131,7 @@ struct NewSettingsView: View {
                             Text("Premium Unlocked")
                                 .bold()
                         }
-                        Text("Thank you for supporting JF BBQ Timer!")
+                        Text("Thank you for supporting GrillTime Pro!")
                             .font(.footnote)
                             .foregroundColor(.secondary)
                     }
@@ -133,6 +149,15 @@ struct NewSettingsView: View {
                         Text("[DEBUG] Premium Features Enabled")
                             .foregroundColor(.red)
                     }
+                }
+
+                // Add a button to show onboarding again for testing
+                Button(action: {
+                    UserDefaults.standard.set(false, forKey: "hasOnboarded")
+                }) {
+                    Text("Show Onboarding Again")
+                        .font(.footnote)
+                        .foregroundColor(.orange)
                 }
             }
             .listStyle(InsetGroupedListStyle())
@@ -367,12 +392,12 @@ struct TimerManagementView: View {
                 Text("Presets:")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
-                Text(timeString(from: timer.preset1))
+                Text(TimeFormatter.timeString(from: timer.preset1))
                     .font(.subheadline)
                 Text("|")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
-                Text(timeString(from: timer.preset2))
+                Text(TimeFormatter.timeString(from: timer.preset2))
                     .font(.subheadline)
             }
         }
@@ -393,7 +418,7 @@ struct TimerManagementView: View {
                             HStack {
                                 Text("Preset 1")
                                 Spacer()
-                                Text(timeString(from: tempPreset1))
+                                Text(TimeFormatter.timeString(from: tempPreset1))
                                     .foregroundColor(.gray)
                             }
                         }
@@ -404,7 +429,7 @@ struct TimerManagementView: View {
                             HStack {
                                 Text("Preset 2")
                                 Spacer()
-                                Text(timeString(from: tempPreset2))
+                                Text(TimeFormatter.timeString(from: tempPreset2))
                                     .foregroundColor(.gray)
                             }
                         }
@@ -658,7 +683,7 @@ struct TimerPresetStylesPreview: View {
                 HStack {
                     Text("Preset Time")
                     Spacer()
-                    Text(timeString(from: preset1))
+                    Text(TimeFormatter.timeString(from: preset1))
                         .font(.system(.body, design: .monospaced))
                     Stepper("", onIncrement: {
                         preset1 += 30
@@ -675,7 +700,7 @@ struct TimerPresetStylesPreview: View {
                     HStack {
                         Text("Preset Time")
                         Spacer()
-                        Text(timeString(from: preset1))
+                        Text(TimeFormatter.timeString(from: preset1))
                             .foregroundColor(.gray)
                     }
                 }
@@ -730,7 +755,7 @@ struct TimerPresetStylesPreview: View {
                     HStack {
                         Text("Preset Time")
                         Spacer()
-                        Text(timeString(from: preset2))
+                        Text(TimeFormatter.timeString(from: preset2))
                     }
                     Slider(value: Binding(
                         get: { Double(preset2) },
@@ -754,7 +779,7 @@ struct TimerPresetStylesPreview: View {
                         }
                         .buttonStyle(BorderedButtonStyle())
                     }
-                    Text(timeString(from: preset2))
+                    Text(TimeFormatter.timeString(from: preset2))
                         .padding(.top, 4)
                 }
             }
@@ -914,6 +939,7 @@ struct AlertSoundsView: View {
                             .bold()
                             .frame(maxWidth: .infinity, alignment: .center)
                     }
+                    .buttonStyle(PressableButtonStyle())
                 }
                 
                 // About Section

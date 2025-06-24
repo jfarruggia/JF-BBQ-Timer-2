@@ -208,19 +208,19 @@ class Settings: ObservableObject {
         
         // Set default values if not previously set
         if timer1Preset1 == 0 {
-            timer1Preset1 = 60 // 1 minute
+            timer1Preset1 = 300 // 5 minutes
         }
         if timer1Preset2 == 0 {
-            timer1Preset2 = 120 // 2 minutes
+            timer1Preset2 = 60 // 1 minute
         }
         if timer2Preset1 == 0 {
-            timer2Preset1 = 180 // 3 minutes
+            timer2Preset1 = 300 // 5 minutes
         }
         if timer2Preset2 == 0 {
-            timer2Preset2 = 240 // 4 minutes
+            timer2Preset2 = 60 // 1 minute
         }
         if preheatDuration == 0 {
-            preheatDuration = 900 // 15 minutes
+            preheatDuration = 600 // 10 minutes
         }
         
         // Load additional timers
@@ -609,15 +609,6 @@ struct CompactTimerView: View {
     var settings: Settings
     var alertState: AlertState
     
-    private func timeString(from timeInterval: TimeInterval) -> String {
-        // Updated to show hours, minutes, and seconds (HH:mm:ss)
-        let totalSeconds = Int(timeInterval)
-        let hours = totalSeconds / 3600
-        let minutes = (totalSeconds % 3600) / 60
-        let seconds = totalSeconds % 60
-        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
-    }
-    
     var body: some View {
         VStack(spacing: 4) {
             // === TIMER & BUTTONS HSTACK (entire row) ===
@@ -628,8 +619,8 @@ struct CompactTimerView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Flip In")
                             .foregroundColor(Theme.defaultTheme.textColor)
-                        Text(timeString(from: state.intervalTime))
-                            .font(.system(size: 28, weight: .semibold, design: .rounded)) // Reduced further for a more compact view
+                        Text(TimeFormatter.timeString(from: Int(state.intervalTime)))
+                            .font(.system(size: 28, weight: .semibold, design: .rounded))
                             .monospacedDigit()
                             .minimumScaleFactor(0.8)
                             .contentTransition(.numericText())
@@ -646,8 +637,8 @@ struct CompactTimerView: View {
                                 .font(.system(size: 10))
                                 .foregroundColor(.red)
                         }
-                        Text(timeString(from: state.elapsedTime))
-                            .font(.system(size: 16, weight: .semibold, design: .rounded)) // Reduced further for a more compact view
+                        Text(TimeFormatter.timeString(from: Int(state.elapsedTime)))
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
                             .monospacedDigit()
                             .minimumScaleFactor(0.8)
                             .contentTransition(.numericText())
@@ -659,11 +650,11 @@ struct CompactTimerView: View {
                 // Add horizontal-only padding for width, keep height unchanged
                 .padding(.horizontal, 20)
                 .padding(.vertical, 2)
-                .background(Theme.defaultTheme.backgroundColor.opacity(0.8))
-                .cornerRadius(14)
-                .padding(.leading, 2)
-                .frame(maxWidth: .infinity)
-                .frame(minWidth: 200)
+                        .background(Theme.defaultTheme.backgroundColor)
+        .cornerRadius(14)
+        .padding(.leading, 2)
+        .frame(maxWidth: .infinity)
+        .frame(minWidth: 200)
                 // --- End of timer display section changes ---
                 
                 // === BUTTONS VSTACK ===
@@ -671,30 +662,81 @@ struct CompactTimerView: View {
                     // Preset buttons HStack
                     HStack(spacing: 8) { // Match spacing to Start/Reset buttons
                         // Preset 1 Button
-                        Button(timeString(from: preset1)) { /* ... */ }
-                            .foregroundColor(.white)
-                            .frame(width: 80, height: 44)
-                            .background(Color(UIColor(red: 70/255, green: 70/255, blue: 70/255, alpha: 1.0)))
-                            .cornerRadius(8)
+                        Button(TimeFormatter.timeString(from: Int(preset1))) {
+                            // Set timer to preset1 and start (copied from large timer view)
+                            state.stop()
+                            state.setCurrentIntervalTime(preset1)
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                state.start {
+                                    if settings.soundEnabled {
+                                        state.playSound()
+                                    }
+                                    if settings.hapticsEnabled {
+                                        alertState.isPresented = true
+                                    }
+                                }
+                            }
+                        }
+                        .foregroundColor(.white)
+                        .frame(width: 80, height: 44)
+                        .background(Color(UIColor(red: 70/255, green: 70/255, blue: 70/255, alpha: 1.0)))
+                        .cornerRadius(8)
+                        .buttonStyle(PressableButtonStyle()) // Add visual feedback
                         // Preset 2 Button
-                        Button(timeString(from: preset2)) { /* ... */ }
-                            .foregroundColor(.white)
-                            .frame(width: 80, height: 44)
-                            .background(Color(UIColor(red: 70/255, green: 70/255, blue: 70/255, alpha: 1.0)))
-                            .cornerRadius(8)
+                        Button(TimeFormatter.timeString(from: Int(preset2))) {
+                            // Set timer to preset2 and start (copied from large timer view)
+                            state.stop()
+                            state.setCurrentIntervalTime(preset2)
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                state.start {
+                                    if settings.soundEnabled {
+                                        state.playSound()
+                                    }
+                                    if settings.hapticsEnabled {
+                                        alertState.isPresented = true
+                                    }
+                                }
+                            }
+                        }
+                        .foregroundColor(.white)
+                        .frame(width: 80, height: 44)
+                        .background(Color(UIColor(red: 70/255, green: 70/255, blue: 70/255, alpha: 1.0)))
+                        .cornerRadius(8)
+                        .buttonStyle(PressableButtonStyle()) // Add visual feedback
                     }
                     // Start/Reset buttons HStack
                     HStack(spacing: 8) {
-                        Button(state.isRunning ? "Stop" : "Start") { /* ... */ }
-                            .foregroundColor(.white)
-                            .frame(width: 80, height: 44)
-                            .background(state.isRunning ? Color.red : Color.green)
-                            .cornerRadius(8)
-                        Button("Reset") { /* ... */ }
-                            .foregroundColor(.white)
-                            .frame(width: 80, height: 44)
-                            .background(Color.blue)
-                            .cornerRadius(8)
+                        Button(state.isRunning ? "Stop" : "Start") {
+                            // Start or stop the timer (copied from large timer view)
+                            if state.isRunning {
+                                state.stop()
+                                settings.stopLoopingAlertSound() // Stop looping alert sound
+                            } else {
+                                state.start {
+                                    if settings.soundEnabled {
+                                        state.playSound()
+                                    }
+                                    if settings.hapticsEnabled {
+                                        alertState.isPresented = true
+                                    }
+                                }
+                            }
+                        }
+                        .foregroundColor(.white)
+                        .frame(width: 80, height: 44)
+                        .background(state.isRunning ? Color.red : Color.green)
+                        .cornerRadius(8)
+                        .buttonStyle(PressableButtonStyle()) // Add visual feedback
+                        Button("Reset") {
+                            // Reset the timer (copied from large timer view)
+                            state.reset()
+                            settings.stopLoopingAlertSound() // Stop looping alert sound
+                        }
+                        .foregroundColor(.white)
+                        .frame(width: 80, height: 44)
+                        .background(Color.blue)
+                        .cornerRadius(8)
+                        .buttonStyle(PressableButtonStyle()) // Add visual feedback
                     }
                 }
                 // === END BUTTONS VSTACK ===
@@ -762,14 +804,14 @@ struct Theme {
     var textColor: Color
     
     static let defaultTheme = Theme(
-        backgroundColor: Color(UIColor(red: 50/255, green: 50/255, blue: 50/255, alpha: 1.0)),
-        accentColor: Color.orange,
+        backgroundColor: Color("TimerBackground"), // Named color
+        accentColor: Color("TimerAccent"),         // Named color
         textColor: Color.white
     )
     
     static let fireTheme = Theme(
-        backgroundColor: Color(UIColor(red: 50/255, green: 50/255, blue: 50/255, alpha: 1.0)),
-        accentColor: Color.red,
+        backgroundColor: Color("TimerBackground"), // Named color
+        accentColor: Color("TimerRed"),            // Named color
         textColor: Color.white
     )
 }
@@ -779,7 +821,7 @@ struct FlipTimerView: View {
     var theme: Theme
     
     var body: some View {
-        Text(timeString(from: timeInterval))
+        Text(TimeFormatter.timeString(from: Int(timeInterval)))
             .font(.system(size: 84, weight: .bold, design: .rounded)) // Reduced from 90 to 84
             .foregroundColor(theme.accentColor)
             .shadow(color: Color.black.opacity(0.7), radius: 4, x: 0, y: 2)
@@ -790,15 +832,6 @@ struct FlipTimerView: View {
             .animation(.easeInOut, value: timeInterval)
             .id("interval-\(timeInterval)")
     }
-    
-    private func timeString(from timeInterval: TimeInterval) -> String {
-        // Updated to show hours, minutes, and seconds (HH:mm:ss)
-        let totalSeconds = Int(timeInterval)
-        let hours = totalSeconds / 3600
-        let minutes = (totalSeconds % 3600) / 60
-        let seconds = totalSeconds % 60
-        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
-    }
 }
 
 struct IntervalTimerView: View {
@@ -806,19 +839,19 @@ struct IntervalTimerView: View {
     var theme: Theme
     
     var body: some View {
-        VStack(spacing: 2) { // Increased spacing from 0 to 2
+        VStack(spacing: 2) {
             Text("FLIP IN")
                 .font(.system(size: 28, weight: .bold))
-                .foregroundColor(.orange)
+                .foregroundColor(Color("TimerAccent"))
                 .shadow(color: Color.black.opacity(0.7), radius: 3, x: 0, y: 2)
                 .padding(.top, 2)
             
             FlipTimerView(timeInterval: timerState.intervalTime, theme: theme)
                 .padding(.bottom, 2)
         }
-        .padding(.vertical, 10) // Vertical padding
+        .padding(.vertical, 10)
         .padding(.horizontal, 10)
-        .background(theme.backgroundColor.opacity(0.8))
+        .background(theme.backgroundColor)
         .cornerRadius(16)
         .frame(maxWidth: .infinity)
     }
@@ -829,21 +862,21 @@ struct ElapsedTimerView: View {
     var theme: Theme
     
     var body: some View {
-        VStack(spacing: 2) { // Increased spacing from 0 to 2
+        VStack(spacing: 2) {
             HStack(spacing: 8) {
                 Image(systemName: "flame.fill")
-                    .foregroundColor(.red)
+                    .foregroundColor(Color("TimerRed"))
                     .font(.system(size: 24))
                     .shadow(color: Color.black.opacity(0.5), radius: 2, x: 0, y: 1)
                 
                 Text("LIT TIME")
                     .font(.system(size: 28, weight: .bold))
-                    .foregroundColor(.orange)
+                    .foregroundColor(Color("TimerAccent"))
                     .shadow(color: Color.black.opacity(0.7), radius: 3, x: 0, y: 2)
             }
             .padding(.top, 2)
             
-            Text(timeString(from: timerState.elapsedTime))
+            Text(TimeFormatter.timeString(from: Int(timerState.elapsedTime)))
                 .font(.system(size: 72, weight: .bold, design: .rounded))
                 .foregroundColor(theme.accentColor)
                 .shadow(color: Color.black.opacity(0.7), radius: 4, x: 0, y: 2)
@@ -853,20 +886,11 @@ struct ElapsedTimerView: View {
                 .id("elapsed-\(timerState.elapsedTime)")
                 .padding(.bottom, 2)
         }
-        .padding(.vertical, 10) // Vertical padding
+        .padding(.vertical, 10)
         .padding(.horizontal, 10)
-        .background(theme.backgroundColor.opacity(0.8))
+        .background(theme.backgroundColor)
         .cornerRadius(16)
         .frame(maxWidth: .infinity)
-    }
-    
-    private func timeString(from timeInterval: TimeInterval) -> String {
-        // Updated to show hours, minutes, and seconds (HH:mm:ss)
-        let totalSeconds = Int(timeInterval)
-        let hours = totalSeconds / 3600
-        let minutes = (totalSeconds % 3600) / 60
-        let seconds = totalSeconds % 60
-        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
 }
 
@@ -889,6 +913,7 @@ struct TimerPresetButton: View {
                         .shadow(color: Color.black.opacity(0.2), radius: 2, x: 1, y: 1)
                 )
         }
+        .buttonStyle(PressableButtonStyle()) // Add visual feedback
     }
 }
 
@@ -926,6 +951,7 @@ struct TimerControlButtons: View {
                             .shadow(color: Color.black.opacity(0.2), radius: 2, x: 1, y: 1)
                     )
             }
+            .buttonStyle(PressableButtonStyle()) // Add visual feedback
             
             Button(action: {
                 state.reset()
@@ -938,6 +964,7 @@ struct TimerControlButtons: View {
                     .background(Color.blue)
                     .cornerRadius(8)
             }
+            .buttonStyle(PressableButtonStyle()) // Add visual feedback
         }
     }
 }
@@ -1307,7 +1334,7 @@ struct ContentView: View {
             // RED: Main layout uses ZStack with content on top and fixed buttons at bottom
             ZStack(alignment: .bottom) {
                 // App-wide background color to prevent white showing when scrolling
-                Color(UIColor(red: 225/255, green: 139/255, blue: 130/255, alpha: 1.0)).ignoresSafeArea()
+                Color("PrimaryBackground").ignoresSafeArea()
                 // Main content with timers
                 ScrollViewReader { scrollProxy in
                     ScrollView(.vertical, showsIndicators: true) {
@@ -1375,10 +1402,10 @@ struct ContentView: View {
                 .padding(.bottom, 30) // More bottom padding
                 .padding(.top, 20) // Increased top padding
                 .frame(width: UIScreen.main.bounds.width) // Ensure full width
-                .background(Color(UIColor(red: 225/255, green: 139/255, blue: 130/255, alpha: 1.0)))
+                .background(Color("PrimaryBackground"))
                 .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: -2)
             }
-            .background(Color(UIColor(red: 225/255, green: 139/255, blue: 130/255, alpha: 1.0)))
+            .background(Color("PrimaryBackground"))
             .edgesIgnoringSafeArea(.all)
             .sheet(isPresented: $showSettings) {
                 NewSettingsView(settings: settings)
@@ -1416,7 +1443,7 @@ struct ContentView: View {
                 // Set navigation bar appearance to match the app's background color
                 let appearance = UINavigationBarAppearance()
                 appearance.configureWithOpaqueBackground()
-                appearance.backgroundColor = UIColor(red: 225/255, green: 139/255, blue: 130/255, alpha: 1.0)
+                appearance.backgroundColor = UIColor(named: "PrimaryBackground") ?? UIColor.clear
                 appearance.titleTextAttributes = [.foregroundColor: UIColor.white]
                 UINavigationBar.appearance().standardAppearance = appearance
                 UINavigationBar.appearance().scrollEdgeAppearance = appearance
@@ -1482,9 +1509,9 @@ struct ContentView: View {
                 }
             }
             // Ensure navigation bar background color stays consistent when scrolling (iOS 16+)
-            .toolbarBackground(Color(red: 225/255, green: 139/255, blue: 130/255), for: .navigationBar)
+            .toolbarBackground(Color("PrimaryBackground"), for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
-            .navigationTitle("JF BBQ Timer")
+            .navigationTitle("GrillTime Pro")
             .navigationBarTitleDisplayMode(.inline)
             
             // Add debug panel overlay when debug mode is enabled
@@ -1518,7 +1545,7 @@ struct ContentView_Previews: PreviewProvider {
                         .foregroundColor(.white)
                         .padding(.vertical, 8)
                         .frame(width: 120)
-                        .background(Color.red)
+                        .background(Color("TimerRed"))
                         .cornerRadius(12)
                     
                     Text("Start")
@@ -1526,7 +1553,7 @@ struct ContentView_Previews: PreviewProvider {
                         .foregroundColor(.white)
                         .padding(.vertical, 8)
                         .frame(width: 120)
-                        .background(Color.green)
+                        .background(Color("TimerGreen"))
                         .cornerRadius(12)
                 }
             }
@@ -2035,7 +2062,7 @@ struct TimerContainerAppearance: ViewModifier {
         content
             .padding(.vertical, isLargeTimer ? 8 : 0)
             // Use the same background color for both large and compact timers for visual consistency
-            .background(Color(UIColor(red: 250/255, green: 166/255, blue: 72/255, alpha: 0.5)))
+            .background(Color("TimerContainerBG"))
             .cornerRadius(isLargeTimer ? 15 : 0)
             .overlay(
                 Group {
