@@ -59,12 +59,25 @@ struct OnboardingFlowView: View {
                 
                 // Skip button (top right)
                 if selection < 2 {
-                    Button("Skip") {
-                        completeOnboarding()
+                    VStack {
+                        HStack {
+                            Spacer()
+                            Button("Skip Setup") {
+                                completeOnboarding()
+                            }
+                            .font(.subheadline)
+                            .foregroundColor(.white.opacity(0.7))
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(
+                                Capsule()
+                                    .stroke(Color.white.opacity(0.4), lineWidth: 1)
+                            )
+                        }
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .padding(.top, 20)
+                        .padding(.trailing, 24)
                     }
-                    .font(.headline)
-                    .padding(.top, 40)
-                    .padding(.trailing, 24)
                 }
             }
             .navigationDestination(isPresented: $showMain) {
@@ -82,26 +95,86 @@ struct OnboardingFlowView: View {
 // MARK: - Modular Onboarding Screens
 struct WelcomeOnboardingScreen: View {
     let skipAction: () -> Void
+    @State private var animateIcon = false
+
     var body: some View {
-        VStack(spacing: 32) {
+        VStack(spacing: 20) {
             Spacer()
             Image("BBQLogo")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 300, height: 300)
-                .clipShape(RoundedRectangle(cornerRadius: 60, style: .continuous))
+                .frame(width: 200, height: 200)
+                .clipShape(RoundedRectangle(cornerRadius: 40, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 60, style: .continuous)
+                    RoundedRectangle(cornerRadius: 40, style: .continuous)
                         .stroke(Color.white.opacity(0.2), lineWidth: 2)
                 )
+                .scaleEffect(animateIcon ? 1.0 : 0.9)
+                .animation(.easeOut(duration: 0.4), value: animateIcon)
+                .onAppear {
+                    animateIcon = true
+                }
             Text("Welcome to GrillTime Pro")
                 .font(.largeTitle).bold()
+                .foregroundColor(Color("TimerAccent"))
                 .multilineTextAlignment(.center)
-                .foregroundColor(.white)
-            Text("Your ultimate BBQ timer. Let's get set up fast.")
-                .font(.title3)
-                .foregroundColor(.white.opacity(0.85))
+                .shadow(color: .black.opacity(0.5), radius: 4, x: 2, y: 2)
+            Text("GrillTime Pro – Free Features")
+                .font(.title2).bold().italic()
+                .foregroundColor(Color(red: 0.807, green: 0.216, blue: 0.129)) // #ce3721
                 .multilineTextAlignment(.center)
+                .padding(.top, 8)
+
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .top, spacing: 8) {
+                    Text("•")
+                    Text("Set up to 3 customizable timers for different foods")
+                }
+                HStack(alignment: .top, spacing: 8) {
+                    Text("•")
+                    Text("Name your timers for easy tracking")
+                }
+                HStack(alignment: .top, spacing: 8) {
+                    Text("•")
+                    Text("Adjust flip & cook times to match your grilling style")
+                }
+                HStack(alignment: .top, spacing: 8) {
+                    Text("•")
+                    Text("Get sound alerts so you never miss a beat")
+                }
+                HStack(alignment: .top, spacing: 8) {
+                    Text("•")
+                    Text("Compact & Large Timer Views—perfect for every grill master, including those with vision needs")
+                }
+            }
+            .font(.headline)
+            .foregroundColor(.white)
+            .shadow(color: .black.opacity(0.7), radius: 2, x: 1, y: 1)
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.black.opacity(0.35))
+            )
+
+            Text("Start grilling smarter today—upgrade anytime for even more power!")
+                .font(.body)
+                .foregroundColor(Color("TimerAccent"))
+                .multilineTextAlignment(.center)
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.black.opacity(0.6))
+                )
+                .padding(.top, 8)
+            // Minimal swipe instruction with icon
+            HStack(spacing: 6) {
+                Text("Swipe to set up timers")
+                    .font(.footnote)
+                    .foregroundColor(.white.opacity(0.8))
+                Image(systemName: "arrow.right")
+                    .foregroundColor(.white.opacity(0.8))
+            }
+            .padding(.top, 4)
             Spacer()
         }
         .padding()
@@ -164,9 +237,8 @@ struct CombinedTimerPreheatSetupScreen: View {
                     .font(.largeTitle).bold()
                     .foregroundColor(Color("TimerAccent"))
                     .multilineTextAlignment(.center)
-                    .shadow(color: .black, radius: 0, x: 0.5, y: 0.5)
-                    .shadow(color: .black, radius: 0, x: -0.5, y: -0.5)
-                Text("Configure your two main timers and preheat duration. You can change these later in Settings.")
+                    .shadow(color: .black.opacity(0.5), radius: 4, x: 2, y: 2)
+                Text("Rename your timers and set the presets or just use the defaults")
                     .font(.title3)
                     .foregroundColor(.white.opacity(0.85))
                     .multilineTextAlignment(.center)
@@ -174,7 +246,7 @@ struct CombinedTimerPreheatSetupScreen: View {
                 
                 // Timer 1 Container
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Timer 1")
+                    Label("Timer 1", systemImage: "clock.fill")
                         .font(.headline)
                         .foregroundColor(Color("TimerAccent"))
                         .padding(.horizontal, 12)
@@ -198,8 +270,12 @@ struct CombinedTimerPreheatSetupScreen: View {
                                     .foregroundColor(Color("TimerAccent"))
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
-                                    .background(Color.white.opacity(0.15))
+                                    .background(Color.white.opacity(0.05))
                                     .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color.white.opacity(0.4), lineWidth: 1)
+                                    )
                             }
                         }
                         HStack {
@@ -215,8 +291,12 @@ struct CombinedTimerPreheatSetupScreen: View {
                                     .foregroundColor(Color("TimerAccent"))
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
-                                    .background(Color.white.opacity(0.15))
+                                    .background(Color.white.opacity(0.05))
                                     .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color.white.opacity(0.4), lineWidth: 1)
+                                    )
                             }
                         }
                     }
@@ -225,10 +305,20 @@ struct CombinedTimerPreheatSetupScreen: View {
                     .background(Color("TimerBackground"))
                     .cornerRadius(12)
                 }
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color("TimerContainerBG"))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.black, lineWidth: 1)
+                        )
+                )
+                .padding(.horizontal, 16)
                 
                 // Timer 2 Container
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Timer 2")
+                    Label("Timer 2", systemImage: "clock.fill")
                         .font(.headline)
                         .foregroundColor(Color("TimerAccent"))
                         .padding(.horizontal, 12)
@@ -252,8 +342,12 @@ struct CombinedTimerPreheatSetupScreen: View {
                                     .foregroundColor(Color("TimerAccent"))
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
-                                    .background(Color.white.opacity(0.15))
+                                    .background(Color.white.opacity(0.05))
                                     .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color.white.opacity(0.4), lineWidth: 1)
+                                    )
                             }
                         }
                         HStack {
@@ -269,8 +363,12 @@ struct CombinedTimerPreheatSetupScreen: View {
                                     .foregroundColor(Color("TimerAccent"))
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
-                                    .background(Color.white.opacity(0.15))
+                                    .background(Color.white.opacity(0.05))
                                     .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color.white.opacity(0.4), lineWidth: 1)
+                                    )
                             }
                         }
                     }
@@ -279,10 +377,20 @@ struct CombinedTimerPreheatSetupScreen: View {
                     .background(Color("TimerBackground"))
                     .cornerRadius(12)
                 }
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color("TimerContainerBG"))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.black, lineWidth: 1)
+                        )
+                )
+                .padding(.horizontal, 16)
                 
                 // Preheat Duration Container
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Preheat Duration")
+                    Label("Preheat Duration", systemImage: "flame.fill")
                         .font(.headline)
                         .foregroundColor(Color("TimerAccent"))
                         .padding(.horizontal, 12)
@@ -303,8 +411,12 @@ struct CombinedTimerPreheatSetupScreen: View {
                                 .foregroundColor(Color("TimerAccent"))
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background(Color.white.opacity(0.15))
+                                .background(Color.white.opacity(0.05))
                                 .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color.white.opacity(0.4), lineWidth: 1)
+                                )
                         }
                     }
                     .padding(.horizontal, 16)
@@ -312,6 +424,16 @@ struct CombinedTimerPreheatSetupScreen: View {
                     .background(Color("TimerBackground"))
                     .cornerRadius(12)
                 }
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color("TimerContainerBG"))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.black, lineWidth: 1)
+                        )
+                )
+                .padding(.horizontal, 16)
                 Spacer(minLength: 20)
             }
             .padding()
