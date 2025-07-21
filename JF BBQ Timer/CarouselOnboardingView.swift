@@ -8,6 +8,8 @@
 
 import SwiftUI
 import AVFoundation
+import RevenueCat
+import RevenueCatUI
 
 // MARK: - App Theme Color
 extension Color {
@@ -19,6 +21,7 @@ struct OnboardingFlowView: View {
     @State private var selection = 0
     @State private var showMain = false
     @AppStorage("hasOnboarded") private var hasOnboarded: Bool = false
+    @StateObject private var settings = Settings()
     // Timer 1
     @AppStorage("timer1Name") private var timer1Name: String = "Timer 1"
     @AppStorage("timer1Preset1") private var timer1Preset1: Int = 300  // 5 minutes
@@ -31,57 +34,72 @@ struct OnboardingFlowView: View {
     @AppStorage("preheatDuration") private var preheatDuration: Int = 600
     
     var body: some View {
-        NavigationStack {
-            ZStack(alignment: .topTrailing) {
-                Color.onboardingBackground.ignoresSafeArea()
-                TabView(selection: $selection) {
-                    WelcomeOnboardingScreen(skipAction: completeOnboarding)
-                        .tag(0)
-                    CombinedTimerPreheatSetupScreen(
-                        timer1Name: $timer1Name,
-                        timer1Preset1: $timer1Preset1,
-                        timer1Preset2: $timer1Preset2,
-                        timer2Name: $timer2Name,
-                        timer2Preset1: $timer2Preset1,
-                        timer2Preset2: $timer2Preset2,
-                        preheatDuration: $preheatDuration
-                    )
-                        .tag(1)
-                    PaywallOnboardingScreen(
-                        skipAction: completeOnboarding,
-                        upgradeAction: completeOnboarding,
-                        restoreAction: { /* TODO: Integrate StoreKit/RevenueCat */ }
-                    )
-                        .tag(2)
-                }
-                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .always))
-                .ignoresSafeArea()
-                
-                // Skip button (top right)
-                if selection < 2 {
-                    VStack {
-                        HStack {
-                            Spacer()
-                            Button("Skip Setup") {
-                                completeOnboarding()
-                            }
-                            .font(.subheadline)
-                            .foregroundColor(.white.opacity(0.7))
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(
-                                Capsule()
-                                    .stroke(Color.white.opacity(0.4), lineWidth: 1)
-                            )
+        Group {
+            if #available(iOS 16.0, *) {
+                NavigationStack {
+                    onboardingContent
+                        .navigationDestination(isPresented: $showMain) {
+                            MainView()
                         }
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .padding(.top, 20)
-                        .padding(.trailing, 24)
-                    }
                 }
+            } else {
+                NavigationView {
+                    onboardingContent
+                        .background(
+                            NavigationLink(destination: MainView(), isActive: $showMain) {
+                                EmptyView()
+                            }
+                            .hidden()
+                        )
+                }
+                .navigationViewStyle(StackNavigationViewStyle())
             }
-            .navigationDestination(isPresented: $showMain) {
-                MainView()
+        }
+    }
+    
+    // Extracted common content
+    private var onboardingContent: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.onboardingBackground.ignoresSafeArea()
+            TabView(selection: $selection) {
+                WelcomeOnboardingScreen(skipAction: completeOnboarding)
+                    .tag(0)
+                CombinedTimerPreheatSetupScreen(
+                    timer1Name: $timer1Name,
+                    timer1Preset1: $timer1Preset1,
+                    timer1Preset2: $timer1Preset2,
+                    timer2Name: $timer2Name,
+                    timer2Preset1: $timer2Preset1,
+                    timer2Preset2: $timer2Preset2,
+                    preheatDuration: $preheatDuration
+                )
+                    .tag(1)
+                // Third onboarding page: Custom Paywall
+                CustomPaywallView(dismissAction: completeOnboarding, settings: settings)
+                    .tag(2)
+            }
+            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .always))
+            .ignoresSafeArea()
+            
+            // Skip button (top right)
+            if selection < 2 {
+                VStack {
+                    HStack {
+                        Spacer()
+                        Button("Skip for now") {
+                            completeOnboarding()
+                        }
+                        .font(.subheadline)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.black.opacity(0.6))
+                        .cornerRadius(12)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.top, 5)
+                    .padding(.trailing, 24)
+                }
             }
         }
     }
@@ -98,86 +116,97 @@ struct WelcomeOnboardingScreen: View {
     @State private var animateIcon = false
 
     var body: some View {
-        VStack(spacing: 20) {
-            Spacer()
-            Image("BBQLogo")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 200, height: 200)
-                .clipShape(RoundedRectangle(cornerRadius: 40, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 40, style: .continuous)
-                        .stroke(Color.white.opacity(0.2), lineWidth: 2)
-                )
-                .scaleEffect(animateIcon ? 1.0 : 0.9)
-                .animation(.easeOut(duration: 0.4), value: animateIcon)
-                .onAppear {
-                    animateIcon = true
-                }
-            Text("Welcome to GrillTime Pro")
-                .font(.largeTitle).bold()
-                .foregroundColor(Color("TimerAccent"))
-                .multilineTextAlignment(.center)
-                .shadow(color: .black.opacity(0.5), radius: 4, x: 2, y: 2)
-            Text("GrillTime Pro – Free Features")
-                .font(.title2).bold().italic()
-                .foregroundColor(Color(red: 0.807, green: 0.216, blue: 0.129)) // #ce3721
-                .multilineTextAlignment(.center)
-                .padding(.top, 8)
+        ScrollView {
+            VStack(spacing: 20) {
+                Spacer()
+                Image("BBQLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width:175, height: 175)
+                    .clipShape(RoundedRectangle(cornerRadius: 35, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 35, style: .continuous)
+                            .stroke(Color.white.opacity(0.2), lineWidth: 2)
+                    )
+                    .scaleEffect(animateIcon ? 1.0 : 0.9)
+                    .animation(.easeOut(duration: 0.4), value: animateIcon)
+                    .onAppear {
+                        animateIcon = true
+                    }
+                Text("Welcome to GrillTime Pro")
+                    .font(.title).bold()
+                    .foregroundColor(.black)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .padding(.top, 4)
+                    .padding(.bottom, 4)
+                Text("GrillTime Pro – Free Features")
+                    .font(.title2).bold().italic()
+                    .foregroundColor(Color("TimerAccent"))
+                    .multilineTextAlignment(.center)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color(red: 49/255, green: 45/255, blue: 45/255).opacity(0.75)) // #312d2d at 75%
+                    )
+                    .padding(.top, 8)
 
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .top, spacing: 8) {
-                    Text("•")
-                    Text("Set up to 3 customizable timers for different foods")
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .top, spacing: 8) {
+                        Text("✓")
+                            .foregroundColor(Color(red: 87/255, green: 108/255, blue: 219/255))
+                        Text("Set up to 2 customizable timers for different foods")
+                    }
+                    HStack(alignment: .top, spacing: 8) {
+                        Text("✓")
+                            .foregroundColor(Color(red: 87/255, green: 108/255, blue: 219/255))
+                        Text("Name your timers for easy tracking")
+                    }
+                    HStack(alignment: .top, spacing: 8) {
+                        Text("✓")
+                            .foregroundColor(Color(red: 87/255, green: 108/255, blue: 219/255))
+                        Text("Adjust flip & extend cook times to match your grilling style")
+                    }
+                    HStack(alignment: .top, spacing: 8) {
+                        Text("✓")
+                            .foregroundColor(Color(red: 87/255, green: 108/255, blue: 219/255))
+                        Text("Get sound alerts so you never miss a beat")
+                    }
+                    HStack(alignment: .top, spacing: 8) {
+                        Text("✓")
+                            .foregroundColor(Color(red: 87/255, green: 108/255, blue: 219/255))
+                        Text("Compact & Large Timer Views—perfect for every grill master, including those with vision needs")
+                    }
                 }
-                HStack(alignment: .top, spacing: 8) {
-                    Text("•")
-                    Text("Name your timers for easy tracking")
-                }
-                HStack(alignment: .top, spacing: 8) {
-                    Text("•")
-                    Text("Adjust flip & cook times to match your grilling style")
-                }
-                HStack(alignment: .top, spacing: 8) {
-                    Text("•")
-                    Text("Get sound alerts so you never miss a beat")
-                }
-                HStack(alignment: .top, spacing: 8) {
-                    Text("•")
-                    Text("Compact & Large Timer Views—perfect for every grill master, including those with vision needs")
-                }
-            }
-            .font(.headline)
-            .foregroundColor(.white)
-            .shadow(color: .black.opacity(0.7), radius: 2, x: 1, y: 1)
-            .padding()
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.black.opacity(0.35))
-            )
-
-            Text("Start grilling smarter today—upgrade anytime for even more power!")
                 .font(.body)
-                .foregroundColor(Color("TimerAccent"))
-                .multilineTextAlignment(.center)
+                .foregroundColor(.black)
                 .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.black.opacity(0.6))
-                )
-                .padding(.top, 8)
-            // Minimal swipe instruction with icon
-            HStack(spacing: 6) {
-                Text("Swipe to set up timers")
-                    .font(.footnote)
-                    .foregroundColor(.white.opacity(0.8))
-                Image(systemName: "arrow.right")
-                    .foregroundColor(.white.opacity(0.8))
+
+                Text("Start grilling smarter today—upgrade anytime for even more power!")
+                    .font(.body)
+                    .foregroundColor(Color("TimerAccent"))
+                    .multilineTextAlignment(.center)
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.black.opacity(0.6))
+                    )
+                    .padding(.top, 8)
+                // Minimal swipe instruction with icon
+                HStack(spacing: 6) {
+                    Text("Swipe to set up timers")
+                        .font(.footnote)
+                        .foregroundColor(.white.opacity(0.8))
+                    Image(systemName: "arrow.right")
+                        .foregroundColor(.white.opacity(0.8))
+                }
+                .padding(.top, 4)
+                Spacer()
             }
-            .padding(.top, 4)
-            Spacer()
+            .padding()
         }
-        .padding()
     }
 }
 
@@ -234,15 +263,28 @@ struct CombinedTimerPreheatSetupScreen: View {
             VStack(spacing: 24) {
                 Spacer(minLength: 20)
                 Text("Set Up Your Grill Timers")
-                    .font(.largeTitle).bold()
-                    .foregroundColor(Color("TimerAccent"))
+                    .font(.title).bold()
+                    .foregroundColor(.black)
                     .multilineTextAlignment(.center)
-                    .shadow(color: .black.opacity(0.5), radius: 4, x: 2, y: 2)
-                Text("Rename your timers and set the presets or just use the defaults")
-                    .font(.title3)
-                    .foregroundColor(.white.opacity(0.85))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .padding(.top, 4)
+                    .padding(.bottom, 4)
+                HStack(alignment: .center, spacing: 8) {
+                    Text("Personalize your timers with custom names and times—or dive right in with our handy defaults!")
+                        .font(.title3).bold()
+                        .foregroundColor(Color("TimerAccent"))
+                        .multilineTextAlignment(.center)
+                        .shadow(color: .black.opacity(0.25), radius: 2, x: 1, y: 1)
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 24)
+                        .fill(Color(red: 49/255, green: 45/255, blue: 45/255).opacity(0.75)) // #312d2d at 75%
+                )
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal)
+                .padding(.bottom, 4)
                 
                 // Timer 1 Container
                 VStack(alignment: .leading, spacing: 12) {
@@ -251,14 +293,14 @@ struct CombinedTimerPreheatSetupScreen: View {
                         .foregroundColor(Color("TimerAccent"))
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(Color("TimerBackground"))
+                        .background(Color(red: 49/255, green: 45/255, blue: 45/255).opacity(0.75)) // #312d2d at 75%
                         .cornerRadius(8)
                     
                     VStack(alignment: .leading, spacing: 10) {
                         TextField("Timer 1 Name", text: $timer1Name)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                         HStack {
-                            Text("Preset 1:")
+                            Text("Flip Time:")
                                 .foregroundColor(Color("TimerAccent"))
                             Spacer()
                             Button(action: {
@@ -270,7 +312,7 @@ struct CombinedTimerPreheatSetupScreen: View {
                                     .foregroundColor(Color("TimerAccent"))
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
-                                    .background(Color.white.opacity(0.05))
+                                    .background(Color(red: 49/255, green: 45/255, blue: 45/255).opacity(0.75))
                                     .cornerRadius(8)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 8)
@@ -279,7 +321,7 @@ struct CombinedTimerPreheatSetupScreen: View {
                             }
                         }
                         HStack {
-                            Text("Preset 2:")
+                            Text("Extend cook time by:")
                                 .foregroundColor(Color("TimerAccent"))
                             Spacer()
                             Button(action: {
@@ -291,7 +333,7 @@ struct CombinedTimerPreheatSetupScreen: View {
                                     .foregroundColor(Color("TimerAccent"))
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
-                                    .background(Color.white.opacity(0.05))
+                                    .background(Color(red: 49/255, green: 45/255, blue: 45/255).opacity(0.75))
                                     .cornerRadius(8)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 8)
@@ -302,7 +344,7 @@ struct CombinedTimerPreheatSetupScreen: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color("TimerBackground"))
+                    .background(Color(red: 49/255, green: 45/255, blue: 45/255).opacity(0.75))
                     .cornerRadius(12)
                 }
                 .padding(16)
@@ -323,14 +365,14 @@ struct CombinedTimerPreheatSetupScreen: View {
                         .foregroundColor(Color("TimerAccent"))
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(Color("TimerBackground"))
+                        .background(Color(red: 49/255, green: 45/255, blue: 45/255).opacity(0.75))
                         .cornerRadius(8)
                     
                     VStack(alignment: .leading, spacing: 10) {
                         TextField("Timer 2 Name", text: $timer2Name)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                         HStack {
-                            Text("Preset 1:")
+                            Text("Flip Time:")
                                 .foregroundColor(Color("TimerAccent"))
                             Spacer()
                             Button(action: {
@@ -342,7 +384,7 @@ struct CombinedTimerPreheatSetupScreen: View {
                                     .foregroundColor(Color("TimerAccent"))
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
-                                    .background(Color.white.opacity(0.05))
+                                    .background(Color(red: 49/255, green: 45/255, blue: 45/255).opacity(0.75))
                                     .cornerRadius(8)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 8)
@@ -351,7 +393,7 @@ struct CombinedTimerPreheatSetupScreen: View {
                             }
                         }
                         HStack {
-                            Text("Preset 2:")
+                            Text("Extend cook time by:")
                                 .foregroundColor(Color("TimerAccent"))
                             Spacer()
                             Button(action: {
@@ -363,7 +405,7 @@ struct CombinedTimerPreheatSetupScreen: View {
                                     .foregroundColor(Color("TimerAccent"))
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
-                                    .background(Color.white.opacity(0.05))
+                                    .background(Color(red: 49/255, green: 45/255, blue: 45/255).opacity(0.75))
                                     .cornerRadius(8)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 8)
@@ -374,7 +416,7 @@ struct CombinedTimerPreheatSetupScreen: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color("TimerBackground"))
+                    .background(Color(red: 49/255, green: 45/255, blue: 45/255).opacity(0.75))
                     .cornerRadius(12)
                 }
                 .padding(16)
@@ -395,7 +437,7 @@ struct CombinedTimerPreheatSetupScreen: View {
                         .foregroundColor(Color("TimerAccent"))
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
-                        .background(Color("TimerBackground"))
+                        .background(Color(red: 49/255, green: 45/255, blue: 45/255).opacity(0.75))
                         .cornerRadius(8)
                     
                     HStack {
@@ -411,7 +453,7 @@ struct CombinedTimerPreheatSetupScreen: View {
                                 .foregroundColor(Color("TimerAccent"))
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background(Color.white.opacity(0.05))
+                                .background(Color(red: 49/255, green: 45/255, blue: 45/255).opacity(0.75))
                                 .cornerRadius(8)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 8)
@@ -421,7 +463,7 @@ struct CombinedTimerPreheatSetupScreen: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(Color("TimerBackground"))
+                    .background(Color(red: 49/255, green: 45/255, blue: 45/255).opacity(0.75))
                     .cornerRadius(12)
                 }
                 .padding(16)
@@ -513,9 +555,9 @@ struct TimePickerModal: View {
                 minutes = (totalSeconds % 3600) / 60
                 seconds = totalSeconds % 60
             }
-            .onChange(of: hours) { updateTotal() }
-            .onChange(of: minutes) { updateTotal() }
-            .onChange(of: seconds) { updateTotal() }
+            .onChange(of: hours) { _ in updateTotal() }
+            .onChange(of: minutes) { _ in updateTotal() }
+            .onChange(of: seconds) { _ in updateTotal() }
             .navigationBarTitle("Set Time", displayMode: .inline)
             .navigationBarItems(
                 leading: Button("Cancel", action: onCancel),

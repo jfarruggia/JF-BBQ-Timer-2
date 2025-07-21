@@ -7,6 +7,7 @@
 
 import SwiftUI
 import UIKit
+import RevenueCat
 
 // This class will handle the orientation lock
 class OrientationLock: ObservableObject {
@@ -22,6 +23,10 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     static var orientationLock = UIInterfaceOrientationMask.portrait
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        // Configure RevenueCat first
+        Purchases.logLevel = .debug
+        Purchases.configure(withAPIKey: "appl_sAvUVfGNwMiLQcFzVhzsEJBNixy")
+        
         // Register default values for UserDefaults
         let defaults: [String: Any] = [
             "soundEnabled": true,
@@ -202,13 +207,40 @@ struct JF_BBQ_TimerApp: App {
     // Add the app delegate and orientation lock
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject var orientationLock = OrientationLock()
-    
+    @StateObject private var settings = Settings()
+
+    // RevenueCat entitlement check
+    private func updatePremiumStatus() {
+        Purchases.shared.getCustomerInfo { customerInfo, error in
+            if let error = error {
+                print("❌ Error fetching customer info: \(error)")
+                return
+            }
+            
+            let isPremium = customerInfo?.entitlements["premium_access"]?.isActive == true
+            print("📱 Premium status: \(isPremium)")
+            print("🔑 Entitlements: \(String(describing: customerInfo?.entitlements))")
+            
+            DispatchQueue.main.async {
+                settings.isPremiumUser = isPremium
+                settings.save()
+            }
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
-            if hasOnboarded {
-                ContentView()
-            } else {
-                OnboardingFlowView()
+            Group {
+                if hasOnboarded {
+                    ContentView()
+                        .environmentObject(settings)
+                } else {
+                    OnboardingFlowView()
+                        .environmentObject(settings)
+                }
+            }
+            .onAppear {
+                updatePremiumStatus()
             }
         }
     }

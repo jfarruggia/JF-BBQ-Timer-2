@@ -1,0 +1,110 @@
+{
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : ""
+      }
+    ]
+  },
+  "identifier" : "04741A3C",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "6748230085",
+      "localizations" : [
+        {
+          "description" : "BBQ  timers for perfect grilling results",
+          "displayName" : "GrillTime Pro",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.GrillTimePro.premium.lifetime",
+      "referenceName" : "Premium Features Unlock",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "3.99",
+      "familyShareable" : false,
+      "internalID" : "6748886596",
+      "localizations" : [
+        {
+          "description" : "BBQ  timers for perfect grilling results",
+          "displayName" : "GrillTime Pro",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.jamesfarruggia.JF_BBQ_Timer.premium.lifetime",
+      "referenceName" : "Premium Features Unlock 2",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6744303683",
+    "_developerTeamID" : "CAVPE6S7T3",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 774732959.12262297,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Refund Request Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

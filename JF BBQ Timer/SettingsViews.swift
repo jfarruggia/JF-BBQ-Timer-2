@@ -1,8 +1,10 @@
 import SwiftUI
 import AVFoundation
+import RevenueCat
+import RevenueCatUI
 
-struct PressableButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
+struct PressableButtonStyle: SwiftUI.ButtonStyle {
+    func makeBody(configuration: Self.Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
             .brightness(configuration.isPressed ? -0.08 : 0)
@@ -81,6 +83,22 @@ struct NewSettingsView: View {
                         Toggle("Sound Alerts", isOn: $settings.soundEnabled)
                         Toggle("Haptic Feedback", isOn: $settings.hapticsEnabled)
                         Toggle("Voice Announcements", isOn: $settings.voiceAnnouncementsEnabled)
+                            .disabled(!settings.isPremiumUser)
+                            .overlay(
+                                Group {
+                                    if !settings.isPremiumUser {
+                                        Image(systemName: "lock.fill")
+                                            .foregroundColor(.gray)
+                                            .padding(.leading, 8)
+                                    }
+                                }, alignment: .trailing
+                            )
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                if !settings.isPremiumUser {
+                                    showPremiumUpgrade = true
+                                }
+                            }
                         if settings.voiceAnnouncementsEnabled {
                             Text("Hear a spoken message when your timer completes.")
                                 .font(.caption)
@@ -184,7 +202,7 @@ struct NewSettingsView: View {
                     }
                 })
                 .sheet(isPresented: $showPremiumUpgrade) {
-                    PremiumUpgradeView(settings: settings, isPresented: $showPremiumUpgrade)
+                    CustomPaywallView(dismissAction: { showPremiumUpgrade = false }, settings: settings)
                 }
                 if showSettingsSaved {
                     VStack {
@@ -375,7 +393,7 @@ struct TimerManagementView: View {
             
             // Show premium upgrade overlay when needed
             if showPremiumUpgrade {
-                PremiumUpgradeView(settings: settings, isPresented: $showPremiumUpgrade)
+                CustomPaywallView(dismissAction: { showPremiumUpgrade = false }, settings: settings)
                     .transition(.opacity)
                     .zIndex(1) // Ensure it appears on top
             }
@@ -567,7 +585,7 @@ struct TimerManagementView: View {
                                 Button("Done") {
                                     showPreset1Picker = false
                                 }
-                                .bold()
+                                .font(.headline)
                             }
                             .padding(.vertical, 8)
                             
@@ -609,7 +627,7 @@ struct TimerManagementView: View {
                                 Button("Done") {
                                     showPreset2Picker = false
                                 }
-                                .bold()
+                                .font(.headline)
                             }
                             .padding(.vertical, 8)
                             
@@ -758,7 +776,7 @@ struct TimerPickerSheet: View {
                 Button("Done") {
                     isPresented = false
                 }
-                .bold()
+                .font(.headline)
             }
             .padding()
             
@@ -860,7 +878,7 @@ struct TimerPresetStylesPreview: View {
                             Button("Done") {
                                 showCustomPicker = false
                             }
-                            .bold()
+                            .font(.headline)
                         }
                         .padding()
                         
@@ -999,30 +1017,41 @@ struct AlertSoundsView: View {
                         Text("Premium Sounds")
                             .font(.headline)
                         if !settings.isPremiumUser {
-                            Image(systemName: "crown.fill")
-                                .foregroundColor(.yellow)
+                            Image(systemName: "lock.fill")
+                                .foregroundColor(.gray)
                                 .font(.headline)
                                 .padding(.bottom, 1)
                         }
                     }
                 ) {
-                    if bundledSoundsManager.categories.isEmpty {
-                        Text("No premium sounds available")
-                            .foregroundColor(.secondary)
-                            .italic()
-                        // Debug information
-                        Text("Debug: \(bundledSoundsManager.allSounds.count) sounds loaded")
-                            .font(.caption)
-                            .foregroundColor(.red)
+                    if !settings.isPremiumUser {
+                        Button(action: { showPremiumUpgrade = true }) {
+                            HStack {
+                                Image(systemName: "crown.fill")
+                                    .foregroundColor(.yellow)
+                                Text("Upgrade to Premium to unlock all sounds")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
                     } else {
-                        // For each category, show a sub-section header and its sounds
-                        ForEach(bundledSoundsManager.categories, id: \.self) { category in
-                            VStack(alignment: .leading, spacing: 0) {
-                                Text(category)
-                                    .font(.headline)
-                                    .padding(.top, 8)
-                                ForEach(bundledSoundsManager.sounds(in: category)) { sound in
-                                    bundledSoundRow(sound: sound)
+                        if bundledSoundsManager.categories.isEmpty {
+                            Text("No premium sounds available")
+                                .foregroundColor(.secondary)
+                                .italic()
+                            // Debug information
+                            Text("Debug: \(bundledSoundsManager.allSounds.count) sounds loaded")
+                                .font(.caption)
+                                .foregroundColor(.red)
+                        } else {
+                            // For each category, show a sub-section header and its sounds
+                            ForEach(bundledSoundsManager.categories, id: \.self) { category in
+                                VStack(alignment: .leading, spacing: 0) {
+                                    Text(category)
+                                        .font(.headline)
+                                        .padding(.top, 8)
+                                    ForEach(bundledSoundsManager.sounds(in: category)) { sound in
+                                        bundledSoundRow(sound: sound)
+                                    }
                                 }
                             }
                         }
@@ -1031,29 +1060,20 @@ struct AlertSoundsView: View {
                 
                 // Custom Sounds Section
                 Section(header: Text("Custom Sounds")) {
-                    if settings.isUsingCustomSound {
-                        HStack {
-                            Text("Using Custom Sound")
-                                .foregroundColor(.blue)
-                            Spacer()
-                            Image(systemName: "checkmark")
-                                .foregroundColor(.blue)
-                        }
-                    }
-                    
-                    NavigationLink(destination: CustomSoundsView(settings: settings)) {
-                        if settings.isPremiumUser {
-                            Text("Manage Custom Sounds")
-                        } else {
+                    if !settings.isPremiumUser {
+                        Button(action: { showPremiumUpgrade = true }) {
                             HStack {
-                                Text("Add Custom Sounds")
-                                Spacer()
                                 Image(systemName: "crown.fill")
                                     .foregroundColor(.yellow)
+                                Text("Upgrade to Premium to add custom sounds")
+                                    .foregroundColor(.secondary)
                             }
                         }
+                    } else {
+                        NavigationLink(destination: CustomSoundsView(settings: settings)) {
+                            Text("Manage Custom Sounds")
+                        }
                     }
-                    .disabled(!settings.isPremiumUser)
                 }
                 
                 // About Section
@@ -1096,7 +1116,7 @@ struct AlertSoundsView: View {
             
             // Show premium upgrade overlay when needed
             if showPremiumUpgrade {
-                PremiumUpgradeView(settings: settings, isPresented: $showPremiumUpgrade)
+                CustomPaywallView(dismissAction: { showPremiumUpgrade = false }, settings: settings)
                     .transition(.opacity)
                     .zIndex(1) // Ensure it appears on top
             }

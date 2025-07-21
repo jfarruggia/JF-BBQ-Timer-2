@@ -8,6 +8,7 @@
 import SwiftUI
 import AVFoundation
 import UIKit
+import RevenueCat
 
 struct PresetInterval: Identifiable, Codable {
     let id: UUID
@@ -153,6 +154,25 @@ class Settings: ObservableObject {
     
     // Premium feature limits
     let maxFreeTimers: Int = 2 // Only 2 additional timers for free users
+    
+    // Method to update premium status from RevenueCat
+    func updatePremiumStatus() {
+        Purchases.shared.getCustomerInfo { [weak self] customerInfo, error in
+            if let error = error {
+                print("❌ Error fetching customer info: \(error)")
+                return
+            }
+            
+            let isPremium = customerInfo?.entitlements["premium_access"]?.isActive == true
+            print("📱 Premium status: \(isPremium)")
+            print("🔑 Entitlements: \(String(describing: customerInfo?.entitlements))")
+            
+            DispatchQueue.main.async {
+                self?.isPremiumUser = isPremium
+                self?.save()
+            }
+        }
+    }
     
     init() {
         // Initialize all stored properties first
@@ -548,13 +568,13 @@ struct BouncyButtonStyle: ButtonStyle {
     let buttonID: UUID
     @Binding var pressedButtonId: UUID?
     
-    func makeBody(configuration: Configuration) -> some View {
+    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed || pressedButtonId == buttonID ? 0.95 : 1.0)
             .brightness(configuration.isPressed || pressedButtonId == buttonID ? -0.05 : 0)
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
-            .onChange(of: configuration.isPressed) {
-                if configuration.isPressed {
+            .onChange(of: configuration.isPressed) { isPressed in
+                if isPressed {
                     pressedButtonId = buttonID
                     // Add a slight delay before resetting the pressed state
                     // This makes the animation visible even for quick taps
@@ -575,13 +595,13 @@ struct PulsatingButtonStyle: ButtonStyle {
     let buttonID: UUID
     @Binding var pressedButtonId: UUID?
     
-    func makeBody(configuration: Configuration) -> some View {
+    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed || pressedButtonId == buttonID ? 0.92 : 1.0)
             .brightness(configuration.isPressed || pressedButtonId == buttonID ? -0.08 : 0)
-            .animation(.spring(response: 0.4, dampingFraction: 0.5, blendDuration: 0.2), value: configuration.isPressed)
-            .onChange(of: configuration.isPressed) {
-                if configuration.isPressed {
+            .animation(.spring(response: 0.4, dampingFraction: 0.5), value: configuration.isPressed)
+            .onChange(of: configuration.isPressed) { isPressed in
+                if isPressed {
                     // Add haptic feedback
                     let feedback = UIImpactFeedbackGenerator(style: .heavy)
                     feedback.impactOccurred()
@@ -590,7 +610,7 @@ struct PulsatingButtonStyle: ButtonStyle {
                     // Delay reset for more visible animation
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                         if pressedButtonId == buttonID {
-                            withAnimation(.spring(response: 0.5, dampingFraction: 0.5, blendDuration: 0.3)) {
+                            withAnimation(.spring(response: 0.5, dampingFraction: 0.5)) {
                                 pressedButtonId = nil
                             }
                         }
@@ -623,7 +643,6 @@ struct CompactTimerView: View {
                             .font(.system(size: 28, weight: .semibold, design: .rounded))
                             .monospacedDigit()
                             .minimumScaleFactor(0.8)
-                            .contentTransition(.numericText())
                             .animation(.easeInOut, value: state.intervalTime)
                             .id("interval-\(state.intervalTime)")
                             .foregroundColor(Theme.defaultTheme.accentColor)
@@ -641,7 +660,6 @@ struct CompactTimerView: View {
                             .font(.system(size: 16, weight: .semibold, design: .rounded))
                             .monospacedDigit()
                             .minimumScaleFactor(0.8)
-                            .contentTransition(.numericText())
                             .animation(.easeInOut, value: state.elapsedTime)
                             .id("elapsed-\(state.elapsedTime)")
                             .foregroundColor(Theme.defaultTheme.accentColor)
@@ -828,7 +846,6 @@ struct FlipTimerView: View {
             .frame(height: 100) // Reduced from 110 to 100
             .minimumScaleFactor(0.5)
             .lineLimit(1)
-            .contentTransition(.numericText())
             .animation(.easeInOut, value: timeInterval)
             .id("interval-\(timeInterval)")
     }
@@ -1005,7 +1022,7 @@ struct DebugPanel: View {
 
 // Remove the duplicate NewSettingsView declaration and keep only the most complete version
 struct ContentView: View {
-    @StateObject private var settings = Settings()
+    @EnvironmentObject var settings: Settings
     @StateObject private var timerStates: TimerStatesManager
     @State private var showSettings = false
     @State private var showDebugPanel = false
@@ -1015,7 +1032,6 @@ struct ContentView: View {
     init() {
         // Use _timerStates to initialize the StateObject
         let settings = Settings() // Create settings first
-        _settings = StateObject(wrappedValue: settings) // Initialize the settings StateObject
         _timerStates = StateObject(wrappedValue: TimerStatesManager(settings: settings)) // Pass settings to TimerStatesManager
     }
     
@@ -1330,200 +1346,99 @@ struct ContentView: View {
     }
     
     var body: some View {
-        NavigationView {
-            // RED: Main layout uses ZStack with content on top and fixed buttons at bottom
-            ZStack(alignment: .bottom) {
-                // App-wide background color to prevent white showing when scrolling
-                Color("PrimaryBackground").ignoresSafeArea()
-                // Main content with timers
-                ScrollViewReader { scrollProxy in
-                    ScrollView(.vertical, showsIndicators: true) {
-                        VStack(spacing: 20) { // Increased spacing between timer containers for more separation
-                            // Add a spacer at the top to ensure content starts below the header
-                            Spacer()
-                                .frame(height: 40)
-                                
-                            // RED: Timer 1 is the first default timer
-                            if let timer1 = settings.legacyTimersAsBBQTimers.first,
-                               let timer1State = timerStates.state(for: timer1.id) {
-                                additionalTimerView(for: timer1, state: timer1State)
-                                    .id(timer1.id) // Add id to force layout refresh
-                            }
-                            
-                            // RED: Timer 2 is the second default timer
-                            if settings.legacyTimersAsBBQTimers.count > 1,
-                               let timer2State = timerStates.state(for: settings.legacyTimersAsBBQTimers[1].id) {
-                                additionalTimerView(for: settings.legacyTimersAsBBQTimers[1], state: timer2State)
-                                    .id(settings.legacyTimersAsBBQTimers[1].id) // Add id to force layout refresh
-                            }
-                            
-                            // RED: Shows any additional timers the user has created
-                            ForEach(settings.additionalTimers.filter { $0.isVisible }) { timer in
-                                if let timerState = timerStates.state(for: timer.id) {
-                                    additionalTimerView(for: timer, state: timerState)
-                                        .id(timer.id) // Add id to force layout refresh
-                                }
-                            }
-                            
-                            // RED: Empty space at bottom to prevent content being hidden by preheat button
-                            Spacer()
-                                .frame(height: 130) // Further increased height for more bottom space
-                        }
-                        .padding(.top, 30)
-                    }
-                    .onChange(of: lastCompletedTimerId) {
-                        if let timerId = lastCompletedTimerId {
-                            // Scroll to the completed timer
-                            withAnimation {
-                                scrollProxy.scrollTo(timerId, anchor: .center)
-                            }
-                        }
-                    }
-                    .safeAreaInset(edge: .top) {
-                         // Empty view with height to create space below the navigation bar
-                          Color.clear.frame(height: 25)
-                    }
-                    .scrollIndicators(.hidden)
-                    .if(debugSettings.isEnabled && debugSettings.showGrid) { view in
-                        view.gridOverlay(
-                            spacing: debugSettings.gridSpacing,
-                            color: .blue.opacity(0.2),
-                            lineWidth: 0.5
-                        )
+        ZStack {
+            Color("PrimaryBackground").ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                // Custom header
+                HStack {
+                    // Empty space on left to center title
+                    Spacer()
+                    
+                    // Title
+                    Text("GrillTime Pro")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                    
+                    // Settings button only
+                    Button(action: {
+                        showSettings = true
+                    }) {
+                        Image(systemName: "gear")
+                            .font(.system(size: 20))
+                            .foregroundColor(.white)
                     }
                 }
-                
-                // RED: Fixed area at bottom containing the preheat button
-                VStack(spacing: 8) {
-                    // Preheat Button
-                    preheatButtonView()
-                }
-                .padding(.horizontal, 0) // Remove horizontal padding to span full width
-                .padding(.bottom, 30) // More bottom padding
-                .padding(.top, 20) // Increased top padding
-                .frame(width: UIScreen.main.bounds.width) // Ensure full width
+                .padding()
                 .background(Color("PrimaryBackground"))
-                .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: -2)
-            }
-            .background(Color("PrimaryBackground"))
-            .edgesIgnoringSafeArea(.all)
-            .sheet(isPresented: $showSettings) {
-                NewSettingsView(settings: settings)
-            }
-            .overlay(
-                Group {
-                    if alertState.isPresented, let timer1 = settings.legacyTimersAsBBQTimers.first, let timer1State = timerStates.state(for: timer1.id) {
-                        AlertView(alertState: alertState, audioPlayer: Settings.sharedAudioPlayer, isPreheat: false, settings: settings, timerState: timer1State)
-                    }
-                    if showPreheatAlert {
-                        PreheatAlertView(
-                            isPresented: $showPreheatAlert,
-                            onDismiss: {
-                                showPreheatAlert = false
+                
+                // Main content in ScrollView
+                ScrollView {
+                    VStack(spacing: 16) {
+                        // Timer views
+                        ForEach(settings.allTimers) { timer in
+                            if let state = timerStates.state(for: timer.id) {
+                                additionalTimerView(for: timer, state: state)
                             }
-                        )
-                    }
-                    if showPremiumUpgrade {
-                        PremiumUpgradeView(settings: settings, isPresented: $showPremiumUpgrade)
-                            .transition(.opacity)
-                            .zIndex(100) // Ensure it appears on top
-                    }
-                }
-            )
-            .onAppear {
-                // First, update settings in timerStatesManager
-                timerStates.updateSettings(settings)
-                
-                // Initialize timer states when view appears
-                initializeTimerStates()
-                
-                // Safely initialize voice settings in background to prevent blocking
-                settings.initializeVoiceSettings()
-                
-                // Set navigation bar appearance to match the app's background color
-                let appearance = UINavigationBarAppearance()
-                appearance.configureWithOpaqueBackground()
-                appearance.backgroundColor = UIColor(named: "PrimaryBackground") ?? UIColor.clear
-                appearance.titleTextAttributes = [.foregroundColor: UIColor.white]
-                UINavigationBar.appearance().standardAppearance = appearance
-                UINavigationBar.appearance().scrollEdgeAppearance = appearance
-                UINavigationBar.appearance().compactAppearance = appearance
-            }
-            .onChange(of: settings.additionalTimers) {
-                // Update timer states when timers are added or removed
-                initializeTimerStates()
-            }
-            .onChange(of: settings.selectedAlertSound) { newValue in
-                // Update timer states when sound settings change
-                print("Alert sound changed to \(newValue.displayName), updating timer states")
-                timerStates.updateSettings(settings)
-            }
-            .onChange(of: settings.soundEnabled) { newValue in
-                // Update timer states when sound settings change
-                print("Sound enabled changed to \(newValue), updating timer states")
-                timerStates.updateSettings(settings)
-            }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    HStack {
-                        // Premium indicator
-                        if settings.isPremiumUser {
-                            Image(systemName: "crown.fill")
-                                .foregroundColor(.yellow)
-                                .font(.system(size: 18))
-                                .padding(.trailing, 8)
                         }
                         
-                        Button(action: {
-                            showSettings = true
-                        }) {
-                            Image(systemName: "gear")
-                                .font(.system(size: 20))
-                                .foregroundColor(.white)
-                        }
+                        // Preheat button at bottom
+                        preheatButtonView()
+                            .padding(.bottom, 30)
                     }
-                }
-                
-                // Debug toggle button - hidden in release builds
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: {
-                        debugSettings.isEnabled.toggle()
-                        if !debugSettings.isEnabled {
-                            showDebugPanel = false
-                        }
-                    }) {
-                        Image(systemName: debugSettings.isEnabled ? "rectangle.dashed" : "rectangle")
-                            .foregroundColor(debugSettings.isEnabled ? .red : .gray)
-                    }
-                }
-                
-                if debugSettings.isEnabled {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button(action: {
-                            showDebugPanel.toggle()
-                        }) {
-                            Image(systemName: "slider.horizontal.3")
-                                .foregroundColor(showDebugPanel ? .green : .gray)
-                        }
-                    }
+                    .padding(.horizontal)
                 }
             }
-            // Ensure navigation bar background color stays consistent when scrolling (iOS 16+)
-            .toolbarBackground(Color("PrimaryBackground"), for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .navigationTitle("GrillTime Pro")
-            .navigationBarTitleDisplayMode(.inline)
             
-            // Add debug panel overlay when debug mode is enabled
+            // Existing overlays
+            if alertState.isPresented, let timer1 = settings.legacyTimersAsBBQTimers.first, let timer1State = timerStates.state(for: timer1.id) {
+                AlertView(alertState: alertState, audioPlayer: Settings.sharedAudioPlayer, isPreheat: false, settings: settings, timerState: timer1State)
+            }
+            if showPreheatAlert {
+                PreheatAlertView(
+                    isPresented: $showPreheatAlert,
+                    onDismiss: {
+                        showPreheatAlert = false
+                    }
+                )
+            }
+            if showPremiumUpgrade {
+                PremiumUpgradeView(settings: settings, isPresented: $showPremiumUpgrade)
+                    .transition(.opacity)
+                    .zIndex(100)
+            }
+            
+            // Debug panel
             if debugSettings.isEnabled && showDebugPanel {
                 VStack {
                     DebugPanel(settings: debugSettings)
                     Spacer()
                 }
-                .zIndex(100) // Make sure it's on top
+                .zIndex(100)
             }
         }
-        .buttonStyle(HapticButtonStyle()) // Apply haptic feedback to all buttons in ContentView
+        .sheet(isPresented: $showSettings) {
+            NewSettingsView(settings: settings)
+        }
+        .buttonStyle(HapticButtonStyle())
+        .onAppear {
+            timerStates.updateSettings(settings)
+            initializeTimerStates()
+            settings.initializeVoiceSettings()
+        }
+        .onChange(of: settings.additionalTimers) { _ in
+            initializeTimerStates()
+        }
+        .onChange(of: settings.selectedAlertSound) { _ in
+            print("Alert sound changed to \(settings.selectedAlertSound.displayName), updating timer states")
+            timerStates.updateSettings(settings)
+        }
+        .onChange(of: settings.soundEnabled) { _ in
+            print("Sound enabled changed to \(settings.soundEnabled), updating timer states")
+            timerStates.updateSettings(settings)
+        }
     }
 }
 
@@ -2081,7 +1996,7 @@ struct TimerContainerAppearance: ViewModifier {
                     .frame(minHeight: calculateAdaptiveHeight())
             }
             // Remove all timer-based logic for border reset
-            .onChange(of: timerState.intervalTime) {
+            .onChange(of: timerState.intervalTime) { _ in
                 let newValue = timerState.intervalTime
                 let oldValue = previousIntervalTime
                 // Optionally, still scroll to completed timer
@@ -2234,7 +2149,7 @@ struct PremiumUpgradeView: View {
 
 // Add this struct at the top-level (before ContentView)
 struct HapticButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
+    func makeBody(configuration: ButtonStyleConfiguration) -> some View {
         configuration.label
             .onChange(of: configuration.isPressed) { isPressed in
                 if isPressed {
@@ -2242,6 +2157,17 @@ struct HapticButtonStyle: ButtonStyle {
                     generator.impactOccurred()
                 }
             }
+    }
+}
+
+// Add helper modifier near bottom
+struct HideScrollIndicators: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 16.0, *) {
+            content.scrollIndicators(.hidden)
+        } else {
+            content
+        }
     }
 }
 
