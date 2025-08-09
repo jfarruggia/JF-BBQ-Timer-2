@@ -169,6 +169,7 @@ struct CustomPaywallView: View {
         guard let package = package else { return }
         isPurchasing = true
         
+        print("🛍 Starting purchase process...")
         Purchases.shared.purchase(package: package) { transaction, customerInfo, error, userCancelled in
             isPurchasing = false
             
@@ -187,9 +188,27 @@ struct CustomPaywallView: View {
             
             if isActive {
                 print("✅ Purchase successful!")
-                settings.updatePremiumStatus()
-                DispatchQueue.main.async {
-                    dismissAction()
+                // Add a slight delay to ensure RevenueCat has time to process
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    // Double check the status one more time
+                    Purchases.shared.getCustomerInfo { verifyInfo, verifyError in
+                        if let error = verifyError {
+                            print("❌ Verification error: \(error)")
+                            return
+                        }
+                        
+                        let verifyActive = verifyInfo?.entitlements["premium_access"]?.isActive == true
+                        print("🔍 Verification status: \(verifyActive)")
+                        
+                        if verifyActive {
+                            settings.updatePremiumStatus()
+                            DispatchQueue.main.async {
+                                dismissAction()
+                            }
+                        } else {
+                            print("⚠️ Verification failed - premium not active after delay")
+                        }
+                    }
                 }
             } else {
                 print("⚠️ Purchase completed but premium not active")

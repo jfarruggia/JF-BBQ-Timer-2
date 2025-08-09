@@ -222,8 +222,12 @@ struct JF_BBQ_TimerApp: App {
             print("🔑 Entitlements: \(String(describing: customerInfo?.entitlements))")
             
             DispatchQueue.main.async {
+                // Only persist the premium flag here to avoid overwriting
+                // onboarding defaults (timer names/presets) with zeros from
+                // the initial Settings() instance.
                 settings.isPremiumUser = isPremium
-                settings.save()
+                UserDefaults.standard.set(isPremium, forKey: "isPremiumUser")
+                UserDefaults.standard.synchronize()
             }
         }
     }
@@ -241,7 +245,75 @@ struct JF_BBQ_TimerApp: App {
             }
             .onAppear {
                 updatePremiumStatus()
+                // If the app launches and the user has already onboarded,
+                // hydrate settings from persisted values so nothing shows as 0.
+                if hasOnboarded { hydrateSettingsFromDefaults() }
+                // Apply any UI test launch arguments (premium, generate timers)
+                applyUITestArguments()
+            }
+            .onChange(of: hasOnboarded) { didOnboard in
+                if didOnboard {
+                    // When onboarding flips to true, copy the values the user set
+                    // into the shared settings object used by the main UI.
+                    hydrateSettingsFromDefaults()
+                    // Re-apply test args after onboarding if present
+                    applyUITestArguments()
+                }
             }
         }
     }
+
+    private func hydrateSettingsFromDefaults() {
+        let defaults = UserDefaults.standard
+        settings.timer1Name = defaults.string(forKey: "timer1Name") ?? "Timer 1"
+        settings.timer2Name = defaults.string(forKey: "timer2Name") ?? "Timer 2"
+        settings.timer1Preset1 = defaults.integer(forKey: "timer1Preset1").nonZeroOr(300)
+        settings.timer1Preset2 = defaults.integer(forKey: "timer1Preset2").nonZeroOr(60)
+        settings.timer2Preset1 = defaults.integer(forKey: "timer2Preset1").nonZeroOr(300)
+        settings.timer2Preset2 = defaults.integer(forKey: "timer2Preset2").nonZeroOr(60)
+        settings.preheatDuration = defaults.integer(forKey: "preheatDuration").nonZeroOr(600)
+    }
+
+    // Configure app for UI performance tests
+    private func applyUITestArguments() {
+        let args = ProcessInfo.processInfo.arguments
+        guard args.contains("-UITEST_MODE") || args.contains("-UITEST_GENERATE_TIMERS") || args.contains("-UITEST_PREMIUM") || args.contains("-UITEST_PREHEAT_SECONDS") || args.contains("-UITEST_SKIP_ONBOARDING") else { return }
+        // Force premium if requested
+        if args.contains("-UITEST_PREMIUM") {
+            settings.isPremiumUser = true
+            UserDefaults.standard.set(true, forKey: "isPremiumUser")
+        }
+        // Skip onboarding if requested
+        if args.contains("-UITEST_SKIP_ONBOARDING") {
+            hasOnboarded = true
+            UserDefaults.standard.set(true, forKey: "hasOnboarded")
+            hydrateSettingsFromDefaults()
+        }
+        // Desired total timers (including the 2 legacy timers)
+        var desiredTotal: Int? = nil
+        if let idx = args.firstIndex(of: "-UITEST_GENERATE_TIMERS"), idx + 1 < args.count, let n = Int(args[idx + 1]) {
+            desiredTotal = max(0, min(n, 10)) // Cap at 10 overall
+        }
+        if let total = desiredTotal {
+            // Make sure additionalTimers matches desired count (total includes 2 legacy timers)
+            let desiredAdditional = max(0, total - 2)
+            // Reset additional timers for a clean test run
+            settings.additionalTimers.removeAll()
+            // Create the requested number of additional timers
+            for i in 1...desiredAdditional {
+                _ = settings.addTimer(name: "Stress \(i)", preset1: 300, preset2: 60)
+            }
+            settings.save()
+        }
+        // Optional: override preheat duration to a short test value
+        if let idx = args.firstIndex(of: "-UITEST_PREHEAT_SECONDS"), idx + 1 < args.count, let s = Int(args[idx + 1]) {
+            settings.preheatDuration = max(1, min(3600, s))
+            settings.save()
+        }
+    }
+}
+
+// Small helper to keep defaults if integers are zero/missing
+private extension Int {
+    func nonZeroOr(_ fallback: Int) -> Int { self == 0 ? fallback : self }
 }

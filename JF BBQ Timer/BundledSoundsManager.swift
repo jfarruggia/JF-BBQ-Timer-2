@@ -15,11 +15,16 @@ class BundledSoundsManager: ObservableObject {
         init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingKeys.self)
             
-            // Generate a UUID if not in the JSON
+            // Decode the ID string and create UUID
             if container.contains(.id) {
-                id = try container.decode(UUID.self, forKey: .id)
+                let idString = try container.decode(String.self, forKey: .id)
+                if let uuid = UUID(uuidString: idString) {
+                    self.id = uuid
+                } else {
+                    self.id = UUID() // Fallback to random UUID if string is invalid
+                }
             } else {
-                id = UUID()
+                self.id = UUID()
             }
             
             filename = try container.decode(String.self, forKey: .filename)
@@ -45,7 +50,7 @@ class BundledSoundsManager: ObservableObject {
         
         // Equality check for diffing in SwiftUI
         static func == (lhs: BundledSound, rhs: BundledSound) -> Bool {
-            return lhs.id == rhs.id
+            return lhs.id.uuidString == rhs.id.uuidString
         }
     }
     

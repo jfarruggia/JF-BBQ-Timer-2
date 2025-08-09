@@ -34,9 +34,22 @@
 		900062C82D9899DC0067F649 /* JF BBQ TimerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "JF BBQ TimerUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		90651F9A2E47FCBA00440975 /* Exceptions for "JF BBQ Timer" folder in "JF BBQ Timer" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"JF BBQ TimerUITests/JF_BBQ_TimerUITests.swift",
+			);
+			target = 900062AD2D9899DB0067F649 /* JF BBQ Timer */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		900062B02D9899DB0067F649 /* JF BBQ Timer */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				90651F9A2E47FCBA00440975 /* Exceptions for "JF BBQ Timer" folder in "JF BBQ Timer" target */,
+			);
 			path = "JF BBQ Timer";
 			sourceTree = "<group>";
 		};
@@ -424,7 +437,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				NEW_SETTING = "";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.jamesfarruggia.JF-BBQ-Timer";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -456,7 +469,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				NEW_SETTING = "";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.jamesfarruggia.JF-BBQ-Timer";
 				PRODUCT_NAME = "$(TARGET_NAME)";

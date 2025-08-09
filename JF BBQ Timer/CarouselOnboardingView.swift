@@ -80,6 +80,9 @@ struct OnboardingFlowView: View {
             }
             .tabViewStyle(PageTabViewStyle(indexDisplayMode: .always))
             .ignoresSafeArea()
+            // Ensure defaults are visible the first time this screen appears, even if
+            // prior runs left zero or empty values in UserDefaults.
+            .onAppear { ensureOnboardingDefaults() }
             
             // Skip button (top right)
             if selection < 2 {
@@ -107,6 +110,17 @@ struct OnboardingFlowView: View {
     private func completeOnboarding() {
         hasOnboarded = true
         showMain = true
+    }
+
+    // Initialize defaults if missing or zero so page 2 shows expected values
+    private func ensureOnboardingDefaults() {
+        if timer1Name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { timer1Name = "Timer 1" }
+        if timer2Name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { timer2Name = "Timer 2" }
+        if UserDefaults.standard.object(forKey: "timer1Preset1") == nil || timer1Preset1 == 0 { timer1Preset1 = 300 }
+        if UserDefaults.standard.object(forKey: "timer1Preset2") == nil || timer1Preset2 == 0 { timer1Preset2 = 60 }
+        if UserDefaults.standard.object(forKey: "timer2Preset1") == nil || timer2Preset1 == 0 { timer2Preset1 = 300 }
+        if UserDefaults.standard.object(forKey: "timer2Preset2") == nil || timer2Preset2 == 0 { timer2Preset2 = 60 }
+        if UserDefaults.standard.object(forKey: "preheatDuration") == nil || preheatDuration == 0 { preheatDuration = 600 }
     }
 }
 
@@ -479,6 +493,16 @@ struct CombinedTimerPreheatSetupScreen: View {
                 Spacer(minLength: 20)
             }
             .padding()
+        }
+        .onAppear {
+            // Guarantee visible defaults when values are zero/empty
+            if timer1Name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { timer1Name = "Timer 1" }
+            if timer2Name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { timer2Name = "Timer 2" }
+            if timer1Preset1 <= 0 { timer1Preset1 = 300 }
+            if timer1Preset2 <= 0 { timer1Preset2 = 60 }
+            if timer2Preset1 <= 0 { timer2Preset1 = 300 }
+            if timer2Preset2 <= 0 { timer2Preset2 = 60 }
+            if preheatDuration <= 0 { preheatDuration = 600 }
         }
         // Modal for time picker
         .sheet(item: $showingPicker) { pickerType in

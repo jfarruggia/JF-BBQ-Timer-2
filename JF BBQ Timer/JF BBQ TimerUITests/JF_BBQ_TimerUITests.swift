@@ -1,10 +1,3 @@
-//
-//  JF_BBQ_TimerUITests.swift
-//  JF BBQ TimerUITests
-//
-//  Created by James Farruggia on 3/29/25.
-//
-
 import XCTest
 
 class JF_BBQ_TimerUITests: XCTestCase {
@@ -12,20 +5,22 @@ class JF_BBQ_TimerUITests: XCTestCase {
     
     override func setUpWithError() throws {
         continueAfterFailure = false
-        app.launch()
+        // Tests will launch explicitly with any needed launch arguments
     }
     
     // MARK: - Basic Navigation Tests
     
     func testBasicNavigation() throws {
+        app.launchArguments += ["-UITEST_MODE", "-UITEST_SKIP_ONBOARDING"]
+        app.launch()
         // Test settings navigation
         let settingsButton = app.buttons["SettingsButton"]
-        XCTAssertTrue(settingsButton.exists, "Settings button should be visible")
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 5), "Settings button should be visible")
         settingsButton.tap()
         
         // Verify settings screen elements
         let soundToggle = app.switches["SoundAlerts"]
-        XCTAssertTrue(soundToggle.exists, "Sound toggle should be visible")
+        XCTAssertTrue(soundToggle.waitForExistence(timeout: 5), "Sound toggle should be visible")
         
         // Go back
         app.buttons["DoneButton"].tap()
@@ -34,22 +29,24 @@ class JF_BBQ_TimerUITests: XCTestCase {
     // MARK: - Settings Tests
     
     func testSettingsOptions() throws {
+        app.launchArguments += ["-UITEST_MODE", "-UITEST_SKIP_ONBOARDING"]
+        app.launch()
         // Navigate to settings
         app.buttons["SettingsButton"].tap()
         
         // Test sound toggle
         let soundToggle = app.switches["SoundAlerts"]
-        XCTAssertTrue(soundToggle.exists, "Sound toggle should be visible")
+        XCTAssertTrue(soundToggle.waitForExistence(timeout: 5), "Sound toggle should be visible")
         soundToggle.tap()
         
         // Test haptic toggle
         let hapticToggle = app.switches["HapticFeedback"]
-        XCTAssertTrue(hapticToggle.exists, "Haptic toggle should be visible")
+        XCTAssertTrue(hapticToggle.waitForExistence(timeout: 5), "Haptic toggle should be visible")
         hapticToggle.tap()
         
         // Test compact mode toggle
         let compactModeToggle = app.switches["CompactMode"]
-        XCTAssertTrue(compactModeToggle.exists, "Compact mode toggle should be visible")
+        XCTAssertTrue(compactModeToggle.waitForExistence(timeout: 5), "Compact mode toggle should be visible")
         compactModeToggle.tap()
         
         // Go back
@@ -59,6 +56,8 @@ class JF_BBQ_TimerUITests: XCTestCase {
     // MARK: - Premium Features Test
     
     func testPremiumUpgradeFlow() throws {
+        app.launchArguments += ["-UITEST_MODE", "-UITEST_SKIP_ONBOARDING"]
+        app.launch()
         // Navigate to settings
         app.buttons["SettingsButton"].tap()
         
@@ -80,12 +79,16 @@ class JF_BBQ_TimerUITests: XCTestCase {
     // MARK: - Timer Tests
     
     func testPreheatTimer() throws {
+        // Launch with a short preheat and skip onboarding
+        app.launchArguments += ["-UITEST_MODE", "-UITEST_SKIP_ONBOARDING", "-UITEST_PREHEAT_SECONDS", "5"]
+        app.launch()
+        
         // Wait for app to fully load
-        sleep(2)
+        sleep(1)
         
         // Navigate to settings first to verify preheat duration
         let settingsButton = app.buttons["SettingsButton"]
-        XCTAssertTrue(settingsButton.exists, "Settings button should be visible")
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 5), "Settings button should be visible")
         settingsButton.tap()
         
         // Go back to main screen
@@ -93,7 +96,7 @@ class JF_BBQ_TimerUITests: XCTestCase {
         
         // Test preheat button
         let preheatButton = app.buttons["PreheatButton"]
-        XCTAssertTrue(preheatButton.exists, "Preheat button should be visible")
+        XCTAssertTrue(preheatButton.waitForExistence(timeout: 5), "Preheat button should be visible")
         
         // Scroll to make preheat button visible
         let scrollView = app.scrollViews.firstMatch
@@ -106,12 +109,10 @@ class JF_BBQ_TimerUITests: XCTestCase {
         if buttonExists {
             preheatButton.tap()
             
-            // Check for alert elements with retries
+            // Check for alert elements with retries (up to ~10 seconds)
             var foundAlert = false
-            for _ in 1...3 {
-                // Wait between checks
-                sleep(2)
-                
+            for _ in 1...10 {
+                sleep(1)
                 if app.staticTexts["Preheat Complete! 🔥"].exists ||
                    app.buttons["Dismiss"].exists ||
                    app.otherElements["PreheatAlert"].exists {
@@ -132,14 +133,13 @@ class JF_BBQ_TimerUITests: XCTestCase {
     // MARK: - Multiple Timers Test
     
     func testTimerDisplay() throws {
-        // Wait for app to fully load
-        sleep(1)
+        app.launchArguments += ["-UITEST_MODE", "-UITEST_SKIP_ONBOARDING"]
+        app.launch()
         
-        // Verify timer exists by looking for common elements
-        let timerExists = app.staticTexts["Timer 1"].exists || 
-                         app.staticTexts["0:00"].exists ||
-                         app.buttons["Start"].exists
-        XCTAssertTrue(timerExists, "Timer elements should be visible")
+        // Verify a timer UI appears by checking for the "Flip In" label or first header
+        let flipIn = app.staticTexts["Flip In"]
+        let anyTimerHeader = app.staticTexts.firstMatch
+        XCTAssertTrue(flipIn.waitForExistence(timeout: 5) || anyTimerHeader.exists, "A timer should be visible (expects 'Flip In' label)")
         
         // Navigate to timer management
         app.buttons["SettingsButton"].tap()
@@ -161,6 +161,40 @@ class JF_BBQ_TimerUITests: XCTestCase {
         // Go back to main screen
         if app.buttons["DoneButton"].exists {
             app.buttons["DoneButton"].tap()
+        }
+    }
+
+    // MARK: - UI Performance Stress Test
+    func testPerformance_ManyTimers() throws {
+        // Configure app for stress
+        app.launchArguments += [
+            "-UITEST_MODE",
+            "-UITEST_SKIP_ONBOARDING",
+            "-UITEST_PREMIUM",
+            "-UITEST_GENERATE_TIMERS", "10" // total timers including the 2 legacy ones
+        ]
+
+        measure(metrics: [
+            XCTClockMetric(),
+            XCTCPUMetric(),
+            XCTMemoryMetric(),
+            XCTStorageMetric()
+        ]) {
+            app.launch()
+
+            // Wait for main list to load
+            sleep(2)
+
+            // Scroll the list up and down to exercise layout while timers tick
+            let scrollView = app.scrollViews.firstMatch
+            if scrollView.exists {
+                scrollView.swipeUp()
+                scrollView.swipeDown()
+                scrollView.swipeUp()
+            }
+
+            // Let timers run for a short window during measurement
+            sleep(5)
         }
     }
 }

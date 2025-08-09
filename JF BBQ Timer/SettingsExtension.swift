@@ -21,6 +21,8 @@ extension Settings {
             } else {
                 UserDefaults.standard.removeObject(forKey: "selectedCustomSoundID")
             }
+            // Notify SwiftUI that the object has changed
+            self.objectWillChange.send()
         }
     }
     
@@ -34,18 +36,21 @@ extension Settings {
             return nil
         }
         set {
+            // Clear any existing selection
+            UserDefaults.standard.removeObject(forKey: "selectedBundledSoundID")
+            
+            // Set the new selection if provided
             if let id = newValue {
                 UserDefaults.standard.set(id.uuidString, forKey: "selectedBundledSoundID")
-                
                 // When bundled sound is selected, clear custom sound
                 selectedCustomSoundID = nil
-                
-                // Set alert sound to system (disabled) when bundled sound is selected
-                self.selectedAlertSound = .system
-                UserDefaults.standard.set(selectedAlertSound.rawValue, forKey: "selectedAlertSound")
-            } else {
-                UserDefaults.standard.removeObject(forKey: "selectedBundledSoundID")
             }
+            
+            // Force UserDefaults to save immediately
+            UserDefaults.standard.synchronize()
+            
+            // Notify SwiftUI that the object has changed
+            self.objectWillChange.send()
         }
     }
     
@@ -65,19 +70,34 @@ extension Settings {
     // Select a custom sound
     func selectCustomSound(id: UUID) {
         self.selectedCustomSoundID = id
-        // Set alert sound to system when custom sound is selected
-        self.selectedAlertSound = .system
-        // Save the alert sound change
-        UserDefaults.standard.set(selectedAlertSound.rawValue, forKey: "selectedAlertSound")
+        // Do NOT set selectedAlertSound = .system here
     }
     
     // Select a bundled sound
     func selectBundledSound(id: UUID) {
-        self.selectedBundledSoundID = id
-        // Set alert sound to system when bundled sound is selected
-        self.selectedAlertSound = .system
-        // Save the alert sound change
-        UserDefaults.standard.set(selectedAlertSound.rawValue, forKey: "selectedAlertSound")
+        // If this sound is already selected, deselect it
+        if selectedBundledSoundID == id {
+            self.selectedBundledSoundID = nil
+            // When deselecting bundled sound, set system sound as default
+            self.selectedAlertSound = .system
+        } else {
+            // Select the new bundled sound
+            self.selectedBundledSoundID = id
+            // Clear any custom sound selection
+            self.selectedCustomSoundID = nil
+        }
+        // Save changes
+        UserDefaults.standard.synchronize()
+        // Notify SwiftUI that the object has changed
+        self.objectWillChange.send()
+    }
+    
+    // Select a system sound (centralized helper)
+    func selectSystemSound(_ sound: AlertSound) {
+        // Set the system sound and clear any premium/custom selection
+        self.selectedAlertSound = sound
+        self.selectedBundledSoundID = nil
+        self.selectedCustomSoundID = nil
     }
     
     // Deselect custom sound
