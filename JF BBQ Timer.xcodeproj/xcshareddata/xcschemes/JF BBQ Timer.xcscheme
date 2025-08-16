@@ -74,9 +74,6 @@
             ReferencedContainer = "container:JF BBQ Timer.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
-      <StoreKitConfigurationFileReference
-         identifier = "../../JF BBQ Timer/IAP.storekit">
-      </StoreKitConfigurationFileReference>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"

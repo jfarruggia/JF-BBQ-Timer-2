@@ -3,6 +3,62 @@ import AVFoundation
 
 // Extensions to Settings class for custom sounds support
 extension Settings {
+    // MARK: - Haptic intensity preference
+    enum HapticIntensity: Int {
+        case light = 0
+        case medium = 1
+        case strong = 2
+    }
+
+    // Persisted haptic intensity (default: .medium)
+    var hapticIntensity: HapticIntensity {
+        get {
+            let raw = UserDefaults.standard.object(forKey: "hapticIntensityLevel") as? Int ?? 1
+            return HapticIntensity(rawValue: raw) ?? .medium
+        }
+        set {
+            UserDefaults.standard.set(newValue.rawValue, forKey: "hapticIntensityLevel")
+            UserDefaults.standard.synchronize()
+            self.objectWillChange.send()
+        }
+    }
+
+    // Helper raw value for SwiftUI bindings
+    var hapticIntensityRaw: Int {
+        get { hapticIntensity.rawValue }
+        set { hapticIntensity = HapticIntensity(rawValue: newValue) ?? .medium }
+    }
+    // Whether to play alert audio even when the Silent (ringer) switch is ON.
+    // Default is false (respect Silent Mode). Stored in UserDefaults so it persists.
+    var playSoundInSilentMode: Bool {
+        get {
+            return UserDefaults.standard.bool(forKey: "playSoundInSilentMode")
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "playSoundInSilentMode")
+            UserDefaults.standard.synchronize()
+            // Notify SwiftUI that something observable changed
+            self.objectWillChange.send()
+        }
+    }
+
+    /// Configure the app's audio session for alert playback respecting the user's Silent Mode preference.
+    /// - If playSoundInSilentMode is true: use .playback (bypasses Silent switch) and mix with others
+    /// - Else: use .ambient (respects Silent switch) so sounds are muted when ringer is OFF
+    func configureAudioSessionForAlerts() {
+        let session = AVAudioSession.sharedInstance()
+        do {
+            if playSoundInSilentMode {
+                try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            } else {
+                try session.setCategory(.ambient, mode: .default, options: [])
+            }
+            try session.setActive(true, options: [])
+            print("🔊 Audio session configured. Bypass Silent: \(playSoundInSilentMode)")
+        } catch {
+            print("❌ Failed to set audio session: \(error)")
+        }
+    }
     // The ID of the selected custom sound (if any)
     var selectedCustomSoundID: UUID? {
         get {
@@ -157,6 +213,8 @@ extension Settings {
             print("[DEBUG] Sound is disabled in settings.")
             return 
         }
+        // Configure audio session according to user's Silent Mode preference
+        configureAudioSessionForAlerts()
         print("[DEBUG] playTimerCompletionSound called. loop: \(loop)")
         // First try the custom sound
         if isUsingCustomSound {
@@ -366,6 +424,8 @@ extension Settings {
     func playTimerCompletionWithAnnouncement(timerId: UUID) {
         print("===== PLAY TIMER COMPLETION WITH ANNOUNCEMENT =====")
         print("Timer with ID \(timerId) completed")
+        // Configure audio session once up front based on the user's preference
+        configureAudioSessionForAlerts()
         
         // Check if voice announcements are enabled using class property
         print("Voice announcements enabled: \(voiceAnnouncementsEnabled)")
@@ -460,13 +520,17 @@ class SpeechSynthesizerDelegate: NSObject, AVSpeechSynthesizerDelegate {
 // Function for direct announcement
 func directAnnouncement(message: String, settings: Settings) {
     print("🔊 SUPER SIMPLE DIRECT ANNOUNCEMENT 🔊")
-    
-    // Configure audio session first - this is critical
+    // Configure audio session according to user's Silent Mode preference
+    // If bypass is OFF we still set up a session that respects Silent (ambient)
     do {
         let audioSession = AVAudioSession.sharedInstance()
-        try audioSession.setCategory(.playback, mode: .spokenAudio)
+        if settings.playSoundInSilentMode {
+            try audioSession.setCategory(.playback, mode: .spokenAudio, options: [.mixWithOthers])
+        } else {
+            try audioSession.setCategory(.ambient, mode: .spokenAudio, options: [])
+        }
         try audioSession.setActive(true)
-        print("✓ Audio session active")
+        print("✓ Audio session active (bypass Silent: \(settings.playSoundInSilentMode))")
     } catch {
         print("✗ Audio session error: \(error)")
     }

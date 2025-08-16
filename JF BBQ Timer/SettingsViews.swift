@@ -176,6 +176,32 @@ struct NewSettingsView: View {
                         .accessibilityIdentifier("SoundAlerts")
                     Toggle("Haptic Feedback", isOn: $settings.hapticsEnabled)
                         .accessibilityIdentifier("HapticFeedback")
+                    // Haptic intensity control
+                    if settings.hapticsEnabled {
+                        Picker("Haptic Intensity", selection: Binding(
+                            get: { settings.hapticIntensityRaw },
+                            set: { settings.hapticIntensityRaw = $0; settings.save() }
+                        )) {
+                            Text("Light").tag(0)
+                            Text("Medium").tag(1)
+                            Text("Strong").tag(2)
+                        }
+                        .pickerStyle(.segmented)
+                        .accessibilityIdentifier("HapticIntensityPicker")
+                    }
+                    // New: Let users opt-in to bypass Silent Mode for timer alerts
+                    Toggle("Play sound even in Silent Mode", isOn: Binding(
+                        get: { settings.playSoundInSilentMode },
+                        set: { newVal in
+                            settings.playSoundInSilentMode = newVal
+                            settings.save()
+                        }
+                    ))
+                    .accessibilityIdentifier("BypassSilentMode")
+                    .font(.subheadline)
+                    Text("If enabled, timer sounds will play even when the ringer switch is off.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                     Toggle("Voice Announcements", isOn: $settings.voiceAnnouncementsEnabled)
                         .disabled(!settings.isPremiumUser)
                         .overlay(
@@ -211,21 +237,6 @@ struct NewSettingsView: View {
                     .disabled(!settings.voiceAnnouncementsEnabled)
                     // Moved Alert Sound picker here for better organization
                     NavigationLink("Alert Sound", destination: AlertSoundsView(settings: settings))
-                    Button("Test Alert") {
-                        // Play both sound and voice announcement for preview
-                        AudioServicesPlaySystemSound(settings.selectedAlertSound.systemSoundID)
-                        let timerName = settings.legacyTimersAsBBQTimers.first?.name ?? "Test"
-                        let message = "\(timerName) timer is complete."
-                        directAnnouncement(message: message, settings: settings)
-                        showTestPlayed = true
-                        let generator = UINotificationFeedbackGenerator()
-                        generator.notificationOccurred(.success)
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                            showTestPlayed = false
-                        }
-                    }
-                    .foregroundColor(.blue)
-                    .accessibilityLabel("Test both sound and voice announcement")
                 }
 
                 // Display & Accessibility
@@ -261,28 +272,7 @@ struct NewSettingsView: View {
                     }
                 }
 
-                // DEBUG: Toggle for premium status (for testing only)
-                Section(header: Text("Debug")) {
-                    Toggle(isOn: Binding(
-                        get: { settings.isPremiumUser },
-                        set: { newValue in
-                            settings.isPremiumUser = newValue
-                            settings.save()
-                        }
-                    )) {
-                        Text("[DEBUG] Premium Features Enabled")
-                            .foregroundColor(.red)
-                    }
-                }
-
-                // Add a button to show onboarding again for testing
-                Button(action: {
-                    UserDefaults.standard.set(false, forKey: "hasOnboarded")
-                }) {
-                    Text("Show Onboarding Again")
-                        .font(.footnote)
-                        .foregroundColor(.orange)
-                }
+                // Debug tools hidden for production
             }
             .listStyle(InsetGroupedListStyle())
             .navigationTitle("Settings")
@@ -353,8 +343,9 @@ struct TimerManagementView: View {
     @State private var newTimerName = ""
     @State private var showPreset1Picker = false
     @State private var showPreset2Picker = false
-    @State private var tempPreset1 = 60 // 1 minute default
-    @State private var tempPreset2 = 120 // 2 minutes default
+    // Use same defaults as legacy timers: Flip Time 5:00 (300s), Extend 1:00 (60s)
+    @State private var tempPreset1 = 300 // 5 minutes default
+    @State private var tempPreset2 = 60  // 1 minute default
     @State private var editingTimerIndex: Int? = nil
     @State private var editingLegacyTimer: Int? = nil // 0 for Timer 1, 1 for Timer 2
     @State private var showPremiumUpgrade = false // For showing premium upgrade modal
@@ -444,8 +435,9 @@ struct TimerManagementView: View {
                         } else {
                             // Set up for adding a new timer
                             newTimerName = "" // Reset newTimerName
-                            tempPreset1 = 60
-                            tempPreset2 = 120
+                            // Reset to defaults matching legacy timers
+                            tempPreset1 = 300 // 5 minutes
+                            tempPreset2 = 60  // 1 minute
                             editingTimerIndex = nil
                             editingLegacyTimer = nil
                             showingAddTimerSheet = true

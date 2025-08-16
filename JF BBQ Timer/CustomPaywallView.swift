@@ -9,6 +9,15 @@ struct CustomPaywallView: View {
     @Environment(\.presentationMode) private var presentationMode
     @ObservedObject var settings: Settings
     
+    // Alert state for user-facing restore feedback
+    // - showRestoreAlert: controls presentation
+    // - restoreAlertTitle/Message: dynamic content based on outcome
+    // - shouldDismissAfterRestore: if true, dismiss paywall after user taps OK
+    @State private var showRestoreAlert = false
+    @State private var restoreAlertTitle = ""
+    @State private var restoreAlertMessage = ""
+    @State private var shouldDismissAfterRestore = false
+    
     var body: some View {
         VStack(spacing: 16) {  // Reduced spacing
             // Header with Skip button
@@ -120,6 +129,17 @@ struct CustomPaywallView: View {
         .onAppear {
             fetchPrice()  // Load price when view appears
         }
+        // Present user-friendly messages after restore
+        .alert(restoreAlertTitle, isPresented: $showRestoreAlert) {
+            Button("OK") {
+                // If restore succeeded, dismiss the paywall after the alert
+                if shouldDismissAfterRestore {
+                    dismissAction()
+                }
+            }
+        } message: {
+            Text(restoreAlertMessage)
+        }
     }
     
     private func fetchPrice() {
@@ -221,10 +241,15 @@ struct CustomPaywallView: View {
         print("🔄 Starting restore process...")
         
         Purchases.shared.restorePurchases { customerInfo, error in
+            // Handle error and success paths with simple user-facing alerts
             if let error = error {
                 print("❌ Restore error: \(error)")
                 DispatchQueue.main.async {
                     isPurchasing = false
+                    shouldDismissAfterRestore = false
+                    restoreAlertTitle = "Restore Failed"
+                    restoreAlertMessage = error.localizedDescription
+                    showRestoreAlert = true
                 }
                 return
             }
@@ -239,11 +264,19 @@ struct CustomPaywallView: View {
             DispatchQueue.main.async {
                 isPurchasing = false
                 if isActive {
-                    print("👋 Dismissing paywall after successful restore")
+                    // Update local state and inform user
                     settings.updatePremiumStatus()
-                    dismissAction()
+                    shouldDismissAfterRestore = true
+                    restoreAlertTitle = "Purchases Restored"
+                    restoreAlertMessage = "Premium features are now unlocked on this device."
+                    showRestoreAlert = true
                 } else {
+                    // Clear, friendly guidance when nothing was found
                     print("⚠️ No active premium entitlement found during restore")
+                    shouldDismissAfterRestore = false
+                    restoreAlertTitle = "No Purchases Found"
+                    restoreAlertMessage = "We couldn’t find any previous purchases for your Apple ID. If you bought Premium with a different Apple ID, sign in with that account and try again."
+                    showRestoreAlert = true
                 }
             }
         }

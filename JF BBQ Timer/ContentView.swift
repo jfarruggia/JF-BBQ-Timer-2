@@ -9,6 +9,7 @@ import SwiftUI
 import AVFoundation
 import UIKit
 import RevenueCat
+import UserNotifications
 
 struct PresetInterval: Identifiable, Codable {
     let id: UUID
@@ -86,13 +87,20 @@ class Settings: ObservableObject {
         
         var id: String { self.rawValue }
         
-        var displayName: String { self.rawValue }
+        var displayName: String {
+            switch self {
+            case .ding:
+                return "Tri-tone"
+            default:
+                return self.rawValue
+            }
+        }
         
         var systemSoundID: SystemSoundID {
             switch self {
                 case .system: return 1005 // Default system sound
                 case .bell: return 1013   // Glass sound
-                case .ding: return 1103   // New Mail sound  
+                case .ding: return 1007   // Tri‑tone (more noticeable)
                 case .horn: return 1016   // Low Power sound
                 case .beep: return 1000   // Tock sound
                 case .alarm: return 1034  // Ringtone sound
@@ -213,7 +221,13 @@ class Settings: ObservableObject {
             self.selectedAlertSound = .system
         }
         
-        self.additionalTimers = []
+        // Load additional timers (persisted as JSON)
+        if let data = UserDefaults.standard.data(forKey: "additionalTimers"),
+           let stored = try? JSONDecoder().decode([BBQTimer].self, from: data) {
+            self.additionalTimers = stored
+        } else {
+            self.additionalTimers = []
+        }
         
         // Initialize premium status last
         self.isPremiumUser = UserDefaults.standard.bool(forKey: "isPremiumUser")
@@ -252,6 +266,10 @@ class Settings: ObservableObject {
         
         // Save selectedAlertSound
         UserDefaults.standard.set(selectedAlertSound.rawValue, forKey: "selectedAlertSound")
+        // Save additional timers as JSON
+        if let data = try? JSONEncoder().encode(additionalTimers) {
+            UserDefaults.standard.set(data, forKey: "additionalTimers")
+        }
         
         // Force synchronize to ensure changes are saved immediately
         UserDefaults.standard.synchronize()
@@ -385,18 +403,8 @@ enum TimerType {
 }
 
 class AlertState: ObservableObject {
-    @Published var isPresented: Bool = false {
-        didSet {
-            print("AlertState changed from \(oldValue) to \(isPresented)")
-            if isPresented {
-                startHapticTimer()
-            } else if hapticTimer != nil {
-                stopHapticTimer()
-            }
-        }
-    }
-    
-    @Published var showPreheatAlert: Bool = false {
+    @Published var isPresented: Bool
+    @Published var showPreheatAlert: Bool {
         didSet {
             print("PreheatAlertState changed from \(oldValue) to \(showPreheatAlert)")
             if showPreheatAlert {
@@ -412,6 +420,8 @@ class AlertState: ObservableObject {
     private let heavyGenerator = UIImpactFeedbackGenerator(style: .heavy)
     private let mediumGenerator = UIImpactFeedbackGenerator(style: .medium)
     private var hapticCounter = 0
+    // NEW: Controlled from settings so user toggle truly disables haptics
+    var hapticsEnabled: Bool = true
     
     init() {
         // Initialize all properties
@@ -428,10 +438,14 @@ class AlertState: ObservableObject {
     
     // Add public method to trigger notification feedback
     func triggerNotificationFeedback(type: UINotificationFeedbackGenerator.FeedbackType = .success) {
+        // Respect global haptics setting
+        guard hapticsEnabled else { return }
         notificationGenerator.notificationOccurred(type)
     }
     
     private func startHapticTimer() {
+        // Do not start loop if haptics are disabled
+        guard hapticsEnabled else { return }
         // Prepare generators
         notificationGenerator.prepare()
         heavyGenerator.prepare()
@@ -444,6 +458,11 @@ class AlertState: ObservableObject {
         hapticTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
             self?.triggerHapticFeedback()
         }
+        // Safety: auto-stop after 10s so it never runs indefinitely
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
+            guard let self = self else { return }
+            if self.hapticTimer != nil { self.stopHapticTimer() }
+        }
     }
     
     private func stopHapticTimer() {
@@ -453,6 +472,7 @@ class AlertState: ObservableObject {
     }
     
     private func triggerHapticFeedback() {
+        guard hapticsEnabled else { return }
         hapticCounter += 1
         if hapticCounter % 2 == 0 {
             heavyGenerator.impactOccurred()
@@ -608,7 +628,15 @@ struct CompactTimerView: View {
     var body: some View {
         VStack(spacing: 4) {
             // === TIMER & BUTTONS HSTACK (entire row) ===
-            HStack(spacing: 8) {
+            // Adapt spacing and widths to device width for better balance on small and large phones
+            let screenWidth = UIScreen.main.bounds.width
+            let isVerySmall = screenWidth < 360
+            let isLargePhone = screenWidth > 430
+            let rowSpacing: CGFloat = isVerySmall ? 6 : (isLargePhone ? 12 : 8)
+            let panelHPad: CGFloat = isVerySmall ? 10 : (isLargePhone ? 18 : 12)
+            let timerPanelMinWidth: CGFloat? = isVerySmall ? 160 : nil
+            let buttonsMinWidth: CGFloat? = isVerySmall ? 130 : nil
+            HStack(spacing: rowSpacing) {
                 // === TIMER DISPLAY SECTION (VStack) ===
                 VStack(alignment: .leading, spacing: 6) {
                     // Flip timer
@@ -642,13 +670,13 @@ struct CompactTimerView: View {
                     }
                 }
                 // Add horizontal-only padding for width, keep height unchanged
-                .padding(.horizontal, 20)
+                .padding(.horizontal, panelHPad)
                 .padding(.vertical, 2)
                         .background(Theme.defaultTheme.backgroundColor)
         .cornerRadius(14)
         .padding(.leading, 2)
         .frame(maxWidth: .infinity)
-        .frame(minWidth: 200)
+        .frame(minWidth: timerPanelMinWidth)
                 // --- End of timer display section changes ---
                 
                 // === BUTTONS VSTACK ===
@@ -730,7 +758,7 @@ struct CompactTimerView: View {
                 }
                 // === END BUTTONS VSTACK ===
                 // Fixed width for button stack (80+80+1 spacing for presets + 80+80+8 spacing for controls + padding)
-                .frame(minWidth: 170)
+                .frame(minWidth: buttonsMinWidth)
                 .padding(.trailing, 8) // Reduced trailing padding
                 // (Orange border for debugging removed)
             }
@@ -941,7 +969,7 @@ struct DebugPanel: View {
             Toggle("Show Grid", isOn: $settings.showGrid)
             
             if settings.showGrid {
-                HStack {
+                HStack(spacing: 12) {
                     Text("Grid Spacing:")
                     Slider(value: $settings.gridSpacing, in: 5...50, step: 5)
                     Text("\(Int(settings.gridSpacing))")
@@ -965,6 +993,10 @@ struct ContentView: View {
     @State private var showSettings = false
     @State private var showDebugPanel = false
     @State private var showPremiumUpgrade = false
+    // NEW: Quick visual pulse when preheat is tapped so users feel the press
+    @State private var preheatPressPulse = false
+    // Observe app lifecycle to resync timers when returning to foreground
+    @Environment(\.scenePhase) private var scenePhase
     
     // Initialize with the settings
     init() {
@@ -1023,6 +1055,8 @@ struct ContentView: View {
     @State private var preheatTimeRemaining: TimeInterval = 0
     @State private var preheatTimer: Timer?
     @State private var isPreheatComplete = false
+    // Track the scheduled notification for the preheat timer so we can cancel it when needed
+    @State private var preheatNotificationId: String? = nil
     
     // Initialize timer states when view appears
     private func initializeTimerStates() {
@@ -1032,6 +1066,25 @@ struct ContentView: View {
         
         // Then initialize and sync the timer states
         timerStates.syncTimerStates(timers: settings.allTimers)
+    }
+
+    // Fire a noticeable burst of haptics (foreground only). Tuned to be attention-grabbing but brief.
+    private func fireHapticBurst() {
+        // Use a single UINotificationFeedbackGenerator followed by a couple of heavy impacts
+        let notif = UINotificationFeedbackGenerator()
+        notif.notificationOccurred(.success)
+        // Two quick heavy pulses spaced slightly apart
+        let heavy1 = UIImpactFeedbackGenerator(style: .heavy)
+        heavy1.impactOccurred(intensity: 1.0)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            let heavy2 = UIImpactFeedbackGenerator(style: .heavy)
+            heavy2.impactOccurred(intensity: 1.0)
+        }
+        // Optional third medium pulse for a tail
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            let medium = UIImpactFeedbackGenerator(style: .medium)
+            medium.impactOccurred(intensity: 0.9)
+        }
     }
     
     private func startTimer1() {
@@ -1077,6 +1130,8 @@ struct ContentView: View {
         preheatTimeRemaining = TimeInterval(settings.preheatDuration)
         showPreheatAlert = false
         isPreheatComplete = false
+        // Schedule a local notification so preheat completion alerts in background
+        schedulePreheatNotification(after: preheatTimeRemaining)
         
         preheatTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
             if preheatTimeRemaining > 0 {
@@ -1114,6 +1169,8 @@ struct ContentView: View {
         
         // Show the preheat alert when timer completes
         showPreheatAlert = true
+        // Cancel any pending preheat notification now that it's handled in-app
+        cancelPreheatNotification()
         
         // Auto-dismiss after a short delay (faster during UI tests)
         let isUITest = ProcessInfo.processInfo.arguments.contains("-UITEST_MODE")
@@ -1243,10 +1300,27 @@ struct ContentView: View {
         
         // RED: This button starts a countdown for preheating the grill
         return Button(action: {
+            // Immediate, light haptic to acknowledge the tap (only if enabled)
+            if settings.hapticsEnabled {
+                // Stronger double heavy pulse
+                let heavy1 = UIImpactFeedbackGenerator(style: .heavy)
+                heavy1.prepare()
+                heavy1.impactOccurred(intensity: 1.0)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                    let heavy2 = UIImpactFeedbackGenerator(style: .heavy)
+                    heavy2.prepare()
+                    heavy2.impactOccurred(intensity: 1.0)
+                }
+            }
+            // Brief visual press pulse to make the tap obvious
+            preheatPressPulse = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                preheatPressPulse = false
+            }
             startPreheatTimer()
         }) {
             VStack {
-                HStack {
+                HStack(alignment: .center) {
                     Spacer()
                     Text("Preheat Grill")
                         .font(.system(size: 22, weight: .bold))
@@ -1277,6 +1351,9 @@ struct ContentView: View {
                     .stroke(Color.black, lineWidth: 2)
             )
             .shadow(color: Color.black.opacity(0.5), radius: 5, x: 0, y: 3)
+            // Apply the pulse scale when tapped to show immediate visual feedback
+            .scaleEffect(preheatPressPulse ? 0.97 : 1.0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: preheatPressPulse)
             // RED: Makes the button pulse when preheat is complete
             .modifier(PreheatCompleteModifier(isPreheatComplete: isPreheatComplete))
         }
@@ -1308,6 +1385,8 @@ struct ContentView: View {
         preheatTimeRemaining = 0
         isPreheatComplete = false
         showPreheatAlert = false
+        // Cancel any scheduled preheat notification
+        cancelPreheatNotification()
     }
     
     var body: some View {
@@ -1338,26 +1417,39 @@ struct ContentView: View {
                     }
                     .accessibilityIdentifier("SettingsButton")
                 }
-                .padding()
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
                 .background(Color("PrimaryBackground"))
                 
                 // Main content in ScrollView
-                ScrollView {
-                    VStack(spacing: 16) {
-                        // Timer views
-                        ForEach(settings.allTimers) { timer in
-                            if let state = timerStates.state(for: timer.id) {
-                                additionalTimerView(for: timer, state: state)
-                                    .accessibilityIdentifier("Timer_\(timer.id)")
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(spacing: 16) {
+                            // Timer views
+                            ForEach(settings.allTimers) { timer in
+                                if let state = timerStates.state(for: timer.id) {
+                                    additionalTimerView(for: timer, state: state)
+                                        .id(timer.id) // Stable anchor for scrolling
+                                        .accessibilityIdentifier("Timer_\(timer.id)")
+                                }
+                            }
+                            
+                            // Preheat button at bottom
+                            preheatButtonView()
+                                .padding(.bottom, 30)
+                                .accessibilityIdentifier("PreheatButton")
+                        }
+                        .padding(.horizontal)
+                    }
+                    // When a timer completes, bring it into view
+                    .onChange(of: lastCompletedTimerId) { completedId in
+                        guard let completedId = completedId else { return }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                            withAnimation(.easeInOut) {
+                                proxy.scrollTo(completedId, anchor: .center)
                             }
                         }
-                        
-                        // Preheat button at bottom
-                        preheatButtonView()
-                            .padding(.bottom, 30)
-                            .accessibilityIdentifier("PreheatButton")
                     }
-                    .padding(.horizontal)
                 }
             }
             
@@ -1401,6 +1493,10 @@ struct ContentView: View {
             timerStates.updateSettings(settings)
             initializeTimerStates()
             settings.initializeVoiceSettings()
+            // Sync alert haptics setting on appear
+            alertState.hapticsEnabled = settings.hapticsEnabled
+            // Request user permission for local notifications (shown once)
+            requestNotificationPermission()
         }
         .onChange(of: settings.additionalTimers) { _ in
             initializeTimerStates()
@@ -1412,6 +1508,17 @@ struct ContentView: View {
         .onChange(of: settings.soundEnabled) { _ in
             print("Sound enabled changed to \(settings.soundEnabled), updating timer states")
             timerStates.updateSettings(settings)
+        }
+        // When returning to the foreground, resync timer countdowns with wall-clock time
+        .onChange(of: scenePhase) { newPhase in
+            if newPhase == .active {
+                resyncTimersAfterForeground()
+                resyncPreheatAfterForeground()
+            }
+        }
+        .onDisappear {
+            // Ensure no lingering haptic loop when leaving
+            if alertState.showPreheatAlert { alertState.showPreheatAlert = false }
         }
     }
     
@@ -1439,6 +1546,65 @@ struct ContentView: View {
         if let firstTimer = settings.legacyTimersAsBBQTimers.first,
            let state = timerStates.state(for: firstTimer.id) {
             state.resetCompletionState()
+        }
+    }
+    
+    // MARK: - Notification helpers (ContentView)
+    /// Ask the user for permission to show alerts and play sounds.
+    private func requestNotificationPermission() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            if let error = error {
+                print("❌ Notification permission error: \(error)")
+            } else {
+                print("🔔 Notification permission granted: \(granted)")
+            }
+        }
+    }
+
+    /// Resync all running timers with wall-clock time when the app returns to foreground.
+    private func resyncTimersAfterForeground() {
+        for state in timerStates.states {
+            state.resyncAfterForeground()
+        }
+    }
+
+    /// Schedule a notification for the preheat timer so it alerts in background.
+    private func schedulePreheatNotification(after seconds: TimeInterval) {
+        let identifier = "preheat-\(UUID().uuidString)"
+        preheatNotificationId = identifier
+        let content = UNMutableNotificationContent()
+        content.title = "Preheat Complete"
+        content.body = "Your grill preheat timer is done."
+        content.sound = .default
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, seconds), repeats: false)
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("❌ Failed to schedule preheat notification: \(error)")
+            } else {
+                print("🗓️ Scheduled preheat notification in \(Int(seconds))s")
+            }
+        }
+    }
+
+    /// Cancel a previously scheduled preheat notification.
+    private func cancelPreheatNotification() {
+        if let id = preheatNotificationId {
+            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id])
+            preheatNotificationId = nil
+        }
+    }
+
+    /// If the preheat timer finished in the background, present the in-app alert right away.
+    private func resyncPreheatAfterForeground() {
+        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
+            let hasPreheatPending = requests.contains { $0.identifier == self.preheatNotificationId }
+            if !hasPreheatPending && self.preheatTimeRemaining > 0 && !self.showPreheatAlert {
+                DispatchQueue.main.async {
+                    // Treat as completed
+                    self.stopPreheatTimer()
+                }
+            }
         }
     }
 }
@@ -1602,6 +1768,10 @@ class TimerState: ObservableObject {
     private var completionTimer: Timer?
     // Stores the original interval time for proper resets
     private var initialIntervalTime: TimeInterval
+    // Target date when the timer should complete (to resync after background)
+    private var targetDate: Date?
+    // Identifier of the scheduled local notification so it can be canceled
+    private var notificationIdentifier: String?
     
     init(id: UUID, interval: TimeInterval, settings: Settings? = nil) {
         self.id = id
@@ -1631,6 +1801,9 @@ class TimerState: ObservableObject {
         isCompleted = false
         elapsedTime = 0
         intervalTime = initialIntervalTime
+        // Clear any target and cancel pending notification
+        targetDate = nil
+        cancelPendingNotification()
         
         // Notify observers
         objectWillChange.send()
@@ -1672,6 +1845,39 @@ class TimerState: ObservableObject {
                 
                 // Call completion action
                 self.onCompleteAction?()
+                // Fire a short burst of haptics in foreground if enabled
+                DispatchQueue.main.async {
+                    if let settingsObj = self.settings, settingsObj.hapticsEnabled {
+                        // Tune the pattern based on user-selected intensity
+                        switch settingsObj.hapticIntensity {
+                        case .light:
+                            let notif = UINotificationFeedbackGenerator()
+                            notif.notificationOccurred(.success)
+                        case .medium:
+                            let notif = UINotificationFeedbackGenerator()
+                            notif.notificationOccurred(.success)
+                            let heavy = UIImpactFeedbackGenerator(style: .heavy)
+                            heavy.impactOccurred(intensity: 0.9)
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+                                let medium = UIImpactFeedbackGenerator(style: .medium)
+                                medium.impactOccurred(intensity: 0.9)
+                            }
+                        case .strong:
+                            let notif = UINotificationFeedbackGenerator()
+                            notif.notificationOccurred(.success)
+                            let heavy1 = UIImpactFeedbackGenerator(style: .heavy)
+                            heavy1.impactOccurred(intensity: 1.0)
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                let heavy2 = UIImpactFeedbackGenerator(style: .heavy)
+                                heavy2.impactOccurred(intensity: 1.0)
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                let medium = UIImpactFeedbackGenerator(style: .medium)
+                                medium.impactOccurred(intensity: 0.9)
+                            }
+                        }
+                    }
+                }
                 
                 // Removed: auto-reset timer for isCompleted. Now, isCompleted will only be reset by resetCompletionState().
                 // self.completionTimer?.invalidate() // Invalidate any existing timer
@@ -1743,7 +1949,10 @@ class TimerState: ObservableObject {
             print("⚠️ Cannot start timer - interval time is \(intervalTime)")
             return
         }
-        
+        // Record target date and schedule a local notification so it fires in background
+        targetDate = Date().addingTimeInterval(intervalTime)
+        scheduleCompletionNotification(after: intervalTime)
+
         // Start elapsed timer only if not already running
         startElapsedTimerIfNeeded()
         
@@ -1810,6 +2019,9 @@ class TimerState: ObservableObject {
     func stop() {
         // Only stop the interval timer, leave the elapsed timer running
         stopIntervalTimer()
+        // Cancel any scheduled local notification and clear target
+        cancelPendingNotification()
+        targetDate = nil
     }
     
     // Resets both timers to zero values
@@ -1832,6 +2044,9 @@ class TimerState: ObservableObject {
             
             print("Timer reset to zero. Interval time is now: \(self.intervalTime)")
         }
+        // Cancel any scheduled local notification and clear target
+        cancelPendingNotification()
+        targetDate = nil
     }
     
     func playSound() {
@@ -1854,6 +2069,71 @@ class TimerState: ObservableObject {
         print("[DEBUG] TimerState.resetCompletionState() called for timer: \(id)")
         isCompleted = false
         objectWillChange.send()
+    }
+
+    // MARK: - Background resync helpers
+    /// Recompute remaining time based on the target date when app returns to foreground.
+    /// If finished while in background, complete immediately and trigger the completion action.
+    func resyncAfterForeground() {
+        guard let target = targetDate else { return }
+        let remaining = target.timeIntervalSinceNow
+        if remaining <= 0 {
+            // Timer finished while in background
+            completeNow()
+        } else {
+            // Update remaining countdown and ensure interval timer is running
+            setCurrentIntervalTime(remaining)
+            if isRunning && intervalTimer == nil {
+                createAndStartIntervalTimer()
+            }
+        }
+    }
+
+    /// Immediately mark the timer as completed and trigger its completion behavior.
+    func completeNow() {
+        stopIntervalTimer()
+        isRunning = false
+        isCompleted = true
+        objectWillChange.send()
+        // Cancel pending notification
+        cancelPendingNotification()
+        // Trigger completion action
+        onCompleteAction?()
+    }
+
+    // MARK: - Local notification scheduling
+    private func scheduleCompletionNotification(after interval: TimeInterval) {
+        let identifier = "timer-\(id.uuidString)"
+        notificationIdentifier = identifier
+        let content = UNMutableNotificationContent()
+        content.title = "Timer Complete"
+        content.body = "\(displayName()) timer is complete."
+        content.sound = .default
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, interval), repeats: false)
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("❌ Failed to schedule completion notification: \(error)")
+            } else {
+                print("🗓️ Scheduled completion notification for timer \(self.id) in \(Int(interval))s")
+            }
+        }
+    }
+
+    private func cancelPendingNotification() {
+        if let id = notificationIdentifier {
+            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id])
+            notificationIdentifier = nil
+        }
+    }
+
+    private func displayName() -> String {
+        if let settings = settings {
+            if let timer = settings.allTimers.first(where: { $0.id == self.id }) {
+                return timer.name
+            }
+        }
+        return "Timer"
     }
 }
 
