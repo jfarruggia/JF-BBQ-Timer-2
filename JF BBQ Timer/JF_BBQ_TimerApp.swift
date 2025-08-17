@@ -23,8 +23,13 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     static var orientationLock = UIInterfaceOrientationMask.portrait
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
-        // Configure RevenueCat first
+        // Configure RevenueCat
+        // Use verbose logs in Debug builds, and lighter logs in Release for cleaner production consoles
+        #if DEBUG
         Purchases.logLevel = .debug
+        #else
+        Purchases.logLevel = .info
+        #endif
         Purchases.configure(withAPIKey: "appl_sAvUVfGNwMiLQcFzVhzsEJBNixy")
         
         // Register default values for UserDefaults

@@ -272,6 +272,14 @@ struct NewSettingsView: View {
                     }
                 }
 
+                // About & Support
+                Section(header: Text("About")) {
+                    Link("Privacy Policy", destination: URL(string: "https://www.farruggiacreations.com/privacy-policy.html")!)
+                        .accessibilityIdentifier("PrivacyPolicyLink")
+                    Link("Support", destination: URL(string: "mailto:info@FarruggiaCreations.com?subject=GrillTime%20Pro%20Support")!)
+                        .accessibilityIdentifier("SupportLink")
+                }
+
                 // Debug tools hidden for production
             }
             .listStyle(InsetGroupedListStyle())
