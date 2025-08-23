@@ -437,7 +437,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2.1;
+				MARKETING_VERSION = 1.2.2;
 				NEW_SETTING = "";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.jamesfarruggia.JF-BBQ-Timer";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -469,7 +469,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2.1;
+				MARKETING_VERSION = 1.2.2;
 				NEW_SETTING = "";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.jamesfarruggia.JF-BBQ-Timer";
 				PRODUCT_NAME = "$(TARGET_NAME)";
