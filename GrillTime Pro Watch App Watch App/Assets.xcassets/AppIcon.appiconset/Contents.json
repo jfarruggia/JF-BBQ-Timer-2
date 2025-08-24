@@ -1,9 +1,8 @@
 {
   "images" : [
     {
-      "filename" : "bbq_logo.png",
-      "idiom" : "ios-marketing",
-      "scale" : "1x",
+      "idiom" : "universal",
+      "platform" : "watchos",
       "size" : "1024x1024"
     }
   ],

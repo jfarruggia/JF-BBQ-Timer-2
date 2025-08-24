@@ -8,6 +8,7 @@
 import SwiftUI
 import UIKit
 import RevenueCat
+import WatchConnectivity
 
 // This class will handle the orientation lock
 class OrientationLock: ObservableObject {
@@ -213,6 +214,17 @@ struct JF_BBQ_TimerApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject var orientationLock = OrientationLock()
     @StateObject private var settings = Settings()
+
+    // Initialize app-wide services
+    init() {
+        // Activate WatchConnectivity session manager and log in debug builds
+        WCSessionManager.shared.activate()
+        // Ensure TimerCenter is initialized so it can receive watch commands
+        _ = TimerCenter.shared
+        #if DEBUG
+        print("WCSession (iOS) activated")
+        #endif
+    }
 
     // RevenueCat entitlement check
     private func updatePremiumStatus() {

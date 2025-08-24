@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		90389FD82E529B11007EB2F8 /* GrillTime Pro Watch App Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 90389FB82E529B10007EB2F8 /* GrillTime Pro Watch App Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		90C443272E1628DB00818EC1 /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = 90C443262E1628DB00818EC1 /* RevenueCat */; };
 		90C443292E1628DB00818EC1 /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = 90C443282E1628DB00818EC1 /* RevenueCatUI */; };
 /* End PBXBuildFile section */
@@ -26,15 +27,60 @@
 			remoteGlobalIDString = 900062AD2D9899DB0067F649;
 			remoteInfo = "JF BBQ Timer";
 		};
+		90389FC52E529B11007EB2F8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 900062A62D9899DB0067F649 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 90389FB72E529B10007EB2F8;
+			remoteInfo = "GrillTime Pro Watch App Watch App";
+		};
+		90389FCF2E529B11007EB2F8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 900062A62D9899DB0067F649 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 90389FB72E529B10007EB2F8;
+			remoteInfo = "GrillTime Pro Watch App Watch App";
+		};
+		90389FD62E529B11007EB2F8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 900062A62D9899DB0067F649 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 90389FB72E529B10007EB2F8;
+			remoteInfo = "GrillTime Pro Watch App Watch App";
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		90389FDC2E529B11007EB2F8 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				90389FD82E529B11007EB2F8 /* GrillTime Pro Watch App Watch App.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		900062AE2D9899DB0067F649 /* JF BBQ Timer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "JF BBQ Timer.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		900062BE2D9899DC0067F649 /* JF BBQ TimerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "JF BBQ TimerTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		900062C82D9899DC0067F649 /* JF BBQ TimerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "JF BBQ TimerUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		90389FB82E529B10007EB2F8 /* GrillTime Pro Watch App Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "GrillTime Pro Watch App Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		90389FC42E529B11007EB2F8 /* GrillTime Pro Watch App Watch AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "GrillTime Pro Watch App Watch AppTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		90389FCE2E529B11007EB2F8 /* GrillTime Pro Watch App Watch AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "GrillTime Pro Watch App Watch AppUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		9038A1E42E52C172007EB2F8 /* Exceptions for "JF BBQ Timer" folder in "GrillTime Pro Watch App Watch App" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				WCSessionManager.swift,
+			);
+			target = 90389FB72E529B10007EB2F8 /* GrillTime Pro Watch App Watch App */;
+		};
 		90651F9A2E47FCBA00440975 /* Exceptions for "JF BBQ Timer" folder in "JF BBQ Timer" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -49,6 +95,7 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				90651F9A2E47FCBA00440975 /* Exceptions for "JF BBQ Timer" folder in "JF BBQ Timer" target */,
+				9038A1E42E52C172007EB2F8 /* Exceptions for "JF BBQ Timer" folder in "GrillTime Pro Watch App Watch App" target */,
 			);
 			path = "JF BBQ Timer";
 			sourceTree = "<group>";
@@ -61,6 +108,21 @@
 		900062CB2D9899DC0067F649 /* JF BBQ TimerUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "JF BBQ TimerUITests";
+			sourceTree = "<group>";
+		};
+		90389FB92E529B10007EB2F8 /* GrillTime Pro Watch App Watch App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "GrillTime Pro Watch App Watch App";
+			sourceTree = "<group>";
+		};
+		90389FC72E529B11007EB2F8 /* GrillTime Pro Watch App Watch AppTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "GrillTime Pro Watch App Watch AppTests";
+			sourceTree = "<group>";
+		};
+		90389FD12E529B11007EB2F8 /* GrillTime Pro Watch App Watch AppUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "GrillTime Pro Watch App Watch AppUITests";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -89,6 +151,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		90389FB52E529B10007EB2F8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		90389FC12E529B11007EB2F8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		90389FCB2E529B11007EB2F8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -98,6 +181,10 @@
 				900062B02D9899DB0067F649 /* JF BBQ Timer */,
 				900062C12D9899DC0067F649 /* JF BBQ TimerTests */,
 				900062CB2D9899DC0067F649 /* JF BBQ TimerUITests */,
+				90389FB92E529B10007EB2F8 /* GrillTime Pro Watch App Watch App */,
+				90389FC72E529B11007EB2F8 /* GrillTime Pro Watch App Watch AppTests */,
+				90389FD12E529B11007EB2F8 /* GrillTime Pro Watch App Watch AppUITests */,
+				90F5D0012E60AAA000000001 /* Shared */,
 				900062AF2D9899DB0067F649 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -108,8 +195,18 @@
 				900062AE2D9899DB0067F649 /* JF BBQ Timer.app */,
 				900062BE2D9899DC0067F649 /* JF BBQ TimerTests.xctest */,
 				900062C82D9899DC0067F649 /* JF BBQ TimerUITests.xctest */,
+				90389FB82E529B10007EB2F8 /* GrillTime Pro Watch App Watch App.app */,
+				90389FC42E529B11007EB2F8 /* GrillTime Pro Watch App Watch AppTests.xctest */,
+				90389FCE2E529B11007EB2F8 /* GrillTime Pro Watch App Watch AppUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		90F5D0012E60AAA000000001 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Shared;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -122,10 +219,12 @@
 				900062AA2D9899DB0067F649 /* Sources */,
 				900062AB2D9899DB0067F649 /* Frameworks */,
 				900062AC2D9899DB0067F649 /* Resources */,
+				90389FDC2E529B11007EB2F8 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				90389FD72E529B11007EB2F8 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				900062B02D9899DB0067F649 /* JF BBQ Timer */,
@@ -185,6 +284,74 @@
 			productReference = 900062C82D9899DC0067F649 /* JF BBQ TimerUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		90389FB72E529B10007EB2F8 /* GrillTime Pro Watch App Watch App */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 90389FD92E529B11007EB2F8 /* Build configuration list for PBXNativeTarget "GrillTime Pro Watch App Watch App" */;
+			buildPhases = (
+				90389FB42E529B10007EB2F8 /* Sources */,
+				90389FB52E529B10007EB2F8 /* Frameworks */,
+				90389FB62E529B10007EB2F8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				90389FB92E529B10007EB2F8 /* GrillTime Pro Watch App Watch App */,
+			);
+			name = "GrillTime Pro Watch App Watch App";
+			packageProductDependencies = (
+			);
+			productName = "GrillTime Pro Watch App Watch App";
+			productReference = 90389FB82E529B10007EB2F8 /* GrillTime Pro Watch App Watch App.app */;
+			productType = "com.apple.product-type.application";
+		};
+		90389FC32E529B11007EB2F8 /* GrillTime Pro Watch App Watch AppTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 90389FDD2E529B11007EB2F8 /* Build configuration list for PBXNativeTarget "GrillTime Pro Watch App Watch AppTests" */;
+			buildPhases = (
+				90389FC02E529B11007EB2F8 /* Sources */,
+				90389FC12E529B11007EB2F8 /* Frameworks */,
+				90389FC22E529B11007EB2F8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				90389FC62E529B11007EB2F8 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				90389FC72E529B11007EB2F8 /* GrillTime Pro Watch App Watch AppTests */,
+			);
+			name = "GrillTime Pro Watch App Watch AppTests";
+			packageProductDependencies = (
+			);
+			productName = "GrillTime Pro Watch App Watch AppTests";
+			productReference = 90389FC42E529B11007EB2F8 /* GrillTime Pro Watch App Watch AppTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		90389FCD2E529B11007EB2F8 /* GrillTime Pro Watch App Watch AppUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 90389FE02E529B11007EB2F8 /* Build configuration list for PBXNativeTarget "GrillTime Pro Watch App Watch AppUITests" */;
+			buildPhases = (
+				90389FCA2E529B11007EB2F8 /* Sources */,
+				90389FCB2E529B11007EB2F8 /* Frameworks */,
+				90389FCC2E529B11007EB2F8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				90389FD02E529B11007EB2F8 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				90389FD12E529B11007EB2F8 /* GrillTime Pro Watch App Watch AppUITests */,
+			);
+			name = "GrillTime Pro Watch App Watch AppUITests";
+			packageProductDependencies = (
+			);
+			productName = "GrillTime Pro Watch App Watch AppUITests";
+			productReference = 90389FCE2E529B11007EB2F8 /* GrillTime Pro Watch App Watch AppUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -192,7 +359,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1620;
+				LastSwiftUpdateCheck = 1640;
 				LastUpgradeCheck = 1630;
 				TargetAttributes = {
 					900062AD2D9899DB0067F649 = {
@@ -205,6 +372,17 @@
 					900062C72D9899DC0067F649 = {
 						CreatedOnToolsVersion = 16.2;
 						TestTargetID = 900062AD2D9899DB0067F649;
+					};
+					90389FB72E529B10007EB2F8 = {
+						CreatedOnToolsVersion = 16.4;
+					};
+					90389FC32E529B11007EB2F8 = {
+						CreatedOnToolsVersion = 16.4;
+						TestTargetID = 90389FB72E529B10007EB2F8;
+					};
+					90389FCD2E529B11007EB2F8 = {
+						CreatedOnToolsVersion = 16.4;
+						TestTargetID = 90389FB72E529B10007EB2F8;
 					};
 				};
 			};
@@ -228,6 +406,9 @@
 				900062AD2D9899DB0067F649 /* JF BBQ Timer */,
 				900062BD2D9899DC0067F649 /* JF BBQ TimerTests */,
 				900062C72D9899DC0067F649 /* JF BBQ TimerUITests */,
+				90389FB72E529B10007EB2F8 /* GrillTime Pro Watch App Watch App */,
+				90389FC32E529B11007EB2F8 /* GrillTime Pro Watch App Watch AppTests */,
+				90389FCD2E529B11007EB2F8 /* GrillTime Pro Watch App Watch AppUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -248,6 +429,27 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		900062C62D9899DC0067F649 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		90389FB62E529B10007EB2F8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		90389FC22E529B11007EB2F8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		90389FCC2E529B11007EB2F8 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -278,6 +480,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		90389FB42E529B10007EB2F8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		90389FC02E529B11007EB2F8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		90389FCA2E529B11007EB2F8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -290,6 +513,21 @@
 			isa = PBXTargetDependency;
 			target = 900062AD2D9899DB0067F649 /* JF BBQ Timer */;
 			targetProxy = 900062C92D9899DC0067F649 /* PBXContainerItemProxy */;
+		};
+		90389FC62E529B11007EB2F8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 90389FB72E529B10007EB2F8 /* GrillTime Pro Watch App Watch App */;
+			targetProxy = 90389FC52E529B11007EB2F8 /* PBXContainerItemProxy */;
+		};
+		90389FD02E529B11007EB2F8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 90389FB72E529B10007EB2F8 /* GrillTime Pro Watch App Watch App */;
+			targetProxy = 90389FCF2E529B11007EB2F8 /* PBXContainerItemProxy */;
+		};
+		90389FD72E529B11007EB2F8 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 90389FB72E529B10007EB2F8 /* GrillTime Pro Watch App Watch App */;
+			targetProxy = 90389FD62E529B11007EB2F8 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -437,13 +675,14 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2.1;
+				MARKETING_VERSION = 1.3.0;
 				NEW_SETTING = "";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.jamesfarruggia.JF-BBQ-Timer";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
+				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Debug;
 		};
@@ -469,13 +708,14 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2.1;
+				MARKETING_VERSION = 1.3.0;
 				NEW_SETTING = "";
 				PRODUCT_BUNDLE_IDENTIFIER = "com.jamesfarruggia.JF-BBQ-Timer";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
+				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Release;
 		};
@@ -547,6 +787,140 @@
 			};
 			name = Release;
 		};
+		90389FDA2E529B11007EB2F8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "GrillTime Pro Watch App";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "com.jamesfarruggia.JF-BBQ-Timer";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.jamesfarruggia.JF-BBQ-Timer.watchkitapp";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 11.0;
+			};
+			name = Debug;
+		};
+		90389FDB2E529B11007EB2F8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "GrillTime Pro Watch App";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "com.jamesfarruggia.JF-BBQ-Timer";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.jamesfarruggia.JF-BBQ-Timer.watchkitapp";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 11.0;
+			};
+			name = Release;
+		};
+		90389FDE2E529B11007EB2F8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = CAVPE6S7T3;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.jamesfarruggia.GrillTime-Pro-Watch-App-Watch-AppTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/GrillTime Pro Watch App Watch App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/GrillTime Pro Watch App Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 11.5;
+			};
+			name = Debug;
+		};
+		90389FDF2E529B11007EB2F8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = CAVPE6S7T3;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.jamesfarruggia.GrillTime-Pro-Watch-App-Watch-AppTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/GrillTime Pro Watch App Watch App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/GrillTime Pro Watch App Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 11.5;
+			};
+			name = Release;
+		};
+		90389FE12E529B11007EB2F8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = CAVPE6S7T3;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.jamesfarruggia.GrillTime-Pro-Watch-App-Watch-AppUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = "GrillTime Pro Watch App Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 11.5;
+			};
+			name = Debug;
+		};
+		90389FE22E529B11007EB2F8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = CAVPE6S7T3;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.jamesfarruggia.GrillTime-Pro-Watch-App-Watch-AppUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				TEST_TARGET_NAME = "GrillTime Pro Watch App Watch App";
+				WATCHOS_DEPLOYMENT_TARGET = 11.5;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -582,6 +956,33 @@
 			buildConfigurations = (
 				900062D92D9899DC0067F649 /* Debug */,
 				900062DA2D9899DC0067F649 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		90389FD92E529B11007EB2F8 /* Build configuration list for PBXNativeTarget "GrillTime Pro Watch App Watch App" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				90389FDA2E529B11007EB2F8 /* Debug */,
+				90389FDB2E529B11007EB2F8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		90389FDD2E529B11007EB2F8 /* Build configuration list for PBXNativeTarget "GrillTime Pro Watch App Watch AppTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				90389FDE2E529B11007EB2F8 /* Debug */,
+				90389FDF2E529B11007EB2F8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		90389FE02E529B11007EB2F8 /* Build configuration list for PBXNativeTarget "GrillTime Pro Watch App Watch AppUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				90389FE12E529B11007EB2F8 /* Debug */,
+				90389FE22E529B11007EB2F8 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
