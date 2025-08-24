@@ -1,9 +1,21 @@
 {
   "images" : [
     {
-      "filename" : "BBQ_logo.png",
-      "idiom" : "universal",
-      "platform" : "ios",
+      "idiom" : "iphone",
+      "size" : "60x60",
+      "scale" : "2x",
+      "filename" : "Icon-60@2x.png"
+    },
+    {
+      "idiom" : "iphone",
+      "size" : "60x60",
+      "scale" : "3x",
+      "filename" : "Icon-60@3x.png"
+    },
+    {
+      "filename" : "bbq_logo.png",
+      "idiom" : "ios-marketing",
+      "scale" : "1x",
       "size" : "1024x1024"
     }
   ],
