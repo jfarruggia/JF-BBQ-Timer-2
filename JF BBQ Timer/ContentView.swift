@@ -10,6 +10,7 @@ import AVFoundation
 import UIKit
 import RevenueCat
 import UserNotifications
+import WatchConnectivity
 
 struct PresetInterval: Identifiable, Codable {
     let id: UUID
@@ -997,6 +998,10 @@ struct ContentView: View {
     @State private var preheatPressPulse = false
     // Observe app lifecycle to resync timers when returning to foreground
     @Environment(\.scenePhase) private var scenePhase
+    // Periodic watch sync timer
+    @State private var watchSyncTimer: Timer? = nil
+    // Listen for WatchConnectivity commands (e.g., applyPreset1)
+    @State private var watchCommandObserver: NSObjectProtocol? = nil
     
     // Initialize with the settings
     init() {
@@ -1497,6 +1502,60 @@ struct ContentView: View {
             alertState.hapticsEnabled = settings.hapticsEnabled
             // Request user permission for local notifications (shown once)
             requestNotificationPermission()
+            // Start periodic WatchConnectivity sync so the watch list populates
+            // and stays updated while the iPhone app is open. This uses a very
+            // small, plist-safe payload built from current timers and states.
+            watchSyncTimer?.invalidate()
+            watchSyncTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+                let snapshot = buildWatchSnapshot()
+                WCSessionManager.shared.sendTimersSnapshot(snapshot)
+            }
+            RunLoop.main.add(watchSyncTimer!, forMode: .common)
+            // Listen for a watch-originating command to apply Preset 1 to a
+            // specific timer, respecting whatever Preset 1 value is currently
+            // configured in the main iPhone app settings for that timer.
+            watchCommandObserver = NotificationCenter.default.addObserver(
+                forName: Notification.Name("receivedCommand"),
+                object: nil,
+                queue: .main
+            ) { note in
+                // Parse command payload
+                guard let dict = note.userInfo as? [String: Any],
+                      let action = dict["action"] as? String,
+                      let idString = dict["timerId"] as? String,
+                      let uuid = UUID(uuidString: idString) else { return }
+
+                // Find the corresponding timer
+                guard let timer = settings.allTimers.first(where: { $0.id == uuid }) else { return }
+
+                switch action {
+                case "applyPreset1":
+                    let presetSeconds = TimeInterval(timer.preset1)
+                    if let state = timerStates.state(for: uuid) {
+                        state.setIntervalTime(presetSeconds)
+                        state.start(onComplete: { })
+                    }
+                case "applyPreset2":
+                    let presetSeconds = TimeInterval(timer.preset2)
+                    if let state = timerStates.state(for: uuid) {
+                        // Apply Preset 2 by extending from current remaining time
+                        // If stopped, set exact time and start
+                        if state.isRunning {
+                            let newTime = max(0, state.intervalTime + presetSeconds)
+                            state.setCurrentIntervalTime(newTime)
+                        } else {
+                            state.setIntervalTime(presetSeconds)
+                            state.start(onComplete: { })
+                        }
+                    }
+                default:
+                    break
+                }
+
+                // Publish an updated snapshot back to the watch so UI refreshes
+                let snapshot = buildWatchSnapshot()
+                WCSessionManager.shared.sendTimersSnapshot(snapshot)
+            }
         }
         .onChange(of: settings.additionalTimers) { _ in
             initializeTimerStates()
@@ -1519,6 +1578,13 @@ struct ContentView: View {
         .onDisappear {
             // Ensure no lingering haptic loop when leaving
             if alertState.showPreheatAlert { alertState.showPreheatAlert = false }
+            watchSyncTimer?.invalidate()
+            watchSyncTimer = nil
+            // Remove command observer to avoid leaks/duplicates
+            if let observer = watchCommandObserver {
+                NotificationCenter.default.removeObserver(observer)
+                watchCommandObserver = nil
+            }
         }
     }
     
@@ -1547,6 +1613,32 @@ struct ContentView: View {
            let state = timerStates.state(for: firstTimer.id) {
             state.resetCompletionState()
         }
+    }
+
+    // MARK: - Watch sync helpers
+    /// Build a compact, plist-safe snapshot of current timers for the watch list.
+    private func buildWatchSnapshot() -> [String: Any] {
+        let rows: [[String: Any]] = settings.allTimers.compactMap { timer in
+            let state = timerStates.state(for: timer.id)
+            let remaining = Int((state?.intervalTime ?? TimeInterval(timer.preset1)).rounded())
+            let isRunning = state?.isRunning == true
+            let status = isRunning ? "running" : "stopped"
+            // Capture elapsed seconds (if available) so watch can display it
+            let elapsed = Int((state?.elapsedTime ?? 0).rounded())
+            return [
+                "id": timer.id.uuidString,
+                "name": timer.name,
+                "remaining": remaining,
+                "state": status,
+                // Include Preset 1 seconds so the watch can label the button with time
+                "preset1": timer.preset1,
+                // Include Preset 2 seconds for the extend button label/action
+                "preset2": timer.preset2,
+                // Elapsed seconds for secondary label on watch
+                "elapsed": elapsed,
+            ]
+        }
+        return ["timers": rows]
     }
     
     // MARK: - Notification helpers (ContentView)
