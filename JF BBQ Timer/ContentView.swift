@@ -1521,21 +1521,28 @@ struct ContentView: View {
             ) { note in
                 // Parse command payload
                 guard let dict = note.userInfo as? [String: Any],
-                      let action = dict["action"] as? String,
-                      let idString = dict["timerId"] as? String,
-                      let uuid = UUID(uuidString: idString) else { return }
+                      let action = dict["action"] as? String else { return }
+                let idString = dict["timerId"] as? String
+                let uuid = idString.flatMap(UUID.init)
 
-                // Find the corresponding timer
-                guard let timer = settings.allTimers.first(where: { $0.id == uuid }) else { return }
+                // For actions that need a specific timer, resolve it lazily
+                let timer: BBQTimer? = uuid.flatMap { u in settings.allTimers.first(where: { $0.id == u }) }
 
                 switch action {
+                case "requestSnapshot":
+                    // Immediately send the current snapshot to the watch
+                    let snapshot = buildWatchSnapshot()
+                    WCSessionManager.shared.sendTimersSnapshot(snapshot)
+
                 case "applyPreset1":
+                    guard let uuid = uuid, let timer = timer else { break }
                     let presetSeconds = TimeInterval(timer.preset1)
                     if let state = timerStates.state(for: uuid) {
                         state.setIntervalTime(presetSeconds)
                         state.start(onComplete: { })
                     }
                 case "applyPreset2":
+                    guard let uuid = uuid, let timer = timer else { break }
                     let presetSeconds = TimeInterval(timer.preset2)
                     if let state = timerStates.state(for: uuid) {
                         // Apply Preset 2 by extending from current remaining time
@@ -1547,6 +1554,18 @@ struct ContentView: View {
                             state.setIntervalTime(presetSeconds)
                             state.start(onComplete: { })
                         }
+                    }
+                case "toggleRun":
+                    guard let uuid = uuid, let state = timerStates.state(for: uuid) else { break }
+                    if state.isRunning {
+                        // Pause (stop countdown); elapsed may continue by design
+                        state.stop()
+                    } else {
+                        // If no time left, initialize from preset1 for that timer
+                        if state.intervalTime <= 0, let t = timer {
+                            state.setIntervalTime(TimeInterval(t.preset1))
+                        }
+                        state.start(onComplete: { })
                     }
                 default:
                     break
