@@ -1539,7 +1539,10 @@ struct ContentView: View {
                     let presetSeconds = TimeInterval(timer.preset1)
                     if let state = timerStates.state(for: uuid) {
                         state.setIntervalTime(presetSeconds)
-                        state.start(onComplete: { })
+                        state.start(onComplete: {
+                            if settings.soundEnabled { state.playSound() }
+                            if settings.hapticsEnabled { alertState.isPresented = true }
+                        })
                     }
                 case "applyPreset2":
                     guard let uuid = uuid, let timer = timer else { break }
@@ -1552,7 +1555,10 @@ struct ContentView: View {
                             state.setCurrentIntervalTime(newTime)
                         } else {
                             state.setIntervalTime(presetSeconds)
-                            state.start(onComplete: { })
+                            state.start(onComplete: {
+                                if settings.soundEnabled { state.playSound() }
+                                if settings.hapticsEnabled { alertState.isPresented = true }
+                            })
                         }
                     }
                 case "toggleRun":
@@ -1565,7 +1571,21 @@ struct ContentView: View {
                         if state.intervalTime <= 0, let t = timer {
                             state.setIntervalTime(TimeInterval(t.preset1))
                         }
-                        state.start(onComplete: { })
+                        state.start(onComplete: {
+                            if settings.soundEnabled { state.playSound() }
+                            if settings.hapticsEnabled { alertState.isPresented = true }
+                        })
+                    }
+                case "ackAlert":
+                    // Stop any active alert UIs/sounds on the iPhone
+                    if alertState.isPresented { alertState.isPresented = false }
+                    if showPreheatAlert { showPreheatAlert = false }
+                    settings.stopLoopingAlertSound()
+                    // Reset completion border for the acknowledged timer if provided
+                    if let idString = dict["timerId"] as? String,
+                       let uuid = UUID(uuidString: idString),
+                       let state = timerStates.state(for: uuid) {
+                        state.resetCompletionState()
                     }
                 default:
                     break
@@ -1586,6 +1606,25 @@ struct ContentView: View {
         .onChange(of: settings.soundEnabled) { _ in
             print("Sound enabled changed to \(settings.soundEnabled), updating timer states")
             timerStates.updateSettings(settings)
+        }
+        // Mirror iPhone alerts to Watch
+        .onChange(of: alertState.isPresented) { isShown in
+            let phase = isShown ? "start" : "stop"
+            let message = "Timer Finished"
+            WCSessionManager.shared.sendCommand([
+                "action": "alert",
+                "phase": phase,
+                "message": message
+            ])
+        }
+        .onChange(of: showPreheatAlert) { isShown in
+            let phase = isShown ? "start" : "stop"
+            let message = "Preheat Complete"
+            WCSessionManager.shared.sendCommand([
+                "action": "alert",
+                "phase": phase,
+                "message": message
+            ])
         }
         // When returning to the foreground, resync timer countdowns with wall-clock time
         .onChange(of: scenePhase) { newPhase in

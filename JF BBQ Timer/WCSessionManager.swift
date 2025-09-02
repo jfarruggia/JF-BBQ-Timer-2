@@ -130,8 +130,10 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
     /// Received user info (treat as a command)
     func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
         DispatchQueue.main.async {
+            let action = userInfo["action"] as? String
+            let name = (action == "alert") ? "receivedAlert" : "receivedCommand"
             NotificationCenter.default.post(
-                name: Notification.Name("receivedCommand"),
+                name: Notification.Name(name),
                 object: nil,
                 userInfo: userInfo
             )
@@ -141,8 +143,10 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
     /// Received a message without a reply handler (treat as a command)
     func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
         DispatchQueue.main.async {
+            let action = message["action"] as? String
+            let name = (action == "alert") ? "receivedAlert" : "receivedCommand"
             NotificationCenter.default.post(
-                name: Notification.Name("receivedCommand"),
+                name: Notification.Name(name),
                 object: nil,
                 userInfo: message
             )
@@ -154,8 +158,10 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
                  didReceiveMessage message: [String : Any],
                  replyHandler: @escaping ([String : Any]) -> Void) {
         DispatchQueue.main.async {
+            let action = message["action"] as? String
+            let name = (action == "alert") ? "receivedAlert" : "receivedCommand"
             NotificationCenter.default.post(
-                name: Notification.Name("receivedCommand"),
+                name: Notification.Name(name),
                 object: nil,
                 userInfo: message
             )

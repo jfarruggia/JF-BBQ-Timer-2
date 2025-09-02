@@ -7,68 +7,165 @@
 
 import SwiftUI
 import WatchConnectivity
+import WatchKit
 
 struct TimersListView: View {
     @StateObject private var model = WatchTimersModel()
     // Local ticker so the watch UI updates every second without waiting for iPhone
     @State private var now = Date()
     private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    // Tracks which timer page is currently visible so we can show its name in the top bar
+    @State private var selectedTimerId: String? = nil
+    // Request guard so we only ask iPhone for a snapshot once on launch
+    @State private var hasRequestedInitialSnapshot: Bool = false
 
     var body: some View {
-        // Show a friendly placeholder when no timers have been
-        // received from the iPhone yet. This avoids a black screen
-        // and teaches the user what to do next.
-        Group {
-            if model.timers.isEmpty {
-                VStack(alignment: .center, spacing: 8) {
-                    Image(systemName: "applewatch.watchface")
-                        .font(.system(size: 32, weight: .regular))
-                        .foregroundColor(.gray)
-                    Text("No timers yet")
-                        .font(.headline)
-                    Text("Open the iPhone app to sync timers.")
-                        .font(.footnote)
-                        .multilineTextAlignment(.center)
-                        .foregroundColor(.secondary)
-                    Button("Refresh") {
-                        // Ask the iPhone for a snapshot (safe no-op if ignored)
-                        WCSessionManager.shared.sendCommand(["action": "requestSnapshot"])
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-                .padding()
-            } else {
-                // Use a paged TabView: one full-screen page per timer, swipe to switch
-                TabView {
-                    ForEach(model.timers, id: \.id) { row in
-                        ZStack(alignment: .topLeading) {
-                            // Main content
-                            VStack(alignment: .leading, spacing: 8) {
-                                header(for: row)
-                                Spacer(minLength: 8)
-                                presetButtons(for: row)
-                                Spacer(minLength: 0)
-                            }
-                            .padding(.horizontal)
-                            // Add headroom so overlayed name doesn’t overlap
-                            .padding(.top, 18)
-
-                            // Timer name pinned to real top-left
-                            Text(row.name)
-                                .font(.headline)
-                                .padding(.leading, 2)
-                                .padding(.top, -8) // lift higher into the top-left corner
+        // NavigationStack provides the top system bar on watchOS
+        NavigationStack {
+            mainContent
+                // Clear any default title to avoid duplication with the toolbar item
+                .navigationTitle("")
+                // Put the timer name in the top-left, aligned with the system clock on the right
+                .toolbar {
+                    ToolbarItem(placement: .topBarLeading) {
+                        if let name = selectedTimerName {
+                            Text(name)
+                                // Match the system clock size for visual alignment; nudge higher
+                                .font(.footnote)
+                                .baselineOffset(-3)
                         }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     }
                 }
-                .tabViewStyle(.page)
-            }
         }
         // Drive the local clock
         .onReceive(ticker) { date in
             now = date
         }
+        // Initialize the selection to the first timer when available
+        .onAppear {
+            if selectedTimerId == nil {
+                selectedTimerId = model.timers.first?.id
+            }
+            // If we launch to an empty list, proactively ask iPhone for a snapshot
+            if !hasRequestedInitialSnapshot && model.timers.isEmpty {
+                hasRequestedInitialSnapshot = true
+                WCSessionManager.shared.sendCommand(["action": "requestSnapshot"])
+            }
+        }
+        // Keep the selection valid when the timers list changes
+        .onChange(of: model.timers) { _ in
+            if let current = selectedTimerId,
+               model.timers.contains(where: { $0.id == current }) {
+                // keep current selection
+            } else {
+                selectedTimerId = model.timers.first?.id
+            }
+        }
+        // When an alert appears, play a lightweight haptic once
+        .onChange(of: model.alertMessage) { newValue in
+            if newValue != nil {
+                WKInterfaceDevice.current().play(.notification)
+            }
+        }
+    }
+
+    // Break the main content into smaller subviews for faster type-checking
+    @ViewBuilder
+    private var mainContent: some View {
+        if model.timers.isEmpty {
+            emptyState
+                .overlay(alertBanner, alignment: .top)
+        } else {
+            timersPager
+                .overlay(alertBanner, alignment: .top)
+        }
+    }
+
+    private var emptyState: some View {
+        VStack(alignment: .center, spacing: 8) {
+            Image(systemName: "applewatch.watchface")
+                .font(.system(size: 32, weight: .regular))
+                .foregroundColor(.gray)
+            Text("No timers yet")
+                .font(.headline)
+            Text("Open the iPhone app to sync timers.")
+                .font(.footnote)
+                .multilineTextAlignment(.center)
+                .foregroundColor(.secondary)
+            Button("Refresh") {
+                // Ask the iPhone for a snapshot (safe no-op if ignored)
+                WCSessionManager.shared.sendCommand(["action": "requestSnapshot"])
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding()
+    }
+
+    private var timersPager: some View {
+        TabView(selection: $selectedTimerId) {
+            ForEach(model.timers) { row in
+                timerPage(row)
+                    .tag(row.id)
+            }
+        }
+        .tabViewStyle(.page)
+    }
+
+    @ViewBuilder
+    private func timerPage(_ row: WatchTimersModel.Row) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            header(for: row)
+            Spacer(minLength: 8)
+            presetButtons(for: row)
+            // Centered Start/Pause button below preset buttons with tight spacing
+            startStopButton(for: row)
+                .padding(.top, 6)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal)
+        // Add breathing room below the top bar timer name
+        .padding(.top, 12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    // Compact alert banner displayed at the top; tap to acknowledge/stop
+    @ViewBuilder
+    private var alertBanner: some View {
+        if let message = model.alertMessage {
+            Button {
+                // Tell the iPhone to stop the alert, and hide locally
+                var payload: [String: Any] = ["action": "ackAlert"]
+                if let id = selectedTimerId { payload["timerId"] = id }
+                WCSessionManager.shared.sendCommand(payload)
+                model.alertMessage = nil
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.footnote)
+                    Text(message)
+                        .font(.headline)
+                        .lineLimit(1)
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule().fill(Color("TimerRed"))
+                )
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 2)
+        }
+    }
+
+    // Returns the name of the currently visible timer (or first timer if none selected)
+    private var selectedTimerName: String? {
+        if model.timers.isEmpty { return nil }
+        if let id = selectedTimerId,
+           let row = model.timers.first(where: { $0.id == id }) {
+            return row.name
+        }
+        return model.timers.first?.name
     }
 
     private func format(seconds: Int) -> String {
@@ -115,16 +212,30 @@ struct TimersListView: View {
     private func header(for row: WatchTimersModel.Row) -> some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(format(seconds: effectiveRemaining(for: row)))
-                    .font(.title2)
-                    .fontWeight(.bold)
+                // Add a small label next to the main remaining-time counter
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text("Flip In")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                    Text(format(seconds: effectiveRemaining(for: row)))
+                        .font(.title2)
+                        .fontWeight(.bold)
+                }
                 if let shownElapsed = effectiveElapsed(for: row) {
-                    Text("Elapsed \(format(seconds: shownElapsed))")
+                    Text("Lit Time \(format(seconds: shownElapsed))")
                         .font(.headline)
                         .foregroundColor(.secondary)
                 }
             }
-            .layoutPriority(1) // ensure text has space; avoids truncation under button
+            .layoutPriority(1) // ensure text has space
+            Spacer()
+        }
+    }
+
+    // Centered Start/Pause button placed below the preset buttons
+    @ViewBuilder
+    private func startStopButton(for row: WatchTimersModel.Row) -> some View {
+        HStack { // center horizontally
             Spacer()
             Button(isRunning(row) ? "Pause" : "Start") {
                 WCSessionManager.shared.sendCommand([
@@ -132,11 +243,15 @@ struct TimersListView: View {
                     "timerId": row.id
                 ])
             }
-            .buttonStyle(.bordered)
+            // Use a filled prominent style with brand tint, and white text for contrast
+            .buttonStyle(.borderedProminent)
+            .tint(Color("TimerAccent"))
+            .foregroundStyle(.white)
             .controlSize(.mini)
             .font(.caption2)
             .buttonBorderShape(.roundedRectangle(radius: 6))
-            .frame(width: 76, height: 44) // narrow width, keep Apple tap height
+            .frame(width: 76, height: 44) // keep Apple tap height
+            Spacer()
         }
     }
 
@@ -149,9 +264,11 @@ struct TimersListView: View {
                     "timerId": row.id
                 ])
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.borderedProminent)
+            .tint(Color("PresetButtonBG"))
             .controlSize(.mini)
             .font(.caption)
+            .foregroundStyle(.white)
             .buttonBorderShape(.roundedRectangle(radius: 10))
             .frame(minWidth: 64, minHeight: 44)
 
@@ -161,9 +278,11 @@ struct TimersListView: View {
                     "timerId": row.id
                 ])
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.borderedProminent)
+            .tint(Color("PresetButtonBG"))
             .controlSize(.mini)
             .font(.caption)
+            .foregroundStyle(.white)
             .buttonBorderShape(.roundedRectangle(radius: 10))
             .frame(minWidth: 64, minHeight: 44)
         }
@@ -171,7 +290,8 @@ struct TimersListView: View {
 }
 
 final class WatchTimersModel: ObservableObject {
-    struct Row: Identifiable {
+    // Conform to Equatable so Array<Row> can be used with onChange(of:)
+    struct Row: Identifiable, Equatable {
         let id: String
         let name: String
         let remaining: Int
@@ -187,6 +307,8 @@ final class WatchTimersModel: ObservableObject {
     @Published var timers: [Row] = []
     // When the last snapshot was received (used for local ticking)
     @Published var lastSnapshotAt: Date? = nil
+    // Message to show in the alert banner when iPhone signals an alert
+    @Published var alertMessage: String? = nil
 
     init() {
         NotificationCenter.default.addObserver(forName: Notification.Name("receivedTimersSnapshot"), object: nil, queue: .main) { [weak self] note in
@@ -201,6 +323,16 @@ final class WatchTimersModel: ObservableObject {
                 let preset2 = item["preset2"] as? Int
                 let elapsed = item["elapsed"] as? Int
                 return Row(id: id, name: name, remaining: remaining, state: state, preset1Seconds: preset1, preset2Seconds: preset2, elapsedSeconds: elapsed)
+            }
+        }
+        // Listen for explicit alert messages sent from iPhone via the session manager
+        NotificationCenter.default.addObserver(forName: Notification.Name("receivedAlert"), object: nil, queue: .main) { [weak self] note in
+            guard let info = note.userInfo as? [String: Any], let phase = info["phase"] as? String else { return }
+            if phase == "start" {
+                let msg = (info["message"] as? String) ?? "Timer Finished"
+                self?.alertMessage = msg
+            } else if phase == "stop" {
+                self?.alertMessage = nil
             }
         }
     }
