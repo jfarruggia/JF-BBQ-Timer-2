@@ -104,26 +104,43 @@ public final class TimerCenter {
     }
 
     private func handleIncomingCommand(_ dict: [String: Any]) {
-        guard let action = dict["action"] as? String,
-              let idString = dict["timerId"] as? String,
-              let uuid = UUID(uuidString: idString) else { return }
+        // Only handle actions that this minimal TimerCenter understands.
+        // Unknown actions (like applyPreset1/2, toggleRun, requestSnapshot)
+        // are handled elsewhere in the main app and should be ignored here
+        // to avoid publishing an empty snapshot that clears the watch list.
+        guard let action = dict["action"] as? String else { return }
 
-        switch action {
-        case "reset":
-            resetTimer(uuid)
-        case "pause":
-            pauseTimer(uuid)
-        case "resume":
-            resumeTimer(uuid)
-        case "extend":
-            let seconds = (dict["seconds"] as? Int) ?? 60
-            extendTimer(uuid, by: seconds)
-        default:
-            break
+        var didHandle = false
+
+        if let idString = dict["timerId"] as? String,
+           let uuid = UUID(uuidString: idString) {
+            switch action {
+            case "reset":
+                resetTimer(uuid)
+                didHandle = true
+            case "pause":
+                pauseTimer(uuid)
+                didHandle = true
+            case "resume":
+                resumeTimer(uuid)
+                didHandle = true
+            case "extend":
+                let seconds = (dict["seconds"] as? Int) ?? 60
+                extendTimer(uuid, by: seconds)
+                didHandle = true
+            default:
+                break // ignore unknown timer actions
+            }
+        } else {
+            // No timerId → nothing this minimal handler should do.
+            // Intentionally ignore actions like requestSnapshot.
         }
 
-        // Mirror changes back to the watch
-        publishTimersToWatch()
+        // Only publish if we actually handled something, and avoid pushing
+        // an empty snapshot which would clear the watch UI momentarily.
+        if didHandle && !timers.isEmpty {
+            publishTimersToWatch()
+        }
     }
 }
 

@@ -1548,18 +1548,13 @@ struct ContentView: View {
                     guard let uuid = uuid, let timer = timer else { break }
                     let presetSeconds = TimeInterval(timer.preset2)
                     if let state = timerStates.state(for: uuid) {
-                        // Apply Preset 2 by extending from current remaining time
-                        // If stopped, set exact time and start
-                        if state.isRunning {
-                            let newTime = max(0, state.intervalTime + presetSeconds)
-                            state.setCurrentIntervalTime(newTime)
-                        } else {
-                            state.setIntervalTime(presetSeconds)
-                            state.start(onComplete: {
-                                if settings.soundEnabled { state.playSound() }
-                                if settings.hapticsEnabled { alertState.isPresented = true }
-                            })
-                        }
+                        // Make Preset 2 behavior consistent with iPhone UI:
+                        // always reset to the preset value and start the timer
+                        state.setIntervalTime(presetSeconds)
+                        state.start(onComplete: {
+                            if settings.soundEnabled { state.playSound() }
+                            if settings.hapticsEnabled { alertState.isPresented = true }
+                        })
                     }
                 case "toggleRun":
                     guard let uuid = uuid, let state = timerStates.state(for: uuid) else { break }

@@ -18,6 +18,9 @@ struct TimersListView: View {
     @State private var selectedTimerId: String? = nil
     // Request guard so we only ask iPhone for a snapshot once on launch
     @State private var hasRequestedInitialSnapshot: Bool = false
+    // Keeps the app executing when it leaves the foreground, similar to Apple's Timer app
+    // so countdowns remain accurate and alerts can still be coordinated.
+    private let runtime = ExtendedRuntimeController()
 
     var body: some View {
         // NavigationStack provides the top system bar on watchOS
@@ -51,18 +54,22 @@ struct TimersListView: View {
                 hasRequestedInitialSnapshot = true
                 WCSessionManager.shared.sendCommand(["action": "requestSnapshot"])
             }
+            // Ensure extended runtime is active if any timers are already running
+            refreshExtendedRuntimeSession()
         }
         // Keep the selection valid when the timers list changes
-        .onChange(of: model.timers) { _ in
+        .onChange(of: model.timers) { oldValue, newValue in
             if let current = selectedTimerId,
-               model.timers.contains(where: { $0.id == current }) {
+               newValue.contains(where: { $0.id == current }) {
                 // keep current selection
             } else {
-                selectedTimerId = model.timers.first?.id
+                selectedTimerId = newValue.first?.id
             }
+            // Start/stop extended runtime according to whether any timers are running
+            refreshExtendedRuntimeSession()
         }
         // When an alert appears, play a lightweight haptic once
-        .onChange(of: model.alertMessage) { newValue in
+        .onChange(of: model.alertMessage) { oldValue, newValue in
             if newValue != nil {
                 WKInterfaceDevice.current().play(.notification)
             }
@@ -238,6 +245,23 @@ struct TimersListView: View {
         HStack { // center horizontally
             Spacer()
             Button(isRunning(row) ? "Pause" : "Start") {
+                // Stronger haptic: start vs pause use distinct patterns
+                let device = WKInterfaceDevice.current()
+                if isRunning(row) {
+                    device.play(.stop) // pausing
+                    // Optimistically pause locally so UI responds immediately
+                    optimisticPause(row)
+                    // If nothing else is running, end the extended runtime session
+                    refreshExtendedRuntimeSession()
+                } else {
+                    device.play(.start) // starting
+                    // Optimistically start locally so UI responds immediately
+                    // If the timer has no time, prefer Preset 1 if available
+                    let startingRemaining = row.remaining > 0 ? row.remaining : (row.preset1Seconds ?? max(1, row.remaining))
+                    optimisticStart(row, remainingOverride: startingRemaining)
+                    // Ensure extended runtime is active while a timer is running
+                    refreshExtendedRuntimeSession()
+                }
                 WCSessionManager.shared.sendCommand([
                     "action": "toggleRun",
                     "timerId": row.id
@@ -259,6 +283,13 @@ struct TimersListView: View {
     private func presetButtons(for row: WatchTimersModel.Row) -> some View {
         HStack {
             Button(preset1Label(for: row)) {
+                // Stronger confirmation haptic on preset apply
+                WKInterfaceDevice.current().play(.success)
+                // Optimistically apply Preset 1 and start immediately for snappy UX
+                if let preset = row.preset1Seconds {
+                    optimisticStart(row, remainingOverride: preset)
+                    refreshExtendedRuntimeSession()
+                }
                 WCSessionManager.shared.sendCommand([
                     "action": "applyPreset1",
                     "timerId": row.id
@@ -266,13 +297,23 @@ struct TimersListView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(Color("PresetButtonBG"))
-            .controlSize(.mini)
-            .font(.caption)
+            // Use .small so the custom minHeight is applied on watchOS
+            .controlSize(.small)
+            // Slightly larger label text for better readability on-watch
+            .font(.footnote)
             .foregroundStyle(.white)
             .buttonBorderShape(.roundedRectangle(radius: 10))
-            .frame(minWidth: 64, minHeight: 44)
+            // Increase vertical height for a taller, easier tap target on watchOS
+            .frame(minWidth: 64, minHeight: 52)
 
             Button(preset2Label(for: row)) {
+                // Stronger confirmation haptic on preset apply
+                WKInterfaceDevice.current().play(.success)
+                // Optimistically apply Preset 2 and start immediately for snappy UX
+                if let preset = row.preset2Seconds {
+                    optimisticStart(row, remainingOverride: preset)
+                    refreshExtendedRuntimeSession()
+                }
                 WCSessionManager.shared.sendCommand([
                     "action": "applyPreset2",
                     "timerId": row.id
@@ -280,11 +321,67 @@ struct TimersListView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(Color("PresetButtonBG"))
-            .controlSize(.mini)
-            .font(.caption)
+            // Use .small so the custom minHeight is applied on watchOS
+            .controlSize(.small)
+            // Slightly larger label text for better readability on-watch
+            .font(.footnote)
             .foregroundStyle(.white)
             .buttonBorderShape(.roundedRectangle(radius: 10))
-            .frame(minWidth: 64, minHeight: 44)
+            // Increase vertical height for a taller, easier tap target on watchOS
+            .frame(minWidth: 64, minHeight: 52)
+        }
+    }
+
+    // MARK: - Optimistic UI helpers
+    /// Immediately reflect a local start so the countdown and state change without
+    /// waiting for the iPhone round-trip. The next snapshot will reconcile if needed.
+    private func optimisticStart(_ row: WatchTimersModel.Row, remainingOverride: Int? = nil) {
+        let newRemaining = max(1, remainingOverride ?? effectiveRemaining(for: row))
+        // Nudge the local clock so effectiveRemaining() subtracts time smoothly
+        model.lastSnapshotAt = Date()
+        model.timers = model.timers.map { item in
+            if item.id == row.id {
+                return WatchTimersModel.Row(
+                    id: item.id,
+                    name: item.name,
+                    remaining: newRemaining,
+                    state: "running",
+                    preset1Seconds: item.preset1Seconds,
+                    preset2Seconds: item.preset2Seconds,
+                    elapsedSeconds: item.elapsedSeconds
+                )
+            }
+            return item
+        }
+    }
+
+    /// Immediately reflect a local pause so the UI stops ticking at the current
+    /// effective remaining time.
+    private func optimisticPause(_ row: WatchTimersModel.Row) {
+        let currentRemaining = effectiveRemaining(for: row)
+        model.timers = model.timers.map { item in
+            if item.id == row.id {
+                return WatchTimersModel.Row(
+                    id: item.id,
+                    name: item.name,
+                    remaining: currentRemaining,
+                    state: "stopped",
+                    preset1Seconds: item.preset1Seconds,
+                    preset2Seconds: item.preset2Seconds,
+                    elapsedSeconds: item.elapsedSeconds
+                )
+            }
+            return item
+        }
+    }
+
+    /// Starts extended runtime while any timer is running; invalidates otherwise.
+    private func refreshExtendedRuntimeSession() {
+        let anyRunning = model.timers.contains { $0.state == "running" }
+        if anyRunning {
+            runtime.startIfNeeded()
+        } else {
+            runtime.invalidate()
         }
     }
 }
@@ -335,6 +432,56 @@ final class WatchTimersModel: ObservableObject {
                 self?.alertMessage = nil
             }
         }
+    }
+}
+
+// MARK: - Extended runtime controller
+/// Lightweight wrapper around `WKExtendedRuntimeSession` that starts a background
+/// execution window while timers are active, helping keep countdowns accurate
+/// when the app returns to the watch face. It does not keep the app visible.
+final class ExtendedRuntimeController: NSObject, WKExtendedRuntimeSessionDelegate {
+    private var session: WKExtendedRuntimeSession?
+    private(set) var isRunning: Bool = false
+
+    /// Start a new extended runtime session if not already running.
+    func startIfNeeded() {
+        if isRunning { return }
+        // Always create a fresh session to avoid edge states
+        session?.invalidate()
+        let newSession = WKExtendedRuntimeSession()
+        newSession.delegate = self
+        session = newSession
+        newSession.start()
+    }
+
+    /// End the session if one is active.
+    func invalidate() {
+        guard let s = session else { return }
+        s.invalidate()
+        session = nil
+        isRunning = false
+    }
+
+    // MARK: - WKExtendedRuntimeSessionDelegate
+    func extendedRuntimeSessionDidStart(_ extendedRuntimeSession: WKExtendedRuntimeSession) {
+        isRunning = true
+        #if DEBUG
+        print("[ExtendedRuntime] didStart")
+        #endif
+    }
+
+    func extendedRuntimeSessionWillExpire(_ extendedRuntimeSession: WKExtendedRuntimeSession) {
+        #if DEBUG
+        print("[ExtendedRuntime] willExpire soon")
+        #endif
+    }
+
+    func extendedRuntimeSession(_ extendedRuntimeSession: WKExtendedRuntimeSession, didInvalidateWith reason: WKExtendedRuntimeSessionInvalidationReason, error: Error?) {
+        isRunning = false
+        session = nil
+        #if DEBUG
+        print("[ExtendedRuntime] invalidated, reason=\(reason.rawValue), error=\(String(describing: error))")
+        #endif
     }
 }
 
