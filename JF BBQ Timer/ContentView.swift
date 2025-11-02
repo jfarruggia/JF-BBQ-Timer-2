@@ -1002,6 +1002,8 @@ struct ContentView: View {
     @State private var watchSyncTimer: Timer? = nil
     // Listen for WatchConnectivity commands (e.g., applyPreset1)
     @State private var watchCommandObserver: NSObjectProtocol? = nil
+    // Track last snapshot to avoid sending duplicate updates (reduces WatchConnectivity throttling)
+    @State private var lastSnapshot: [String: Any]? = nil
     
     // Initialize with the settings
     init() {
@@ -1505,12 +1507,7 @@ struct ContentView: View {
             // Start periodic WatchConnectivity sync so the watch list populates
             // and stays updated while the iPhone app is open. This uses a very
             // small, plist-safe payload built from current timers and states.
-            watchSyncTimer?.invalidate()
-            watchSyncTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-                let snapshot = buildWatchSnapshot()
-                WCSessionManager.shared.sendTimersSnapshot(snapshot)
-            }
-            RunLoop.main.add(watchSyncTimer!, forMode: .common)
+            startWatchSyncTimer()
             // Listen for a watch-originating command to apply Preset 1 to a
             // specific timer, respecting whatever Preset 1 value is currently
             // configured in the main iPhone app settings for that timer.
@@ -1531,8 +1528,7 @@ struct ContentView: View {
                 switch action {
                 case "requestSnapshot":
                     // Immediately send the current snapshot to the watch
-                    let snapshot = buildWatchSnapshot()
-                    WCSessionManager.shared.sendTimersSnapshot(snapshot)
+                    sendWatchSnapshotImmediately()
 
                 case "applyPreset1":
                     guard let uuid = uuid, let timer = timer else { break }
@@ -1587,8 +1583,8 @@ struct ContentView: View {
                 }
 
                 // Publish an updated snapshot back to the watch so UI refreshes
-                let snapshot = buildWatchSnapshot()
-                WCSessionManager.shared.sendTimersSnapshot(snapshot)
+                // Use immediate send since this is a response to a Watch command
+                sendWatchSnapshotImmediately()
             }
         }
         .onChange(of: settings.additionalTimers) { _ in
@@ -1622,17 +1618,24 @@ struct ContentView: View {
             ])
         }
         // When returning to the foreground, resync timer countdowns with wall-clock time
+        // and manage Watch sync timer based on app state
         .onChange(of: scenePhase) { newPhase in
             if newPhase == .active {
                 resyncTimersAfterForeground()
                 resyncPreheatAfterForeground()
+                // Immediately send a fresh snapshot to Watch to sync after background period
+                sendWatchSnapshotImmediately()
+                // Resume Watch sync timer when app becomes active
+                startWatchSyncTimer()
+            } else if newPhase == .background || newPhase == .inactive {
+                // Pause Watch sync timer to save battery when app goes to background
+                stopWatchSyncTimer()
             }
         }
         .onDisappear {
             // Ensure no lingering haptic loop when leaving
             if alertState.showPreheatAlert { alertState.showPreheatAlert = false }
-            watchSyncTimer?.invalidate()
-            watchSyncTimer = nil
+            stopWatchSyncTimer()
             // Remove command observer to avoid leaks/duplicates
             if let observer = watchCommandObserver {
                 NotificationCenter.default.removeObserver(observer)
@@ -1669,6 +1672,51 @@ struct ContentView: View {
     }
 
     // MARK: - Watch sync helpers
+    
+    /// Starts the Watch sync timer that sends periodic updates to the Watch app.
+    /// Only sends updates when values actually change to reduce WatchConnectivity throttling.
+    private func startWatchSyncTimer() {
+        // Stop any existing timer first
+        stopWatchSyncTimer()
+        
+        // Only start timer if app is active
+        guard scenePhase == .active else { return }
+        
+        watchSyncTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            let snapshot = self.buildWatchSnapshot()
+            
+            // Only send if snapshot has changed (reduces WatchConnectivity throttling)
+            // Compare by converting to NSDictionary for proper deep equality check
+            if let last = self.lastSnapshot {
+                let currentDict = NSDictionary(dictionary: snapshot)
+                let lastDict = NSDictionary(dictionary: last)
+                if currentDict.isEqual(to: lastDict) {
+                    // No change, skip sending
+                    return
+                }
+            }
+            
+            // Check if Watch is reachable before sending (optional optimization)
+            // Note: updateApplicationContext works even when not reachable, but checking
+            // helps avoid unnecessary work
+            let session = WCSession.default
+            if WCSession.isSupported() && session.activationState == .activated {
+                let success = WCSessionManager.shared.sendTimersSnapshot(snapshot)
+                if success {
+                    self.lastSnapshot = snapshot
+                }
+            }
+        }
+        RunLoop.main.add(watchSyncTimer!, forMode: .common)
+    }
+    
+    /// Stops the Watch sync timer to save battery.
+    private func stopWatchSyncTimer() {
+        watchSyncTimer?.invalidate()
+        watchSyncTimer = nil
+    }
+    
     /// Build a compact, plist-safe snapshot of current timers for the watch list.
     private func buildWatchSnapshot() -> [String: Any] {
         let rows: [[String: Any]] = settings.allTimers.compactMap { timer in
@@ -1692,6 +1740,14 @@ struct ContentView: View {
             ]
         }
         return ["timers": rows]
+    }
+    
+    /// Sends a snapshot to Watch immediately, bypassing change detection.
+    /// Used for critical updates like responding to Watch commands.
+    private func sendWatchSnapshotImmediately() {
+        let snapshot = buildWatchSnapshot()
+        _ = WCSessionManager.shared.sendTimersSnapshot(snapshot)
+        lastSnapshot = snapshot
     }
     
     // MARK: - Notification helpers (ContentView)

@@ -38,17 +38,31 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
     /// Sends a full timers snapshot to the counterpart using application context.
     /// - Parameter snapshot: A dictionary representing the current timers state.
     ///                       Use only property list compatible values.
-    func sendTimersSnapshot(_ snapshot: [String: Any]) {
-        guard WCSession.isSupported() else { return }
+    /// - Returns: true if sent successfully, false otherwise
+    @discardableResult
+    func sendTimersSnapshot(_ snapshot: [String: Any]) -> Bool {
+        guard WCSession.isSupported() else { return false }
+        let session = WCSession.default
+        
+        // Check if session is activated before attempting to send
+        guard session.activationState == .activated else {
+            #if DEBUG
+            print("[WCSessionManager] Session not activated (state: \(session.activationState.rawValue))")
+            #endif
+            return false
+        }
+        
         do {
-            try WCSession.default.updateApplicationContext(snapshot)
+            try session.updateApplicationContext(snapshot)
             #if DEBUG
             print("[WCSessionManager] updateApplicationContext sent: \(snapshot.keys)")
             #endif
+            return true
         } catch {
             #if DEBUG
             print("[WCSessionManager] Failed to update application context: \(error)")
             #endif
+            return false
         }
     }
 

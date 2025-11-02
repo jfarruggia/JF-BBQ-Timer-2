@@ -679,7 +679,7 @@
 				);
 				MARKETING_VERSION = 1.3.0;
 				NEW_SETTING = "";
-				PRODUCT_BUNDLE_IDENTIFIER = "com.jamesfarruggia.JF-BBQ-Timer";
+				PRODUCT_BUNDLE_IDENTIFIER = com.jamesfarruggia.jfbbqtimer.dev;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -715,7 +715,7 @@
 				);
 				MARKETING_VERSION = 1.3.0;
 				NEW_SETTING = "";
-				PRODUCT_BUNDLE_IDENTIFIER = "com.jamesfarruggia.JF-BBQ-Timer";
+				PRODUCT_BUNDLE_IDENTIFIER = com.jamesfarruggia.jfbbqtimer.dev;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -805,13 +805,13 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "GrillTime Pro Watch App";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "com.jamesfarruggia.JF-BBQ-Timer";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.jamesfarruggia.jfbbqtimer.dev;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.jamesfarruggia.JF-BBQ-Timer.watchkitapp";
+				PRODUCT_BUNDLE_IDENTIFIER = com.jamesfarruggia.jfbbqtimer.dev.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
@@ -834,13 +834,13 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "GrillTime Pro Watch App";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "com.jamesfarruggia.JF-BBQ-Timer";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.jamesfarruggia.jfbbqtimer.dev;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.jamesfarruggia.JF-BBQ-Timer.watchkitapp";
+				PRODUCT_BUNDLE_IDENTIFIER = com.jamesfarruggia.jfbbqtimer.dev.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;

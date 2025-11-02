@@ -204,6 +204,16 @@ struct TimersListView: View {
     private func effectiveRemaining(for row: WatchTimersModel.Row) -> Int {
         guard isRunning(row), let snap = model.lastSnapshotAt else { return row.remaining }
         let delta = max(0, Int(now.timeIntervalSince(snap)))
+        
+        // If drift is too large (> 5 seconds), request a fresh snapshot from iPhone
+        // This handles cases where Watch was offline or WatchConnectivity was delayed
+        if delta > 5 {
+            #if DEBUG
+            print("[Watch] Large drift detected (\(delta)s), requesting fresh snapshot")
+            #endif
+            WCSessionManager.shared.sendCommand(["action": "requestSnapshot"])
+        }
+        
         return max(0, row.remaining - delta)
     }
 
@@ -410,7 +420,8 @@ final class WatchTimersModel: ObservableObject {
     init() {
         NotificationCenter.default.addObserver(forName: Notification.Name("receivedTimersSnapshot"), object: nil, queue: .main) { [weak self] note in
             guard let dict = note.userInfo as? [String: Any], let arr = dict["timers"] as? [[String: Any]] else { return }
-            self?.lastSnapshotAt = Date()
+            let snapshotDate = Date()
+            self?.lastSnapshotAt = snapshotDate
             self?.timers = arr.compactMap { item in
                 guard let id = item["id"] as? String,
                       let name = item["name"] as? String,
@@ -420,6 +431,10 @@ final class WatchTimersModel: ObservableObject {
                 let preset2 = item["preset2"] as? Int
                 let elapsed = item["elapsed"] as? Int
                 return Row(id: id, name: name, remaining: remaining, state: state, preset1Seconds: preset1, preset2Seconds: preset2, elapsedSeconds: elapsed)
+            }
+            // Update complication with the soonest finishing timer
+            if let timers = self?.timers {
+                ComplicationDataSource.shared.updateSoonestTimer(from: timers, snapshotDate: snapshotDate)
             }
         }
         // Listen for explicit alert messages sent from iPhone via the session manager

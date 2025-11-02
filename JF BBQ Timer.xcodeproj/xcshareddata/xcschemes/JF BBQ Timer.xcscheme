@@ -21,6 +21,20 @@
                ReferencedContainer = "container:JF BBQ Timer.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "YES"
+            buildForProfiling = "YES"
+            buildForArchiving = "YES"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "90389FB72E529B10007EB2F8"
+               BuildableName = "GrillTime Pro Watch App Watch App.app"
+               BlueprintName = "GrillTime Pro Watch App Watch App"
+               ReferencedContainer = "container:JF BBQ Timer.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
