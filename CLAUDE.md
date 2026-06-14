@@ -81,6 +81,7 @@ The app builds against the iOS/watchOS 26 SDK. Recompiling against this SDK caus
 - Claude Code handles all git operations, **including committing and merging PRs.** Open a PR per concern, verify it builds, then merge it (squash) into the working branch. Jim can review any PR on GitHub but does not need to merge manually.
 - Stage specific files and review `git diff` before committing — avoid `git add -A` so build-induced changes (e.g. Xcode reformatting `project.pbxproj`) don't sweep into commits.
 - Prefer small, reviewable commits with clear messages.
+- **Work autonomously on low-risk tasks** (reading, builds/tests, searches, code edits, committing/merging build-verified cleanup & refactor PRs, docs/config) — act and report, don't ask. **Pause and ask only for consequential decisions:** changes that risk the live app's user-facing behavior, anything irreversible (force-push, history rewrite, data deletion), new dependencies, App Store submission, or design choices with real tradeoffs. A scoped permissions allowlist in `.claude/settings.json` reflects this (routine tools auto-approved; destructive git denied).
 
 ---
 *Keep this file current. If you discover the architecture differs from what's described here, update it as part of your change.*
