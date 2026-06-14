@@ -78,7 +78,8 @@ The app builds against the iOS/watchOS 26 SDK. Recompiling against this SDK caus
 ## Workflow
 
 - Jim writes/approves a spec before implementation. Work from the spec; if the spec is ambiguous, ask before guessing.
-- Claude Code handles all git operations; **Jim reviews and merges manually.**
+- Claude Code handles all git operations, **including committing and merging PRs.** Open a PR per concern, verify it builds, then merge it (squash) into the working branch. Jim can review any PR on GitHub but does not need to merge manually.
+- Stage specific files and review `git diff` before committing — avoid `git add -A` so build-induced changes (e.g. Xcode reformatting `project.pbxproj`) don't sweep into commits.
 - Prefer small, reviewable commits with clear messages.
 
 ---
