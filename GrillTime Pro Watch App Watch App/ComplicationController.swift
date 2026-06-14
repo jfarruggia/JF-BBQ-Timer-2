@@ -56,7 +56,7 @@ class ComplicationController: NSObject, CLKComplicationDataSource {
             CLKComplicationDescriptor(
                 identifier: "GrillTimeTimer",
                 displayName: "GrillTime Timer",
-                supportedFamilies: [.modularMedium] // Medium complication only
+                supportedFamilies: [.graphicRectangular] // Medium-style rectangular complication
             )
         ]
         handler(descriptors)
@@ -80,17 +80,21 @@ class ComplicationController: NSObject, CLKComplicationDataSource {
     // MARK: - Timeline Population
     
     func getCurrentTimelineEntry(for complication: CLKComplication, withHandler handler: @escaping (CLKComplicationTimelineEntry?) -> Void) {
-        guard complication.family == .modularMedium else {
+        guard complication.family == .graphicRectangular else {
             handler(nil)
             return
         }
-        
-        let template = createTemplate()
+        let template = createTemplate(for: complication.family)
         let entry = CLKComplicationTimelineEntry(date: Date(), complicationTemplate: template)
         handler(entry)
     }
     
     func getTimelineEntries(for complication: CLKComplication, after date: Date, limit: Int, withHandler handler: @escaping ([CLKComplicationTimelineEntry]?) -> Void) {
+        guard complication.family == .graphicRectangular else {
+            handler(nil)
+            return
+        }
+        
         // For simplicity, we'll just update every minute
         // In a production app, you might want to update more frequently
         var entries: [CLKComplicationTimelineEntry] = []
@@ -98,7 +102,7 @@ class ComplicationController: NSObject, CLKComplicationDataSource {
         
         for i in 0..<min(limit, 60) { // Up to 60 entries (1 hour)
             if let nextDate = calendar.date(byAdding: .minute, value: i, to: date) {
-                let template = createTemplate(for: nextDate)
+                let template = createTemplate(for: complication.family, date: nextDate)
                 let entry = CLKComplicationTimelineEntry(date: nextDate, complicationTemplate: template)
                 entries.append(entry)
             }
@@ -111,18 +115,18 @@ class ComplicationController: NSObject, CLKComplicationDataSource {
     
     func getLocalizableSampleTemplate(for complication: CLKComplication, withHandler handler: @escaping (CLKComplicationTemplate?) -> Void) {
         // Create a sample template for the complication picker
-        let template = createSampleTemplate()
+        let template = createSampleTemplate(for: complication.family)
         handler(template)
     }
     
     // MARK: - Template Creation
     
-    private func createTemplate(for date: Date = Date()) -> CLKComplicationTemplate {
+    private func createTemplate(for family: CLKComplicationFamily, date: Date = Date()) -> CLKComplicationTemplate {
         let dataSource = ComplicationDataSource.shared
         
         guard let timer = dataSource.soonestTimer else {
             // No running timers - show placeholder
-            return createEmptyTemplate()
+            return createEmptyTemplate(for: family)
         }
         
         // Calculate effective remaining time accounting for time elapsed since last update
@@ -135,26 +139,49 @@ class ComplicationController: NSObject, CLKComplicationDataSource {
         let seconds = effectiveRemaining % 60
         let timeString = String(format: "%d:%02d", minutes, seconds)
         
-        // Create the template with timer name and time
-        let template = CLKComplicationTemplateModularMediumSimpleText()
-        template.headerTextProvider = CLKSimpleTextProvider(text: timer.name)
-        template.bodyTextProvider = CLKSimpleTextProvider(text: timeString)
-        
-        return template
+        // Create a Graphic Rectangular template with title + time
+        switch family {
+        case .graphicRectangular:
+            let template = CLKComplicationTemplateGraphicRectangularStandardBody()
+            template.headerTextProvider = CLKSimpleTextProvider(text: timer.name)
+            template.body1TextProvider = CLKSimpleTextProvider(text: timeString)
+            return template
+        default:
+            let template = CLKComplicationTemplateGraphicRectangularStandardBody()
+            template.headerTextProvider = CLKSimpleTextProvider(text: timer.name)
+            template.body1TextProvider = CLKSimpleTextProvider(text: timeString)
+            return template
+        }
     }
     
-    private func createEmptyTemplate() -> CLKComplicationTemplate {
-        let template = CLKComplicationTemplateModularMediumSimpleText()
-        template.headerTextProvider = CLKSimpleTextProvider(text: "GrillTime")
-        template.bodyTextProvider = CLKSimpleTextProvider(text: "No timers")
-        return template
+    private func createEmptyTemplate(for family: CLKComplicationFamily) -> CLKComplicationTemplate {
+        switch family {
+        case .graphicRectangular:
+            let template = CLKComplicationTemplateGraphicRectangularStandardBody()
+            template.headerTextProvider = CLKSimpleTextProvider(text: "GrillTime")
+            template.body1TextProvider = CLKSimpleTextProvider(text: "No timers")
+            return template
+        default:
+            let template = CLKComplicationTemplateGraphicRectangularStandardBody()
+            template.headerTextProvider = CLKSimpleTextProvider(text: "GrillTime")
+            template.body1TextProvider = CLKSimpleTextProvider(text: "No timers")
+            return template
+        }
     }
     
-    private func createSampleTemplate() -> CLKComplicationTemplate {
-        let template = CLKComplicationTemplateModularMediumSimpleText()
-        template.headerTextProvider = CLKSimpleTextProvider(text: "Ribeye")
-        template.bodyTextProvider = CLKSimpleTextProvider(text: "5:30")
-        return template
+    private func createSampleTemplate(for family: CLKComplicationFamily) -> CLKComplicationTemplate {
+        switch family {
+        case .graphicRectangular:
+            let template = CLKComplicationTemplateGraphicRectangularStandardBody()
+            template.headerTextProvider = CLKSimpleTextProvider(text: "Ribeye")
+            template.body1TextProvider = CLKSimpleTextProvider(text: "5:30")
+            return template
+        default:
+            let template = CLKComplicationTemplateGraphicRectangularStandardBody()
+            template.headerTextProvider = CLKSimpleTextProvider(text: "Ribeye")
+            template.body1TextProvider = CLKSimpleTextProvider(text: "5:30")
+            return template
+        }
     }
 }
 

@@ -12,8 +12,12 @@ import WatchKit
 struct TimersListView: View {
     @StateObject private var model = WatchTimersModel()
     // Local ticker so the watch UI updates every second without waiting for iPhone
+    // Only active when timers are running to save battery
     @State private var now = Date()
-    private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    @State private var activeTickerTimer: Timer? = nil
+    // Retry requesting a snapshot from iPhone a few times on first launch
+    @State private var snapshotRetryCount: Int = 5
+    @State private var snapshotRetryTimer: Timer?
     // Tracks which timer page is currently visible so we can show its name in the top bar
     @State private var selectedTimerId: String? = nil
     // Request guard so we only ask iPhone for a snapshot once on launch
@@ -21,6 +25,11 @@ struct TimersListView: View {
     // Keeps the app executing when it leaves the foreground, similar to Apple's Timer app
     // so countdowns remain accurate and alerts can still be coordinated.
     private let runtime = ExtendedRuntimeController()
+    
+    // Check if any timer is currently running
+    private var hasRunningTimer: Bool {
+        model.timers.contains { $0.state == "running" }
+    }
 
     var body: some View {
         // NavigationStack provides the top system bar on watchOS
@@ -40,25 +49,65 @@ struct TimersListView: View {
                     }
                 }
         }
-        // Drive the local clock
-        .onReceive(ticker) { date in
-            now = date
-        }
         // Initialize the selection to the first timer when available
         .onAppear {
+            print("[⌚️Watch] 🚀 TimersListView appeared")
+            print("[⌚️Watch] Current timer count: \(model.timers.count)")
+            
             if selectedTimerId == nil {
                 selectedTimerId = model.timers.first?.id
+                print("[⌚️Watch] Selected first timer: \(selectedTimerId ?? "none")")
             }
+            
             // If we launch to an empty list, proactively ask iPhone for a snapshot
             if !hasRequestedInitialSnapshot && model.timers.isEmpty {
                 hasRequestedInitialSnapshot = true
+                print("[⌚️Watch] 📤 Requesting INITIAL snapshot from iPhone (timers empty)")
                 WCSessionManager.shared.sendCommand(["action": "requestSnapshot"])
+                
+                // Start a short retry loop so we recover if the first request races activation
+                snapshotRetryTimer?.invalidate()
+                snapshotRetryCount = 5
+                snapshotRetryTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+                    // Stop retrying once we have data
+                    if !model.timers.isEmpty || snapshotRetryCount <= 0 {
+                        if !model.timers.isEmpty {
+                            print("[⌚️Watch] ✅ Got timers! Stopping retry loop")
+                        } else {
+                            print("[⌚️Watch] ⏱️ Retry loop exhausted, still no timers")
+                        }
+                        snapshotRetryTimer?.invalidate()
+                        snapshotRetryTimer = nil
+                        return
+                    }
+                    snapshotRetryCount -= 1
+                    print("[⌚️Watch] 🔄 Retrying snapshot request (\(snapshotRetryCount) retries left)")
+                    WCSessionManager.shared.sendCommand(["action": "requestSnapshot"])
+                }
+                if let t = snapshotRetryTimer { RunLoop.main.add(t, forMode: .common) }
+            } else {
+                print("[⌚️Watch] ℹ️ Skipping initial snapshot request (already requested or have timers)")
             }
+            
             // Ensure extended runtime is active if any timers are already running
             refreshExtendedRuntimeSession()
         }
         // Keep the selection valid when the timers list changes
         .onChange(of: model.timers) { oldValue, newValue in
+            print("[⌚️Watch] 📊 Timers changed: \(oldValue.count) → \(newValue.count)")
+            
+            // Log which timers are now running
+            let runningTimers = newValue.filter { $0.state == "running" }
+            if !runningTimers.isEmpty {
+                print("[⌚️Watch] 🏃 Running timers: \(runningTimers.map { "\($0.name)(\($0.remaining)s)" }.joined(separator: ", "))")
+                // Start the UI ticker when a timer starts running
+                startTickerIfNeeded()
+            } else {
+                print("[⌚️Watch] ⏸️ No timers currently running")
+                // Stop the UI ticker to save battery when no timers are running
+                stopTicker()
+            }
+            
             if let current = selectedTimerId,
                newValue.contains(where: { $0.id == current }) {
                 // keep current selection
@@ -101,11 +150,15 @@ struct TimersListView: View {
                 .foregroundColor(.secondary)
             Button("Refresh") {
                 // Ask the iPhone for a snapshot (safe no-op if ignored)
+                print("[⌚️Watch] 👆 User tapped REFRESH button")
                 WCSessionManager.shared.sendCommand(["action": "requestSnapshot"])
             }
             .buttonStyle(.borderedProminent)
         }
         .padding()
+        .onAppear {
+            print("[⌚️Watch] ⚠️ Showing EMPTY STATE - no timers available")
+        }
     }
 
     private var timersPager: some View {
@@ -385,14 +438,54 @@ struct TimersListView: View {
         }
     }
 
-    /// Starts extended runtime while any timer is running; invalidates otherwise.
+    /// Manages the extended runtime session to keep the app active while timers are running.
+    /// This helps prevent the watch from going back to the watch face too quickly.
     private func refreshExtendedRuntimeSession() {
-        let anyRunning = model.timers.contains { $0.state == "running" }
-        if anyRunning {
-            runtime.startIfNeeded()
+        if hasRunningTimer {
+            // Start extended runtime if a timer is running
+            if !runtime.isRunning {
+                print("[⌚️Watch] 🔋 Starting extended runtime session (timer running)")
+                runtime.startIfNeeded()
+            }
         } else {
-            runtime.invalidate()
+            // Stop extended runtime if no timers are running
+            if runtime.isRunning {
+                print("[⌚️Watch] 🔋 Stopping extended runtime session (no timers running)")
+                runtime.invalidate()
+            }
         }
+    }
+    
+    // MARK: - Ticker Management (Battery Optimization)
+    
+    /// Starts the 1-second UI ticker if not already running.
+    /// Only runs when timers are active to save battery.
+    private func startTickerIfNeeded() {
+        guard activeTickerTimer == nil else {
+            // Ticker already running
+            return
+        }
+        
+        print("[⌚️Watch] ⏱️ Starting UI ticker (timer is running)")
+        activeTickerTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            now = Date()
+        }
+        // Ensure the timer fires even during scrolling
+        if let timer = activeTickerTimer {
+            RunLoop.main.add(timer, forMode: .common)
+        }
+    }
+    
+    /// Stops the UI ticker to conserve battery when no timers are running.
+    private func stopTicker() {
+        guard activeTickerTimer != nil else {
+            // Ticker not running
+            return
+        }
+        
+        print("[⌚️Watch] ⏱️ Stopping UI ticker (no timers running) - saving battery")
+        activeTickerTimer?.invalidate()
+        activeTickerTimer = nil
     }
 }
 
@@ -418,60 +511,135 @@ final class WatchTimersModel: ObservableObject {
     @Published var alertMessage: String? = nil
 
     init() {
+        print("[⌚️Watch] WatchTimersModel initialized - setting up notification observers")
+        
+        // Log current timer count for debugging
+        print("[⌚️Watch] Current timers count at init: \(timers.count)")
+        
         NotificationCenter.default.addObserver(forName: Notification.Name("receivedTimersSnapshot"), object: nil, queue: .main) { [weak self] note in
-            guard let dict = note.userInfo as? [String: Any], let arr = dict["timers"] as? [[String: Any]] else { return }
+            print("[⌚️Watch] 🔔 receivedTimersSnapshot notification RECEIVED")
+            
+            guard let dict = note.userInfo as? [String: Any] else {
+                print("[⌚️Watch] ❌ receivedTimersSnapshot: NO userInfo dictionary!")
+                return
+            }
+            
+            print("[⌚️Watch] 📦 userInfo keys: \(dict.keys.joined(separator: ", "))")
+            
+            guard let arr = dict["timers"] as? [[String: Any]] else {
+                print("[⌚️Watch] ❌ receivedTimersSnapshot: missing 'timers' array. Available keys: \(dict.keys)")
+                return
+            }
+            
+            print("[⌚️Watch] ✅ Found timers array with \(arr.count) items")
+            
+            // Log each timer in the received snapshot
+            for (index, timer) in arr.enumerated() {
+                let name = timer["name"] as? String ?? "?"
+                let state = timer["state"] as? String ?? "?"
+                let remaining = timer["remaining"] as? Int ?? 0
+                print("[⌚️Watch]   📋 Timer \(index+1): '\(name)' - state=\(state) - \(remaining)s remaining")
+            }
+            
             let snapshotDate = Date()
             self?.lastSnapshotAt = snapshotDate
-            self?.timers = arr.compactMap { item in
-                guard let id = item["id"] as? String,
-                      let name = item["name"] as? String,
-                      let remaining = item["remaining"] as? Int,
-                      let state = item["state"] as? String else { return nil }
+            
+            // Parse timers and track any parsing failures
+            let parsedTimers = arr.compactMap { item -> Row? in
+                guard let id = item["id"] as? String else {
+                    print("[⌚️Watch] ⚠️ Timer missing 'id' field")
+                    return nil
+                }
+                guard let name = item["name"] as? String else {
+                    print("[⌚️Watch] ⚠️ Timer \(id) missing 'name' field")
+                    return nil
+                }
+                guard let remaining = item["remaining"] as? Int else {
+                    print("[⌚️Watch] ⚠️ Timer \(name) missing 'remaining' field")
+                    return nil
+                }
+                guard let state = item["state"] as? String else {
+                    print("[⌚️Watch] ⚠️ Timer \(name) missing 'state' field")
+                    return nil
+                }
                 let preset1 = item["preset1"] as? Int
                 let preset2 = item["preset2"] as? Int
                 let elapsed = item["elapsed"] as? Int
                 return Row(id: id, name: name, remaining: remaining, state: state, preset1Seconds: preset1, preset2Seconds: preset2, elapsedSeconds: elapsed)
             }
+            
+            let previousCount = self?.timers.count ?? 0
+            self?.timers = parsedTimers
+            print("[⌚️Watch] ✅ Updated timers: \(previousCount) → \(parsedTimers.count)")
+            
             // Update complication with the soonest finishing timer
             if let timers = self?.timers {
                 ComplicationDataSource.shared.updateSoonestTimer(from: timers, snapshotDate: snapshotDate)
+                
+                // Log final state of all timers
+                print("[⌚️Watch] 📊 Final timer states after update:")
+                for (index, timer) in timers.enumerated() {
+                    print("[⌚️Watch]   \(index+1). \(timer.name): \(timer.state) - \(timer.remaining)s")
+                }
             }
         }
+        
         // Listen for explicit alert messages sent from iPhone via the session manager
         NotificationCenter.default.addObserver(forName: Notification.Name("receivedAlert"), object: nil, queue: .main) { [weak self] note in
-            guard let info = note.userInfo as? [String: Any], let phase = info["phase"] as? String else { return }
+            print("[⌚️Watch] 🔔 receivedAlert notification")
+            guard let info = note.userInfo as? [String: Any], let phase = info["phase"] as? String else {
+                print("[⌚️Watch] ⚠️ receivedAlert: missing phase")
+                return
+            }
+            print("[⌚️Watch] Alert phase: \(phase)")
             if phase == "start" {
                 let msg = (info["message"] as? String) ?? "Timer Finished"
                 self?.alertMessage = msg
+                print("[⌚️Watch] 🚨 Showing alert: \(msg)")
             } else if phase == "stop" {
                 self?.alertMessage = nil
+                print("[⌚️Watch] ✅ Alert dismissed")
             }
         }
+        
+        print("[⌚️Watch] ✅ WatchTimersModel notification observers registered")
     }
 }
 
 // MARK: - Extended runtime controller
 /// Lightweight wrapper around `WKExtendedRuntimeSession` that starts a background
-/// execution window while timers are active, helping keep countdowns accurate
-/// when the app returns to the watch face. It does not keep the app visible.
+/// execution window while timers are active, helping keep the app active longer
+/// and allowing it to continue running when the user lowers their wrist.
 final class ExtendedRuntimeController: NSObject, WKExtendedRuntimeSessionDelegate {
     private var session: WKExtendedRuntimeSession?
     private(set) var isRunning: Bool = false
 
     /// Start a new extended runtime session if not already running.
     func startIfNeeded() {
-        if isRunning { return }
+        if isRunning {
+            print("[⌚️Watch] 🔋 Extended runtime already running, skipping start")
+            return
+        }
+        
+        print("[⌚️Watch] 🔋 Creating new extended runtime session...")
+        
         // Always create a fresh session to avoid edge states
         session?.invalidate()
         let newSession = WKExtendedRuntimeSession()
         newSession.delegate = self
         session = newSession
         newSession.start()
+        
+        print("[⌚️Watch] 🔋 Extended runtime session start() called")
     }
 
     /// End the session if one is active.
     func invalidate() {
-        guard let s = session else { return }
+        guard let s = session else {
+            print("[⌚️Watch] 🔋 No extended runtime session to invalidate")
+            return
+        }
+        print("[⌚️Watch] 🔋 Invalidating extended runtime session...")
         s.invalidate()
         session = nil
         isRunning = false
@@ -480,23 +648,32 @@ final class ExtendedRuntimeController: NSObject, WKExtendedRuntimeSessionDelegat
     // MARK: - WKExtendedRuntimeSessionDelegate
     func extendedRuntimeSessionDidStart(_ extendedRuntimeSession: WKExtendedRuntimeSession) {
         isRunning = true
-        #if DEBUG
-        print("[ExtendedRuntime] didStart")
-        #endif
+        print("[⌚️Watch] ✅ Extended runtime session STARTED successfully")
     }
 
     func extendedRuntimeSessionWillExpire(_ extendedRuntimeSession: WKExtendedRuntimeSession) {
-        #if DEBUG
-        print("[ExtendedRuntime] willExpire soon")
-        #endif
+        print("[⌚️Watch] ⚠️ Extended runtime session will EXPIRE soon")
     }
 
     func extendedRuntimeSession(_ extendedRuntimeSession: WKExtendedRuntimeSession, didInvalidateWith reason: WKExtendedRuntimeSessionInvalidationReason, error: Error?) {
         isRunning = false
         session = nil
-        #if DEBUG
-        print("[ExtendedRuntime] invalidated, reason=\(reason.rawValue), error=\(String(describing: error))")
-        #endif
+        
+        // Describe the invalidation reason (API varies by watchOS version)
+        let reasonDescription: String
+        switch reason {
+        case .none: reasonDescription = "none"
+        case .error: reasonDescription = "error"
+        case .expired: reasonDescription = "expired"
+        case .resignedFrontmost: reasonDescription = "resignedFrontmost"
+        @unknown default: reasonDescription = "unknown(\(reason.rawValue))"
+        }
+        
+        if let error = error {
+            print("[⌚️Watch] ❌ Extended runtime INVALIDATED: \(reasonDescription), error: \(error.localizedDescription)")
+        } else {
+            print("[⌚️Watch] 🔋 Extended runtime INVALIDATED: \(reasonDescription)")
+        }
     }
 }
 

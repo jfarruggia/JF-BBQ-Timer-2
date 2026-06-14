@@ -1497,6 +1497,7 @@ struct ContentView: View {
         }
         .buttonStyle(HapticButtonStyle())
         .onAppear {
+            print("[📱iOS] 🚀 ContentView.onAppear - scenePhase: \(scenePhase)")
             timerStates.updateSettings(settings)
             initializeTimerStates()
             settings.initializeVoiceSettings()
@@ -1507,7 +1508,11 @@ struct ContentView: View {
             // Start periodic WatchConnectivity sync so the watch list populates
             // and stays updated while the iPhone app is open. This uses a very
             // small, plist-safe payload built from current timers and states.
-            startWatchSyncTimer()
+            // Use a short delay to ensure scenePhase has updated to .active
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                print("[📱iOS] 🕐 Delayed sync timer start - scenePhase: \(scenePhase)")
+                startWatchSyncTimer()
+            }
             // Listen for a watch-originating command to apply Preset 1 to a
             // specific timer, respecting whatever Preset 1 value is currently
             // configured in the main iPhone app settings for that timer.
@@ -1598,6 +1603,9 @@ struct ContentView: View {
             print("Sound enabled changed to \(settings.soundEnabled), updating timer states")
             timerStates.updateSettings(settings)
         }
+        // Note: TimerStatesManager.objectWillChange only fires when the states array
+        // changes (add/remove), not when individual timer properties change.
+        // Timer state syncing is handled by the sync timer in startWatchSyncTimer().
         // Mirror iPhone alerts to Watch
         .onChange(of: alertState.isPresented) { isShown in
             let phase = isShown ? "start" : "stop"
@@ -1620,7 +1628,9 @@ struct ContentView: View {
         // When returning to the foreground, resync timer countdowns with wall-clock time
         // and manage Watch sync timer based on app state
         .onChange(of: scenePhase) { newPhase in
+            print("[📱iOS] 📱 scenePhase changed to: \(newPhase)")
             if newPhase == .active {
+                print("[📱iOS] 📱 App became ACTIVE - starting watch sync")
                 resyncTimersAfterForeground()
                 resyncPreheatAfterForeground()
                 // Immediately send a fresh snapshot to Watch to sync after background period
@@ -1628,6 +1638,7 @@ struct ContentView: View {
                 // Resume Watch sync timer when app becomes active
                 startWatchSyncTimer()
             } else if newPhase == .background || newPhase == .inactive {
+                print("[📱iOS] 📱 App went to \(newPhase) - stopping watch sync")
                 // Pause Watch sync timer to save battery when app goes to background
                 stopWatchSyncTimer()
             }
@@ -1674,32 +1685,54 @@ struct ContentView: View {
     // MARK: - Watch sync helpers
     
     /// Starts the Watch sync timer that sends periodic updates to the Watch app.
-    /// Only sends updates when values actually change to reduce WatchConnectivity throttling.
+    /// The timer always runs at 1 second intervals but only sends messages when:
+    /// - At least one timer is running, OR
+    /// - The snapshot has changed (timer just started/stopped)
+    /// This allows the Watch to sleep naturally when no messages are being sent.
     private func startWatchSyncTimer() {
+        print("[📱iOS] 🕐 startWatchSyncTimer() called - scenePhase: \(scenePhase)")
+        
         // Stop any existing timer first
         stopWatchSyncTimer()
         
-        // Only start timer if app is active
-        guard scenePhase == .active else { return }
+        // In iOS 26+, scenePhase might not update to .active immediately on launch.
+        // Allow starting the timer if scenePhase is .active OR if we're still in the
+        // initial launch phase (when scenePhase might be .inactive briefly).
+        guard scenePhase == .active || scenePhase == .inactive else {
+            print("[📱iOS] ⚠️ startWatchSyncTimer: skipped - scenePhase is \(scenePhase)")
+            return
+        }
         
-        watchSyncTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            guard let self = self else { return }
+        print("[📱iOS] ✅ Starting watch sync timer (1s interval)")
+        
+        watchSyncTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
             let snapshot = self.buildWatchSnapshot()
             
+            // Check if any timers are running
+            var hasRunningTimer = false
+            if let timers = snapshot["timers"] as? [[String: Any]] {
+                let runningCount = timers.filter { ($0["state"] as? String) == "running" }.count
+                hasRunningTimer = runningCount > 0
+                if hasRunningTimer {
+                    print("[📱iOS] 🔄 Sync tick: \(runningCount) running timer(s)")
+                }
+            }
+            
             // Only send if snapshot has changed (reduces WatchConnectivity throttling)
-            // Compare by converting to NSDictionary for proper deep equality check
             if let last = self.lastSnapshot {
-                let currentDict = NSDictionary(dictionary: snapshot)
-                let lastDict = NSDictionary(dictionary: last)
-                if currentDict.isEqual(to: lastDict) {
-                    // No change, skip sending
+                if NSDictionary(dictionary: snapshot).isEqual(to: last) {
+                    // No change - skip sending to let Watch sleep when idle
                     return
                 }
             }
             
-            // Check if Watch is reachable before sending (optional optimization)
-            // Note: updateApplicationContext works even when not reachable, but checking
-            // helps avoid unnecessary work
+            // Snapshot changed - send it (this catches timer start/stop transitions)
+            if hasRunningTimer {
+                print("[📱iOS] 📤 Sync timer sending snapshot (timer running)...")
+            } else {
+                print("[📱iOS] 📤 Sync timer sending snapshot (state changed)...")
+            }
+            
             let session = WCSession.default
             if WCSession.isSupported() && session.activationState == .activated {
                 let success = WCSessionManager.shared.sendTimersSnapshot(snapshot)
@@ -1709,10 +1742,14 @@ struct ContentView: View {
             }
         }
         RunLoop.main.add(watchSyncTimer!, forMode: .common)
+        print("[📱iOS] ✅ Watch sync timer started and added to RunLoop")
     }
     
     /// Stops the Watch sync timer to save battery.
     private func stopWatchSyncTimer() {
+        if watchSyncTimer != nil {
+            print("[📱iOS] 🛑 Stopping watch sync timer")
+        }
         watchSyncTimer?.invalidate()
         watchSyncTimer = nil
     }
@@ -1746,6 +1783,13 @@ struct ContentView: View {
     /// Used for critical updates like responding to Watch commands.
     private func sendWatchSnapshotImmediately() {
         let snapshot = buildWatchSnapshot()
+        
+        // Log what we're sending for debugging
+        if let timers = snapshot["timers"] as? [[String: Any]] {
+            let runningTimers = timers.filter { ($0["state"] as? String) == "running" }
+            print("[📱iOS] 📤 sendWatchSnapshotImmediately: \(timers.count) timers, \(runningTimers.count) running")
+        }
+        
         _ = WCSessionManager.shared.sendTimersSnapshot(snapshot)
         lastSnapshot = snapshot
     }

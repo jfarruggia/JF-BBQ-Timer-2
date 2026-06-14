@@ -267,12 +267,9 @@ struct JF_BBQ_TimerApp: App {
                 if hasOnboarded { hydrateSettingsFromDefaults() }
                 // Apply any UI test launch arguments (premium, generate timers)
                 applyUITestArguments()
-                // After launch, proactively send a timers snapshot to the watch so
-                // the watch UI has something to render immediately. A short delay
-                // gives WatchConnectivity time to activate.
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    TimerCenter.shared.publishTimersToWatch()
-                }
+                // Note: Watch sync is handled by ContentView's startWatchSyncTimer()
+                // which sends proper timer data. TimerCenter.publishTimersToWatch()
+                // was removed because it sent empty snapshots.
             }
             .onChange(of: hasOnboarded) { didOnboard in
                 if didOnboard {
