@@ -161,20 +161,8 @@ struct TimerContainerAppearance: ViewModifier {
     var isLargeTimer: Bool = false
 
     func body(content: Content) -> some View {
-        content
-            .padding(.vertical, isLargeTimer ? 8 : 0)
-            .background(Color("TimerContainerBG"))
-            .cornerRadius(isLargeTimer ? 15 : 0)
-            .overlay(
-                Group {
-                    if !skipBorder {
-                        RoundedRectangle(cornerRadius: 15)
-                            .stroke(timerState.isCompleted ? Color.red : Color.black,
-                                    lineWidth: timerState.isCompleted ? 12 : 2)
-                            .animation(.easeInOut(duration: 0.3), value: timerState.isCompleted)
-                    }
-                }
-            )
+        styledCard(content)
+            .overlay(cardBorder)
             .if(isLargeTimer) { view in
                 view
                     .frame(maxWidth: .infinity)
@@ -191,6 +179,38 @@ struct TimerContainerAppearance: ViewModifier {
             .onAppear {
                 previousIntervalTime = timerState.intervalTime
             }
+    }
+
+    @ViewBuilder
+    private func styledCard(_ content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content
+                .padding(.vertical, isLargeTimer ? 8 : 0)
+                .glassEffect(in: RoundedRectangle(cornerRadius: isLargeTimer ? 15 : 0))
+        } else {
+            content
+                .padding(.vertical, isLargeTimer ? 8 : 0)
+                .background(Color("TimerContainerBG"))
+                .cornerRadius(isLargeTimer ? 15 : 0)
+        }
+    }
+
+    @ViewBuilder
+    private var cardBorder: some View {
+        if !skipBorder {
+            if #available(iOS 26, *) {
+                // Glass defines its own visual boundary; only flash red on completion
+                RoundedRectangle(cornerRadius: 15)
+                    .stroke(timerState.isCompleted ? Color.red : Color.clear,
+                            lineWidth: timerState.isCompleted ? 12 : 0)
+                    .animation(.easeInOut(duration: 0.3), value: timerState.isCompleted)
+            } else {
+                RoundedRectangle(cornerRadius: 15)
+                    .stroke(timerState.isCompleted ? Color.red : Color.black,
+                            lineWidth: timerState.isCompleted ? 12 : 2)
+                    .animation(.easeInOut(duration: 0.3), value: timerState.isCompleted)
+            }
+        }
     }
 
     private func calculateAdaptiveHeight() -> CGFloat {

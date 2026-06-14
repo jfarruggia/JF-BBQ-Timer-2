@@ -26,6 +26,47 @@ struct ContentView: View {
     @Namespace private var scrollNamespace
     @State private var lastCompletedTimerId: UUID? = nil
 
+    @ViewBuilder
+    private var appHeader: some View {
+        if #available(iOS 26, *) {
+            HStack {
+                Spacer()
+                Text("GrillTime Pro")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .accessibilityIdentifier("AppTitle")
+                Spacer()
+                Button(action: { showSettings = true }) {
+                    Image(systemName: "gear")
+                        .font(.system(size: 20))
+                        .foregroundColor(.white)
+                }
+                .accessibilityIdentifier("SettingsButton")
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .glassEffect()
+        } else {
+            HStack {
+                Spacer()
+                Text("GrillTime Pro")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .accessibilityIdentifier("AppTitle")
+                Spacer()
+                Button(action: { showSettings = true }) {
+                    Image(systemName: "gear")
+                        .font(.system(size: 20))
+                        .foregroundColor(.white)
+                }
+                .accessibilityIdentifier("SettingsButton")
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(Color("PrimaryBackground"))
+        }
+    }
+
     private func timeString(from timeInterval: TimeInterval) -> String {
         let totalSeconds = Int(timeInterval)
         let hours = totalSeconds / 3600
@@ -358,23 +399,7 @@ struct ContentView: View {
             Color("PrimaryBackground").ignoresSafeArea()
 
             VStack(spacing: 0) {
-                HStack {
-                    Spacer()
-                    Text("GrillTime Pro")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .accessibilityIdentifier("AppTitle")
-                    Spacer()
-                    Button(action: { showSettings = true }) {
-                        Image(systemName: "gear")
-                            .font(.system(size: 20))
-                            .foregroundColor(.white)
-                    }
-                    .accessibilityIdentifier("SettingsButton")
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
-                .background(Color("PrimaryBackground"))
+                appHeader
 
                 ScrollViewReader { proxy in
                     ScrollView {

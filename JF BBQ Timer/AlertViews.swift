@@ -81,32 +81,47 @@ struct PreheatAlertView: View {
                 .onTapGesture {
                     dismissAlert()
                 }
+            preheatCard
+        }
+        .onAppear { startAnimationTimer() }
+        .onDisappear { stopAnimationTimer() }
+    }
 
+    @ViewBuilder
+    private var preheatCard: some View {
+        if #available(iOS 26, *) {
             VStack(spacing: 16) {
                 Text("Preheat Complete! 🔥")
                     .font(.system(size: 24, weight: .bold, design: .rounded))
                     .multilineTextAlignment(.center)
-
-                Button("Dismiss") {
-                    dismissAlert()
-                }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 12)
-                .background(Color.blue)
-                .foregroundColor(.white)
-                .cornerRadius(8)
+                Button("Dismiss") { dismissAlert() }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
+            }
+            .padding(24)
+            .glassEffect(in: RoundedRectangle(cornerRadius: 16))
+            .modifier(PulsatingBorderModifier(animating: animationPhase))
+            .shadow(radius: 8)
+        } else {
+            VStack(spacing: 16) {
+                Text("Preheat Complete! 🔥")
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .multilineTextAlignment(.center)
+                Button("Dismiss") { dismissAlert() }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
             }
             .padding(24)
             .background(Color.white)
             .cornerRadius(16)
             .modifier(PulsatingBorderModifier(animating: animationPhase))
             .shadow(radius: 8)
-        }
-        .onAppear {
-            startAnimationTimer()
-        }
-        .onDisappear {
-            stopAnimationTimer()
         }
     }
 
