@@ -219,8 +219,6 @@ struct JF_BBQ_TimerApp: App {
     init() {
         // Activate WatchConnectivity session manager and log in debug builds
         WCSessionManager.shared.activate()
-        // Ensure TimerCenter is initialized so it can receive watch commands
-        _ = TimerCenter.shared
         #if DEBUG
         print("WCSession (iOS) activated")
         #endif
@@ -244,7 +242,6 @@ struct JF_BBQ_TimerApp: App {
                 // the initial Settings() instance.
                 settings.isPremiumUser = isPremium
                 UserDefaults.standard.set(isPremium, forKey: "isPremiumUser")
-                UserDefaults.standard.synchronize()
             }
         }
     }
@@ -267,9 +264,8 @@ struct JF_BBQ_TimerApp: App {
                 if hasOnboarded { hydrateSettingsFromDefaults() }
                 // Apply any UI test launch arguments (premium, generate timers)
                 applyUITestArguments()
-                // Note: Watch sync is handled by ContentView's startWatchSyncTimer()
-                // which sends proper timer data. TimerCenter.publishTimersToWatch()
-                // was removed because it sent empty snapshots.
+                // Note: Watch sync is handled by ContentView's startWatchSyncTimer(),
+                // which builds and sends the real timer snapshot.
             }
             .onChange(of: hasOnboarded) { didOnboard in
                 if didOnboard {

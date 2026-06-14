@@ -804,10 +804,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "GrillTime Pro Watch App";
-                INFOPLIST_KEY_CLKComplicationPrincipalClass = "$(PRODUCT_MODULE_NAME).ComplicationController";
-                INFOPLIST_KEY_CLKSupportedComplicationFamilies = (
-                    CLKComplicationFamilyGraphicRectangular,
-                );
+				INFOPLIST_KEY_CLKComplicationPrincipalClass = "$(PRODUCT_MODULE_NAME).ComplicationController";
+				INFOPLIST_KEY_CLKSupportedComplicationFamilies = CLKComplicationFamilyGraphicRectangular;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.jamesfarruggia.jfbbqtimer.dev;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -837,10 +835,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "GrillTime Pro Watch App";
-                INFOPLIST_KEY_CLKComplicationPrincipalClass = "$(PRODUCT_MODULE_NAME).ComplicationController";
-                INFOPLIST_KEY_CLKSupportedComplicationFamilies = (
-                    CLKComplicationFamilyGraphicRectangular,
-                );
+				INFOPLIST_KEY_CLKComplicationPrincipalClass = "$(PRODUCT_MODULE_NAME).ComplicationController";
+				INFOPLIST_KEY_CLKSupportedComplicationFamilies = CLKComplicationFamilyGraphicRectangular;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.jamesfarruggia.jfbbqtimer.dev;
 				LD_RUNPATH_SEARCH_PATHS = (
