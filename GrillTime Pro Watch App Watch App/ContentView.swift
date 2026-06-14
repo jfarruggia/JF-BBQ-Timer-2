@@ -51,18 +51,18 @@ struct TimersListView: View {
         }
         // Initialize the selection to the first timer when available
         .onAppear {
-            print("[⌚️Watch] 🚀 TimersListView appeared")
-            print("[⌚️Watch] Current timer count: \(model.timers.count)")
+            debugLog("[⌚️Watch] 🚀 TimersListView appeared")
+            debugLog("[⌚️Watch] Current timer count: \(model.timers.count)")
             
             if selectedTimerId == nil {
                 selectedTimerId = model.timers.first?.id
-                print("[⌚️Watch] Selected first timer: \(selectedTimerId ?? "none")")
+                debugLog("[⌚️Watch] Selected first timer: \(selectedTimerId ?? "none")")
             }
             
             // If we launch to an empty list, proactively ask iPhone for a snapshot
             if !hasRequestedInitialSnapshot && model.timers.isEmpty {
                 hasRequestedInitialSnapshot = true
-                print("[⌚️Watch] 📤 Requesting INITIAL snapshot from iPhone (timers empty)")
+                debugLog("[⌚️Watch] 📤 Requesting INITIAL snapshot from iPhone (timers empty)")
                 WCSessionManager.shared.sendCommand(["action": "requestSnapshot"])
                 
                 // Start a short retry loop so we recover if the first request races activation
@@ -72,21 +72,21 @@ struct TimersListView: View {
                     // Stop retrying once we have data
                     if !model.timers.isEmpty || snapshotRetryCount <= 0 {
                         if !model.timers.isEmpty {
-                            print("[⌚️Watch] ✅ Got timers! Stopping retry loop")
+                            debugLog("[⌚️Watch] ✅ Got timers! Stopping retry loop")
                         } else {
-                            print("[⌚️Watch] ⏱️ Retry loop exhausted, still no timers")
+                            debugLog("[⌚️Watch] ⏱️ Retry loop exhausted, still no timers")
                         }
                         snapshotRetryTimer?.invalidate()
                         snapshotRetryTimer = nil
                         return
                     }
                     snapshotRetryCount -= 1
-                    print("[⌚️Watch] 🔄 Retrying snapshot request (\(snapshotRetryCount) retries left)")
+                    debugLog("[⌚️Watch] 🔄 Retrying snapshot request (\(snapshotRetryCount) retries left)")
                     WCSessionManager.shared.sendCommand(["action": "requestSnapshot"])
                 }
                 if let t = snapshotRetryTimer { RunLoop.main.add(t, forMode: .common) }
             } else {
-                print("[⌚️Watch] ℹ️ Skipping initial snapshot request (already requested or have timers)")
+                debugLog("[⌚️Watch] ℹ️ Skipping initial snapshot request (already requested or have timers)")
             }
             
             // Ensure extended runtime is active if any timers are already running
@@ -94,16 +94,16 @@ struct TimersListView: View {
         }
         // Keep the selection valid when the timers list changes
         .onChange(of: model.timers) { oldValue, newValue in
-            print("[⌚️Watch] 📊 Timers changed: \(oldValue.count) → \(newValue.count)")
+            debugLog("[⌚️Watch] 📊 Timers changed: \(oldValue.count) → \(newValue.count)")
             
             // Log which timers are now running
             let runningTimers = newValue.filter { $0.state == "running" }
             if !runningTimers.isEmpty {
-                print("[⌚️Watch] 🏃 Running timers: \(runningTimers.map { "\($0.name)(\($0.remaining)s)" }.joined(separator: ", "))")
+                debugLog("[⌚️Watch] 🏃 Running timers: \(runningTimers.map { "\($0.name)(\($0.remaining)s)" }.joined(separator: ", "))")
                 // Start the UI ticker when a timer starts running
                 startTickerIfNeeded()
             } else {
-                print("[⌚️Watch] ⏸️ No timers currently running")
+                debugLog("[⌚️Watch] ⏸️ No timers currently running")
                 // Stop the UI ticker to save battery when no timers are running
                 stopTicker()
             }
@@ -150,14 +150,14 @@ struct TimersListView: View {
                 .foregroundColor(.secondary)
             Button("Refresh") {
                 // Ask the iPhone for a snapshot (safe no-op if ignored)
-                print("[⌚️Watch] 👆 User tapped REFRESH button")
+                debugLog("[⌚️Watch] 👆 User tapped REFRESH button")
                 WCSessionManager.shared.sendCommand(["action": "requestSnapshot"])
             }
             .buttonStyle(.borderedProminent)
         }
         .padding()
         .onAppear {
-            print("[⌚️Watch] ⚠️ Showing EMPTY STATE - no timers available")
+            debugLog("[⌚️Watch] ⚠️ Showing EMPTY STATE - no timers available")
         }
     }
 
@@ -262,7 +262,7 @@ struct TimersListView: View {
         // This handles cases where Watch was offline or WatchConnectivity was delayed
         if delta > 5 {
             #if DEBUG
-            print("[Watch] Large drift detected (\(delta)s), requesting fresh snapshot")
+            debugLog("[Watch] Large drift detected (\(delta)s), requesting fresh snapshot")
             #endif
             WCSessionManager.shared.sendCommand(["action": "requestSnapshot"])
         }
@@ -444,13 +444,13 @@ struct TimersListView: View {
         if hasRunningTimer {
             // Start extended runtime if a timer is running
             if !runtime.isRunning {
-                print("[⌚️Watch] 🔋 Starting extended runtime session (timer running)")
+                debugLog("[⌚️Watch] 🔋 Starting extended runtime session (timer running)")
                 runtime.startIfNeeded()
             }
         } else {
             // Stop extended runtime if no timers are running
             if runtime.isRunning {
-                print("[⌚️Watch] 🔋 Stopping extended runtime session (no timers running)")
+                debugLog("[⌚️Watch] 🔋 Stopping extended runtime session (no timers running)")
                 runtime.invalidate()
             }
         }
@@ -466,7 +466,7 @@ struct TimersListView: View {
             return
         }
         
-        print("[⌚️Watch] ⏱️ Starting UI ticker (timer is running)")
+        debugLog("[⌚️Watch] ⏱️ Starting UI ticker (timer is running)")
         activeTickerTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
             now = Date()
         }
@@ -483,7 +483,7 @@ struct TimersListView: View {
             return
         }
         
-        print("[⌚️Watch] ⏱️ Stopping UI ticker (no timers running) - saving battery")
+        debugLog("[⌚️Watch] ⏱️ Stopping UI ticker (no timers running) - saving battery")
         activeTickerTimer?.invalidate()
         activeTickerTimer = nil
     }
@@ -511,34 +511,34 @@ final class WatchTimersModel: ObservableObject {
     @Published var alertMessage: String? = nil
 
     init() {
-        print("[⌚️Watch] WatchTimersModel initialized - setting up notification observers")
+        debugLog("[⌚️Watch] WatchTimersModel initialized - setting up notification observers")
         
         // Log current timer count for debugging
-        print("[⌚️Watch] Current timers count at init: \(timers.count)")
+        debugLog("[⌚️Watch] Current timers count at init: \(timers.count)")
         
         NotificationCenter.default.addObserver(forName: Notification.Name("receivedTimersSnapshot"), object: nil, queue: .main) { [weak self] note in
-            print("[⌚️Watch] 🔔 receivedTimersSnapshot notification RECEIVED")
+            debugLog("[⌚️Watch] 🔔 receivedTimersSnapshot notification RECEIVED")
             
             guard let dict = note.userInfo as? [String: Any] else {
-                print("[⌚️Watch] ❌ receivedTimersSnapshot: NO userInfo dictionary!")
+                debugLog("[⌚️Watch] ❌ receivedTimersSnapshot: NO userInfo dictionary!")
                 return
             }
             
-            print("[⌚️Watch] 📦 userInfo keys: \(dict.keys.joined(separator: ", "))")
+            debugLog("[⌚️Watch] 📦 userInfo keys: \(dict.keys.joined(separator: ", "))")
             
             guard let arr = dict["timers"] as? [[String: Any]] else {
-                print("[⌚️Watch] ❌ receivedTimersSnapshot: missing 'timers' array. Available keys: \(dict.keys)")
+                debugLog("[⌚️Watch] ❌ receivedTimersSnapshot: missing 'timers' array. Available keys: \(dict.keys)")
                 return
             }
             
-            print("[⌚️Watch] ✅ Found timers array with \(arr.count) items")
+            debugLog("[⌚️Watch] ✅ Found timers array with \(arr.count) items")
             
             // Log each timer in the received snapshot
             for (index, timer) in arr.enumerated() {
                 let name = timer["name"] as? String ?? "?"
                 let state = timer["state"] as? String ?? "?"
                 let remaining = timer["remaining"] as? Int ?? 0
-                print("[⌚️Watch]   📋 Timer \(index+1): '\(name)' - state=\(state) - \(remaining)s remaining")
+                debugLog("[⌚️Watch]   📋 Timer \(index+1): '\(name)' - state=\(state) - \(remaining)s remaining")
             }
             
             let snapshotDate = Date()
@@ -547,19 +547,19 @@ final class WatchTimersModel: ObservableObject {
             // Parse timers and track any parsing failures
             let parsedTimers = arr.compactMap { item -> Row? in
                 guard let id = item["id"] as? String else {
-                    print("[⌚️Watch] ⚠️ Timer missing 'id' field")
+                    debugLog("[⌚️Watch] ⚠️ Timer missing 'id' field")
                     return nil
                 }
                 guard let name = item["name"] as? String else {
-                    print("[⌚️Watch] ⚠️ Timer \(id) missing 'name' field")
+                    debugLog("[⌚️Watch] ⚠️ Timer \(id) missing 'name' field")
                     return nil
                 }
                 guard let remaining = item["remaining"] as? Int else {
-                    print("[⌚️Watch] ⚠️ Timer \(name) missing 'remaining' field")
+                    debugLog("[⌚️Watch] ⚠️ Timer \(name) missing 'remaining' field")
                     return nil
                 }
                 guard let state = item["state"] as? String else {
-                    print("[⌚️Watch] ⚠️ Timer \(name) missing 'state' field")
+                    debugLog("[⌚️Watch] ⚠️ Timer \(name) missing 'state' field")
                     return nil
                 }
                 let preset1 = item["preset1"] as? Int
@@ -570,39 +570,39 @@ final class WatchTimersModel: ObservableObject {
             
             let previousCount = self?.timers.count ?? 0
             self?.timers = parsedTimers
-            print("[⌚️Watch] ✅ Updated timers: \(previousCount) → \(parsedTimers.count)")
+            debugLog("[⌚️Watch] ✅ Updated timers: \(previousCount) → \(parsedTimers.count)")
             
             // Update complication with the soonest finishing timer
             if let timers = self?.timers {
                 ComplicationDataSource.shared.updateSoonestTimer(from: timers, snapshotDate: snapshotDate)
                 
                 // Log final state of all timers
-                print("[⌚️Watch] 📊 Final timer states after update:")
+                debugLog("[⌚️Watch] 📊 Final timer states after update:")
                 for (index, timer) in timers.enumerated() {
-                    print("[⌚️Watch]   \(index+1). \(timer.name): \(timer.state) - \(timer.remaining)s")
+                    debugLog("[⌚️Watch]   \(index+1). \(timer.name): \(timer.state) - \(timer.remaining)s")
                 }
             }
         }
         
         // Listen for explicit alert messages sent from iPhone via the session manager
         NotificationCenter.default.addObserver(forName: Notification.Name("receivedAlert"), object: nil, queue: .main) { [weak self] note in
-            print("[⌚️Watch] 🔔 receivedAlert notification")
+            debugLog("[⌚️Watch] 🔔 receivedAlert notification")
             guard let info = note.userInfo as? [String: Any], let phase = info["phase"] as? String else {
-                print("[⌚️Watch] ⚠️ receivedAlert: missing phase")
+                debugLog("[⌚️Watch] ⚠️ receivedAlert: missing phase")
                 return
             }
-            print("[⌚️Watch] Alert phase: \(phase)")
+            debugLog("[⌚️Watch] Alert phase: \(phase)")
             if phase == "start" {
                 let msg = (info["message"] as? String) ?? "Timer Finished"
                 self?.alertMessage = msg
-                print("[⌚️Watch] 🚨 Showing alert: \(msg)")
+                debugLog("[⌚️Watch] 🚨 Showing alert: \(msg)")
             } else if phase == "stop" {
                 self?.alertMessage = nil
-                print("[⌚️Watch] ✅ Alert dismissed")
+                debugLog("[⌚️Watch] ✅ Alert dismissed")
             }
         }
         
-        print("[⌚️Watch] ✅ WatchTimersModel notification observers registered")
+        debugLog("[⌚️Watch] ✅ WatchTimersModel notification observers registered")
     }
 }
 
@@ -617,11 +617,11 @@ final class ExtendedRuntimeController: NSObject, WKExtendedRuntimeSessionDelegat
     /// Start a new extended runtime session if not already running.
     func startIfNeeded() {
         if isRunning {
-            print("[⌚️Watch] 🔋 Extended runtime already running, skipping start")
+            debugLog("[⌚️Watch] 🔋 Extended runtime already running, skipping start")
             return
         }
         
-        print("[⌚️Watch] 🔋 Creating new extended runtime session...")
+        debugLog("[⌚️Watch] 🔋 Creating new extended runtime session...")
         
         // Always create a fresh session to avoid edge states
         session?.invalidate()
@@ -630,16 +630,16 @@ final class ExtendedRuntimeController: NSObject, WKExtendedRuntimeSessionDelegat
         session = newSession
         newSession.start()
         
-        print("[⌚️Watch] 🔋 Extended runtime session start() called")
+        debugLog("[⌚️Watch] 🔋 Extended runtime session start() called")
     }
 
     /// End the session if one is active.
     func invalidate() {
         guard let s = session else {
-            print("[⌚️Watch] 🔋 No extended runtime session to invalidate")
+            debugLog("[⌚️Watch] 🔋 No extended runtime session to invalidate")
             return
         }
-        print("[⌚️Watch] 🔋 Invalidating extended runtime session...")
+        debugLog("[⌚️Watch] 🔋 Invalidating extended runtime session...")
         s.invalidate()
         session = nil
         isRunning = false
@@ -648,11 +648,11 @@ final class ExtendedRuntimeController: NSObject, WKExtendedRuntimeSessionDelegat
     // MARK: - WKExtendedRuntimeSessionDelegate
     func extendedRuntimeSessionDidStart(_ extendedRuntimeSession: WKExtendedRuntimeSession) {
         isRunning = true
-        print("[⌚️Watch] ✅ Extended runtime session STARTED successfully")
+        debugLog("[⌚️Watch] ✅ Extended runtime session STARTED successfully")
     }
 
     func extendedRuntimeSessionWillExpire(_ extendedRuntimeSession: WKExtendedRuntimeSession) {
-        print("[⌚️Watch] ⚠️ Extended runtime session will EXPIRE soon")
+        debugLog("[⌚️Watch] ⚠️ Extended runtime session will EXPIRE soon")
     }
 
     func extendedRuntimeSession(_ extendedRuntimeSession: WKExtendedRuntimeSession, didInvalidateWith reason: WKExtendedRuntimeSessionInvalidationReason, error: Error?) {
@@ -670,9 +670,9 @@ final class ExtendedRuntimeController: NSObject, WKExtendedRuntimeSessionDelegat
         }
         
         if let error = error {
-            print("[⌚️Watch] ❌ Extended runtime INVALIDATED: \(reasonDescription), error: \(error.localizedDescription)")
+            debugLog("[⌚️Watch] ❌ Extended runtime INVALIDATED: \(reasonDescription), error: \(error.localizedDescription)")
         } else {
-            print("[⌚️Watch] 🔋 Extended runtime INVALIDATED: \(reasonDescription)")
+            debugLog("[⌚️Watch] 🔋 Extended runtime INVALIDATED: \(reasonDescription)")
         }
     }
 }

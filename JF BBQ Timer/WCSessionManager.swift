@@ -9,6 +9,21 @@
 import Foundation
 import WatchConnectivity
 
+// MARK: - Debug logging
+/// Lightweight stand-in for `print(...)` that compiles to a no-op in release
+/// builds, so diagnostic logging stays available during development without
+/// shipping console noise in the App Store build. Defined in this file because
+/// it is compiled into both the iOS and watchOS targets.
+#if DEBUG
+func debugLog(_ items: Any..., separator: String = " ", terminator: String = "\n") {
+    let message = items.map { "\($0)" }.joined(separator: separator)
+    print(message, terminator: terminator)
+}
+#else
+@inline(__always)
+func debugLog(_ items: Any..., separator: String = " ", terminator: String = "\n") {}
+#endif
+
 /// A lightweight, SwiftUI-friendly manager for WatchConnectivity.
 /// This builds on both iOS and watchOS. Avoid UIKit imports here.
 final class WCSessionManager: NSObject, WCSessionDelegate {
@@ -36,21 +51,21 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
     /// Sets the delegate and activates the default WCSession when supported.
     func activate() {
         // Log activation attempt with platform identifier
-        print("[\(platformTag)] WCSessionManager.activate() called")
+        debugLog("[\(platformTag)] WCSessionManager.activate() called")
         
         guard WCSession.isSupported() else {
-            print("[\(platformTag)] ❌ WCSession NOT SUPPORTED on this device")
+            debugLog("[\(platformTag)] ❌ WCSession NOT SUPPORTED on this device")
             return
         }
         
-        print("[\(platformTag)] ✅ WCSession is supported, activating...")
+        debugLog("[\(platformTag)] ✅ WCSession is supported, activating...")
 
         let session = WCSession.default
         session.delegate = self
         session.activate()
         
         // Log current session state immediately after activation request
-        print("[\(platformTag)] Session activation requested. Current state: \(session.activationState.rawValue)")
+        debugLog("[\(platformTag)] Session activation requested. Current state: \(session.activationState.rawValue)")
     }
 
     /// Sends a full timers snapshot to the counterpart. If reachable, uses sendMessage
@@ -63,18 +78,18 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
         let timerCount = (snapshot["timers"] as? [[String: Any]])?.count ?? 0
         
         guard WCSession.isSupported() else {
-            print("[\(platformTag)] ❌ sendTimersSnapshot: WCSession not supported")
+            debugLog("[\(platformTag)] ❌ sendTimersSnapshot: WCSession not supported")
             return false
         }
         
         let session = WCSession.default
         guard session.activationState == .activated else {
-            print("[\(platformTag)] ❌ sendTimersSnapshot: Session NOT activated (state: \(session.activationState.rawValue))")
+            debugLog("[\(platformTag)] ❌ sendTimersSnapshot: Session NOT activated (state: \(session.activationState.rawValue))")
             return false
         }
         
         // Log session details for debugging
-        print("[\(platformTag)] 📤 sendTimersSnapshot: \(timerCount) timers, reachable=\(session.isReachable)")
+        debugLog("[\(platformTag)] 📤 sendTimersSnapshot: \(timerCount) timers, reachable=\(session.isReachable)")
 
         // Prefer immediate delivery while reachable
         if session.isReachable {
@@ -87,24 +102,24 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
                     let name = timer["name"] as? String ?? "?"
                     let state = timer["state"] as? String ?? "?"
                     let remaining = timer["remaining"] as? Int ?? 0
-                    print("[\(platformTag)]   Timer \(index+1): \(name) - \(state) - \(remaining)s remaining")
+                    debugLog("[\(platformTag)]   Timer \(index+1): \(name) - \(state) - \(remaining)s remaining")
                 }
             }
             
             session.sendMessage(payload, replyHandler: nil) { [weak self] error in
-                print("[\(self?.platformTag ?? "?")] ❌ sendMessage(snapshot) ERROR: \(error.localizedDescription)")
+                debugLog("[\(self?.platformTag ?? "?")] ❌ sendMessage(snapshot) ERROR: \(error.localizedDescription)")
             }
-            print("[\(platformTag)] ✅ sendMessage(snapshot) sent via direct message")
+            debugLog("[\(platformTag)] ✅ sendMessage(snapshot) sent via direct message")
             return true
         }
 
         // Fallback: application context (delivers latest state when possible)
         do {
             try session.updateApplicationContext(snapshot)
-            print("[\(platformTag)] ✅ updateApplicationContext sent (\(timerCount) timers)")
+            debugLog("[\(platformTag)] ✅ updateApplicationContext sent (\(timerCount) timers)")
             return true
         } catch {
-            print("[\(platformTag)] ❌ Failed to update application context: \(error.localizedDescription)")
+            debugLog("[\(platformTag)] ❌ Failed to update application context: \(error.localizedDescription)")
             return false
         }
     }
@@ -119,24 +134,24 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
         let timerId = command["timerId"] as? String ?? "none"
         
         guard WCSession.isSupported() else {
-            print("[\(platformTag)] ❌ sendCommand(\(action)): WCSession not supported")
+            debugLog("[\(platformTag)] ❌ sendCommand(\(action)): WCSession not supported")
             return
         }
         
         let session = WCSession.default
-        print("[\(platformTag)] 📤 sendCommand: action=\(action), timerId=\(timerId), reachable=\(session.isReachable), activated=\(session.activationState == .activated)")
+        debugLog("[\(platformTag)] 📤 sendCommand: action=\(action), timerId=\(timerId), reachable=\(session.isReachable), activated=\(session.activationState == .activated)")
 
         if session.isReachable {
             session.sendMessage(command, replyHandler: { [weak self] response in
-                print("[\(self?.platformTag ?? "?")] ✅ sendCommand(\(action)) got reply: \(response)")
+                debugLog("[\(self?.platformTag ?? "?")] ✅ sendCommand(\(action)) got reply: \(response)")
                 reply?(response)
             }, errorHandler: { [weak self] error in
-                print("[\(self?.platformTag ?? "?")] ❌ sendCommand(\(action)) ERROR: \(error.localizedDescription)")
+                debugLog("[\(self?.platformTag ?? "?")] ❌ sendCommand(\(action)) ERROR: \(error.localizedDescription)")
             })
         } else {
             // Not reachable; queue the command to be delivered opportunistically
             _ = session.transferUserInfo(command)
-            print("[\(platformTag)] ⏳ sendCommand(\(action)) queued via transferUserInfo (not reachable)")
+            debugLog("[\(platformTag)] ⏳ sendCommand(\(action)) queued via transferUserInfo (not reachable)")
         }
     }
 
@@ -156,13 +171,13 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
         }
         
         if let error = error {
-            print("[\(platformTag)] ❌ Session activation FAILED: \(stateDescription), error: \(error.localizedDescription)")
+            debugLog("[\(platformTag)] ❌ Session activation FAILED: \(stateDescription), error: \(error.localizedDescription)")
         } else {
-            print("[\(platformTag)] ✅ Session activation completed: \(stateDescription)")
-            print("[\(platformTag)]   isReachable: \(session.isReachable)")
+            debugLog("[\(platformTag)] ✅ Session activation completed: \(stateDescription)")
+            debugLog("[\(platformTag)]   isReachable: \(session.isReachable)")
             #if os(iOS)
-            print("[\(platformTag)]   isPaired: \(session.isPaired)")
-            print("[\(platformTag)]   isWatchAppInstalled: \(session.isWatchAppInstalled)")
+            debugLog("[\(platformTag)]   isPaired: \(session.isPaired)")
+            debugLog("[\(platformTag)]   isWatchAppInstalled: \(session.isWatchAppInstalled)")
             #endif
         }
     }
@@ -170,12 +185,12 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
     #if os(iOS)
     /// iOS-only: session became inactive (e.g., switching watches)
     func sessionDidBecomeInactive(_ session: WCSession) {
-        print("[\(platformTag)] ⚠️ Session became INACTIVE")
+        debugLog("[\(platformTag)] ⚠️ Session became INACTIVE")
     }
 
     /// iOS-only: session deactivated; call activate() again if needed
     func sessionDidDeactivate(_ session: WCSession) {
-        print("[\(platformTag)] ⚠️ Session DEACTIVATED - re-activating...")
+        debugLog("[\(platformTag)] ⚠️ Session DEACTIVATED - re-activating...")
         WCSession.default.activate()
     }
     #endif
@@ -183,13 +198,13 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
     /// Reachability changed (both platforms)
     func sessionReachabilityDidChange(_ session: WCSession) {
         let emoji = session.isReachable ? "🟢" : "🔴"
-        print("[\(platformTag)] \(emoji) Reachability changed: \(session.isReachable ? "REACHABLE" : "NOT REACHABLE")")
+        debugLog("[\(platformTag)] \(emoji) Reachability changed: \(session.isReachable ? "REACHABLE" : "NOT REACHABLE")")
     }
 
     /// Received updated application context (treat as a timers snapshot)
     func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
         let timerCount = (applicationContext["timers"] as? [[String: Any]])?.count ?? 0
-        print("[\(platformTag)] 📥 didReceiveApplicationContext: \(timerCount) timers")
+        debugLog("[\(platformTag)] 📥 didReceiveApplicationContext: \(timerCount) timers")
         
         // Log each timer for debugging
         if let timers = applicationContext["timers"] as? [[String: Any]] {
@@ -197,12 +212,12 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
                 let name = timer["name"] as? String ?? "?"
                 let state = timer["state"] as? String ?? "?"
                 let remaining = timer["remaining"] as? Int ?? 0
-                print("[\(platformTag)]   Timer \(index+1): \(name) - \(state) - \(remaining)s remaining")
+                debugLog("[\(platformTag)]   Timer \(index+1): \(name) - \(state) - \(remaining)s remaining")
             }
         }
         
         DispatchQueue.main.async {
-            print("[\(self.platformTag)] 📣 Posting receivedTimersSnapshot notification")
+            debugLog("[\(self.platformTag)] 📣 Posting receivedTimersSnapshot notification")
             NotificationCenter.default.post(
                 name: Notification.Name("receivedTimersSnapshot"),
                 object: nil,
@@ -214,7 +229,7 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
     /// Received user info (treat as a command)
     func session(_ session: WCSession, didReceiveUserInfo userInfo: [String : Any] = [:]) {
         let action = userInfo["action"] as? String ?? "unknown"
-        print("[\(platformTag)] 📥 didReceiveUserInfo: action=\(action)")
+        debugLog("[\(platformTag)] 📥 didReceiveUserInfo: action=\(action)")
         
         DispatchQueue.main.async {
             let name: String
@@ -225,7 +240,7 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
             } else {
                 name = "receivedCommand"
             }
-            print("[\(self.platformTag)] 📣 Posting \(name) notification")
+            debugLog("[\(self.platformTag)] 📣 Posting \(name) notification")
             NotificationCenter.default.post(
                 name: Notification.Name(name),
                 object: nil,
@@ -238,7 +253,7 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
     func session(_ session: WCSession, didReceiveMessage message: [String : Any]) {
         let action = message["action"] as? String ?? "unknown"
         let timerCount = (message["timers"] as? [[String: Any]])?.count ?? 0
-        print("[\(platformTag)] 📥 didReceiveMessage (no reply): action=\(action), timers=\(timerCount)")
+        debugLog("[\(platformTag)] 📥 didReceiveMessage (no reply): action=\(action), timers=\(timerCount)")
         
         // If it's a snapshot, log the timer details
         if action == "snapshot", let timers = message["timers"] as? [[String: Any]] {
@@ -246,7 +261,7 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
                 let name = timer["name"] as? String ?? "?"
                 let state = timer["state"] as? String ?? "?"
                 let remaining = timer["remaining"] as? Int ?? 0
-                print("[\(platformTag)]   Timer \(index+1): \(name) - \(state) - \(remaining)s remaining")
+                debugLog("[\(platformTag)]   Timer \(index+1): \(name) - \(state) - \(remaining)s remaining")
             }
         }
         
@@ -259,7 +274,7 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
             } else {
                 name = "receivedCommand"
             }
-            print("[\(self.platformTag)] 📣 Posting \(name) notification")
+            debugLog("[\(self.platformTag)] 📣 Posting \(name) notification")
             NotificationCenter.default.post(
                 name: Notification.Name(name),
                 object: nil,
@@ -274,7 +289,7 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
                  replyHandler: @escaping ([String : Any]) -> Void) {
         let action = message["action"] as? String ?? "unknown"
         let timerCount = (message["timers"] as? [[String: Any]])?.count ?? 0
-        print("[\(platformTag)] 📥 didReceiveMessage (with reply): action=\(action), timers=\(timerCount)")
+        debugLog("[\(platformTag)] 📥 didReceiveMessage (with reply): action=\(action), timers=\(timerCount)")
         
         // If it's a snapshot, log the timer details
         if action == "snapshot", let timers = message["timers"] as? [[String: Any]] {
@@ -282,7 +297,7 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
                 let name = timer["name"] as? String ?? "?"
                 let state = timer["state"] as? String ?? "?"
                 let remaining = timer["remaining"] as? Int ?? 0
-                print("[\(platformTag)]   Timer \(index+1): \(name) - \(state) - \(remaining)s remaining")
+                debugLog("[\(platformTag)]   Timer \(index+1): \(name) - \(state) - \(remaining)s remaining")
             }
         }
         
@@ -295,7 +310,7 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
             } else {
                 name = "receivedCommand"
             }
-            print("[\(self.platformTag)] 📣 Posting \(name) notification")
+            debugLog("[\(self.platformTag)] 📣 Posting \(name) notification")
             NotificationCenter.default.post(
                 name: Notification.Name(name),
                 object: nil,

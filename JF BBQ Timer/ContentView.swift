@@ -161,10 +161,10 @@ class Settings: ObservableObject {
     // Premium features flag - one-time purchase
     @Published var isPremiumUser: Bool {
         didSet {
-            print("🔄 isPremiumUser changed from \(oldValue) to \(isPremiumUser)")
+            debugLog("🔄 isPremiumUser changed from \(oldValue) to \(isPremiumUser)")
             UserDefaults.standard.set(isPremiumUser, forKey: "isPremiumUser")
             UserDefaults.standard.synchronize()
-            print("💾 Saved premium status to UserDefaults")
+            debugLog("💾 Saved premium status to UserDefaults")
             // Force UI update
             objectWillChange.send()
         }
@@ -175,23 +175,23 @@ class Settings: ObservableObject {
     
     // Method to update premium status from RevenueCat
     func updatePremiumStatus() {
-        print("🔄 Checking premium status from RevenueCat...")
+        debugLog("🔄 Checking premium status from RevenueCat...")
         Purchases.shared.getCustomerInfo { [weak self] customerInfo, error in
             if let error = error {
-                print("❌ Error fetching customer info: \(error)")
+                debugLog("❌ Error fetching customer info: \(error)")
                 return
             }
             
             let isPremium = customerInfo?.entitlements["premium_access"]?.isActive == true
-            print("📱 Premium status from RevenueCat: \(isPremium)")
-            print("🔑 Entitlements: \(String(describing: customerInfo?.entitlements))")
+            debugLog("📱 Premium status from RevenueCat: \(isPremium)")
+            debugLog("🔑 Entitlements: \(String(describing: customerInfo?.entitlements))")
             
             DispatchQueue.main.async {
                 if self?.isPremiumUser != isPremium {
-                    print("⚠️ Local premium status doesn't match RevenueCat - updating...")
+                    debugLog("⚠️ Local premium status doesn't match RevenueCat - updating...")
                     self?.isPremiumUser = isPremium
                 } else {
-                    print("✅ Local premium status matches RevenueCat")
+                    debugLog("✅ Local premium status matches RevenueCat")
                 }
             }
         }
@@ -232,7 +232,7 @@ class Settings: ObservableObject {
         
         // Initialize premium status last
         self.isPremiumUser = UserDefaults.standard.bool(forKey: "isPremiumUser")
-        print("📱 Initialized premium status from UserDefaults: \(self.isPremiumUser)")
+        debugLog("📱 Initialized premium status from UserDefaults: \(self.isPremiumUser)")
         
         // Set default values if not already set
         if UserDefaults.standard.object(forKey: "soundEnabled") == nil {
@@ -245,7 +245,7 @@ class Settings: ObservableObject {
     }
     
     func save() {
-        print("💾 Saving settings...")
+        debugLog("💾 Saving settings...")
         // Save premium status
         UserDefaults.standard.set(isPremiumUser, forKey: "isPremiumUser")
         
@@ -274,7 +274,7 @@ class Settings: ObservableObject {
         
         // Force synchronize to ensure changes are saved immediately
         UserDefaults.standard.synchronize()
-        print("✅ Settings saved successfully")
+        debugLog("✅ Settings saved successfully")
     }
     
     // MARK: - Timer Management
@@ -407,7 +407,7 @@ class AlertState: ObservableObject {
     @Published var isPresented: Bool
     @Published var showPreheatAlert: Bool {
         didSet {
-            print("PreheatAlertState changed from \(oldValue) to \(showPreheatAlert)")
+            debugLog("PreheatAlertState changed from \(oldValue) to \(showPreheatAlert)")
             if showPreheatAlert {
                 startHapticTimer()
             } else if hapticTimer != nil {
@@ -496,7 +496,7 @@ struct AlertView: View {
                 Color.black.opacity(0)
                     .edgesIgnoringSafeArea(.all)
                     .onTapGesture {
-                        print("Background tapped")
+                        debugLog("Background tapped")
                         audioPlayer?.stop()
                         settings.stopLoopingAlertSound() // Stop looping sound when alert is dismissed
                         timerState.resetCompletionState() // Reset timer completion state
@@ -508,7 +508,7 @@ struct AlertView: View {
                     }
                 
                 Button(action: {
-                    print("Button tapped")
+                    debugLog("Button tapped")
                     audioPlayer?.stop()
                     settings.stopLoopingAlertSound() // Stop looping sound when alert is dismissed
                     timerState.resetCompletionState() // Reset timer completion state
@@ -1068,7 +1068,7 @@ struct ContentView: View {
     // Initialize timer states when view appears
     private func initializeTimerStates() {
         // Update the settings in the TimerStatesManager first
-        print("ContentView: Initializing timer states with settings")
+        debugLog("ContentView: Initializing timer states with settings")
         timerStates.updateSettings(settings)
         
         // Then initialize and sync the timer states
@@ -1129,7 +1129,7 @@ struct ContentView: View {
         let anyTimerRunning = timerStates.states.contains { $0.isRunning }
         let isUITest = ProcessInfo.processInfo.arguments.contains("-UITEST_MODE")
         if anyTimerRunning && !isUITest {
-            print("Cannot start preheat timer while other timers are running")
+            debugLog("Cannot start preheat timer while other timers are running")
             return
         }
         
@@ -1216,7 +1216,7 @@ struct ContentView: View {
         .timerContainerAppearance(
             timerState: state, 
             onTimerComplete: { timerId in
-                print("Timer \(timerId) completed, scrolling to view")
+                debugLog("Timer \(timerId) completed, scrolling to view")
                 lastCompletedTimerId = timerId
             }
         )
@@ -1290,7 +1290,7 @@ struct ContentView: View {
         .timerContainerAppearance(
             timerState: state, 
             onTimerComplete: { timerId in
-                print("Timer \(timerId) completed, scrolling to view")
+                debugLog("Timer \(timerId) completed, scrolling to view")
                 lastCompletedTimerId = timerId
             },
             isLargeTimer: true
@@ -1497,7 +1497,7 @@ struct ContentView: View {
         }
         .buttonStyle(HapticButtonStyle())
         .onAppear {
-            print("[📱iOS] 🚀 ContentView.onAppear - scenePhase: \(scenePhase)")
+            debugLog("[📱iOS] 🚀 ContentView.onAppear - scenePhase: \(scenePhase)")
             timerStates.updateSettings(settings)
             initializeTimerStates()
             settings.initializeVoiceSettings()
@@ -1510,7 +1510,7 @@ struct ContentView: View {
             // small, plist-safe payload built from current timers and states.
             // Use a short delay to ensure scenePhase has updated to .active
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                print("[📱iOS] 🕐 Delayed sync timer start - scenePhase: \(scenePhase)")
+                debugLog("[📱iOS] 🕐 Delayed sync timer start - scenePhase: \(scenePhase)")
                 startWatchSyncTimer()
             }
             // Listen for a watch-originating command to apply Preset 1 to a
@@ -1596,11 +1596,11 @@ struct ContentView: View {
             initializeTimerStates()
         }
         .onChange(of: settings.selectedAlertSound) { _ in
-            print("Alert sound changed to \(settings.selectedAlertSound.displayName), updating timer states")
+            debugLog("Alert sound changed to \(settings.selectedAlertSound.displayName), updating timer states")
             timerStates.updateSettings(settings)
         }
         .onChange(of: settings.soundEnabled) { _ in
-            print("Sound enabled changed to \(settings.soundEnabled), updating timer states")
+            debugLog("Sound enabled changed to \(settings.soundEnabled), updating timer states")
             timerStates.updateSettings(settings)
         }
         // Note: TimerStatesManager.objectWillChange only fires when the states array
@@ -1628,9 +1628,9 @@ struct ContentView: View {
         // When returning to the foreground, resync timer countdowns with wall-clock time
         // and manage Watch sync timer based on app state
         .onChange(of: scenePhase) { newPhase in
-            print("[📱iOS] 📱 scenePhase changed to: \(newPhase)")
+            debugLog("[📱iOS] 📱 scenePhase changed to: \(newPhase)")
             if newPhase == .active {
-                print("[📱iOS] 📱 App became ACTIVE - starting watch sync")
+                debugLog("[📱iOS] 📱 App became ACTIVE - starting watch sync")
                 resyncTimersAfterForeground()
                 resyncPreheatAfterForeground()
                 // Immediately send a fresh snapshot to Watch to sync after background period
@@ -1638,7 +1638,7 @@ struct ContentView: View {
                 // Resume Watch sync timer when app becomes active
                 startWatchSyncTimer()
             } else if newPhase == .background || newPhase == .inactive {
-                print("[📱iOS] 📱 App went to \(newPhase) - stopping watch sync")
+                debugLog("[📱iOS] 📱 App went to \(newPhase) - stopping watch sync")
                 // Pause Watch sync timer to save battery when app goes to background
                 stopWatchSyncTimer()
             }
@@ -1690,7 +1690,7 @@ struct ContentView: View {
     /// - The snapshot has changed (timer just started/stopped)
     /// This allows the Watch to sleep naturally when no messages are being sent.
     private func startWatchSyncTimer() {
-        print("[📱iOS] 🕐 startWatchSyncTimer() called - scenePhase: \(scenePhase)")
+        debugLog("[📱iOS] 🕐 startWatchSyncTimer() called - scenePhase: \(scenePhase)")
         
         // Stop any existing timer first
         stopWatchSyncTimer()
@@ -1699,11 +1699,11 @@ struct ContentView: View {
         // Allow starting the timer if scenePhase is .active OR if we're still in the
         // initial launch phase (when scenePhase might be .inactive briefly).
         guard scenePhase == .active || scenePhase == .inactive else {
-            print("[📱iOS] ⚠️ startWatchSyncTimer: skipped - scenePhase is \(scenePhase)")
+            debugLog("[📱iOS] ⚠️ startWatchSyncTimer: skipped - scenePhase is \(scenePhase)")
             return
         }
         
-        print("[📱iOS] ✅ Starting watch sync timer (1s interval)")
+        debugLog("[📱iOS] ✅ Starting watch sync timer (1s interval)")
         
         watchSyncTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
             let snapshot = self.buildWatchSnapshot()
@@ -1714,7 +1714,7 @@ struct ContentView: View {
                 let runningCount = timers.filter { ($0["state"] as? String) == "running" }.count
                 hasRunningTimer = runningCount > 0
                 if hasRunningTimer {
-                    print("[📱iOS] 🔄 Sync tick: \(runningCount) running timer(s)")
+                    debugLog("[📱iOS] 🔄 Sync tick: \(runningCount) running timer(s)")
                 }
             }
             
@@ -1728,9 +1728,9 @@ struct ContentView: View {
             
             // Snapshot changed - send it (this catches timer start/stop transitions)
             if hasRunningTimer {
-                print("[📱iOS] 📤 Sync timer sending snapshot (timer running)...")
+                debugLog("[📱iOS] 📤 Sync timer sending snapshot (timer running)...")
             } else {
-                print("[📱iOS] 📤 Sync timer sending snapshot (state changed)...")
+                debugLog("[📱iOS] 📤 Sync timer sending snapshot (state changed)...")
             }
             
             let session = WCSession.default
@@ -1742,13 +1742,13 @@ struct ContentView: View {
             }
         }
         RunLoop.main.add(watchSyncTimer!, forMode: .common)
-        print("[📱iOS] ✅ Watch sync timer started and added to RunLoop")
+        debugLog("[📱iOS] ✅ Watch sync timer started and added to RunLoop")
     }
     
     /// Stops the Watch sync timer to save battery.
     private func stopWatchSyncTimer() {
         if watchSyncTimer != nil {
-            print("[📱iOS] 🛑 Stopping watch sync timer")
+            debugLog("[📱iOS] 🛑 Stopping watch sync timer")
         }
         watchSyncTimer?.invalidate()
         watchSyncTimer = nil
@@ -1787,7 +1787,7 @@ struct ContentView: View {
         // Log what we're sending for debugging
         if let timers = snapshot["timers"] as? [[String: Any]] {
             let runningTimers = timers.filter { ($0["state"] as? String) == "running" }
-            print("[📱iOS] 📤 sendWatchSnapshotImmediately: \(timers.count) timers, \(runningTimers.count) running")
+            debugLog("[📱iOS] 📤 sendWatchSnapshotImmediately: \(timers.count) timers, \(runningTimers.count) running")
         }
         
         _ = WCSessionManager.shared.sendTimersSnapshot(snapshot)
@@ -1799,9 +1799,9 @@ struct ContentView: View {
     private func requestNotificationPermission() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
             if let error = error {
-                print("❌ Notification permission error: \(error)")
+                debugLog("❌ Notification permission error: \(error)")
             } else {
-                print("🔔 Notification permission granted: \(granted)")
+                debugLog("🔔 Notification permission granted: \(granted)")
             }
         }
     }
@@ -1825,9 +1825,9 @@ struct ContentView: View {
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
-                print("❌ Failed to schedule preheat notification: \(error)")
+                debugLog("❌ Failed to schedule preheat notification: \(error)")
             } else {
-                print("🗓️ Scheduled preheat notification in \(Int(seconds))s")
+                debugLog("🗓️ Scheduled preheat notification in \(Int(seconds))s")
             }
         }
     }
@@ -2027,11 +2027,11 @@ class TimerState: ObservableObject {
     
     // Add a method to update settings
     func updateSettings(_ newSettings: Settings) {
-        print("TimerState (\(self.id)): Updating settings reference")
+        debugLog("TimerState (\(self.id)): Updating settings reference")
         let previousSetting = self.settings?.selectedAlertSound.displayName ?? "nil"
         self.settings = newSettings
         let newSetting = self.settings?.selectedAlertSound.displayName ?? "nil"
-        print("TimerState (\(self.id)): Sound changed from \(previousSetting) to \(newSetting)")
+        debugLog("TimerState (\(self.id)): Sound changed from \(previousSetting) to \(newSetting)")
     }
     
     func reset() {
@@ -2055,7 +2055,7 @@ class TimerState: ObservableObject {
     }
     
     private func createAndStartIntervalTimer() {
-        print("Creating interval timer")
+        debugLog("Creating interval timer")
         
         // Double check we're on the main thread
         if !Thread.isMainThread {
@@ -2071,10 +2071,10 @@ class TimerState: ObservableObject {
             
             if self.intervalTime > 0 {
                 self.intervalTime -= 1
-                print("Interval timer tick: \(self.intervalTime)")
+                debugLog("Interval timer tick: \(self.intervalTime)")
                 self.objectWillChange.send()
             } else {
-                print("Interval timer complete")
+                debugLog("Interval timer complete")
                 self.stopIntervalTimer()
                 
                 // Set completion state
@@ -2083,9 +2083,9 @@ class TimerState: ObservableObject {
                 
                 // Print debug info about settings
                 if let settingsObj = self.settings {
-                    print("TimerState (\(self.id)): Timer complete with settings: \(settingsObj.selectedAlertSound.displayName)")
+                    debugLog("TimerState (\(self.id)): Timer complete with settings: \(settingsObj.selectedAlertSound.displayName)")
                 } else {
-                    print("TimerState (\(self.id)): ⚠️ Timer complete but settings is nil")
+                    debugLog("TimerState (\(self.id)): ⚠️ Timer complete but settings is nil")
                 }
                 
                 // Call completion action
@@ -2128,7 +2128,7 @@ class TimerState: ObservableObject {
                 // self.completionTimer?.invalidate() // Invalidate any existing timer
                 // self.completionTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: false) { [weak self] _ in
                 //     guard let self = self else { return }
-                //     print("Resetting completion state")
+                //     debugLog("Resetting completion state")
                 //     self.isCompleted = false
                 //     self.objectWillChange.send()
                 // }
@@ -2174,7 +2174,7 @@ class TimerState: ObservableObject {
     
     // Starts both interval (countdown) and elapsed (countup) timers
     func start(onComplete: @escaping () -> Void) {
-        print("Starting timer with interval: \(intervalTime)")
+        debugLog("Starting timer with interval: \(intervalTime)")
         
         // Make absolutely sure interval timer is in a clean state
         // But don't touch the elapsed timer
@@ -2191,7 +2191,7 @@ class TimerState: ObservableObject {
         
         // Only start interval timer if we have time to count down
         guard intervalTime > 0 else {
-            print("⚠️ Cannot start timer - interval time is \(intervalTime)")
+            debugLog("⚠️ Cannot start timer - interval time is \(intervalTime)")
             return
         }
         // Record target date and schedule a local notification so it fires in background
@@ -2207,7 +2207,7 @@ class TimerState: ObservableObject {
             self.isRunning = true
             // Also notify observers explicitly
             self.objectWillChange.send()
-            print("Timer started - isRunning set to true")
+            debugLog("Timer started - isRunning set to true")
             
             // Create timer on the main thread after UI state is updated
             self.createAndStartIntervalTimer()
@@ -2218,11 +2218,11 @@ class TimerState: ObservableObject {
     private func startElapsedTimerIfNeeded() {
         // If the elapsed timer is already running, do nothing
         guard elapsedTimer == nil else {
-            print("Elapsed timer already running, continuing it")
+            debugLog("Elapsed timer already running, continuing it")
             return
         }
         
-        print("Starting elapsed timer")
+        debugLog("Starting elapsed timer")
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             
@@ -2231,7 +2231,7 @@ class TimerState: ObservableObject {
                 
                 DispatchQueue.main.async {
                     self.elapsedTime += 1
-                    print("Elapsed timer tick: \(self.elapsedTime)")
+                    debugLog("Elapsed timer tick: \(self.elapsedTime)")
                     self.objectWillChange.send()
                 }
             }
@@ -2239,7 +2239,7 @@ class TimerState: ObservableObject {
             // Add timer to RunLoop to ensure it runs while scrolling
             if let timer = self.elapsedTimer {
                 RunLoop.main.add(timer, forMode: .common)
-                print("Elapsed timer added to RunLoop")
+                debugLog("Elapsed timer added to RunLoop")
             }
         }
     }
@@ -2287,7 +2287,7 @@ class TimerState: ObservableObject {
             // Explicitly notify observers
             self.objectWillChange.send()
             
-            print("Timer reset to zero. Interval time is now: \(self.intervalTime)")
+            debugLog("Timer reset to zero. Interval time is now: \(self.intervalTime)")
         }
         // Cancel any scheduled local notification and clear target
         cancelPendingNotification()
@@ -2301,17 +2301,17 @@ class TimerState: ObservableObject {
         // Try to access settings directly if the weak reference is nil
         if let settingsObj = self.settings, settingsObj.soundEnabled {
             // Use the method that handles both sound and voice announcement
-            print("TimerState (\(self.id)): Playing timer completion sound with announcement")
+            debugLog("TimerState (\(self.id)): Playing timer completion sound with announcement")
             settingsObj.playTimerCompletionWithAnnouncement(timerId: self.id)
         } else {
             // Log the error and use default sound
-            print("TimerState (\(self.id)): ⚠️ Settings reference is nil or sound disabled")
+            debugLog("TimerState (\(self.id)): ⚠️ Settings reference is nil or sound disabled")
             AudioServicesPlaySystemSound(defaultSoundID)
         }
     }
     
     func resetCompletionState() {
-        print("[DEBUG] TimerState.resetCompletionState() called for timer: \(id)")
+        debugLog("[DEBUG] TimerState.resetCompletionState() called for timer: \(id)")
         isCompleted = false
         objectWillChange.send()
     }
@@ -2358,9 +2358,9 @@ class TimerState: ObservableObject {
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
-                print("❌ Failed to schedule completion notification: \(error)")
+                debugLog("❌ Failed to schedule completion notification: \(error)")
             } else {
-                print("🗓️ Scheduled completion notification for timer \(self.id) in \(Int(interval))s")
+                debugLog("🗓️ Scheduled completion notification for timer \(self.id) in \(Int(interval))s")
             }
         }
     }
@@ -2389,16 +2389,16 @@ class TimerStatesManager: ObservableObject {
     private var settings: Settings?
     
     init(settings: Settings? = nil) {
-        print("TimerStatesManager: Initializing with settings \(settings != nil ? "provided" : "nil")")
+        debugLog("TimerStatesManager: Initializing with settings \(settings != nil ? "provided" : "nil")")
         self.settings = settings
     }
     
     // Initialize with existing timers from settings
     func initializeTimerStates(timers: [BBQTimer]) {
-        print("TimerStatesManager: Initializing timer states for \(timers.count) timers")
-        print("TimerStatesManager: Current settings reference: \(settings != nil ? "valid" : "nil")")
+        debugLog("TimerStatesManager: Initializing timer states for \(timers.count) timers")
+        debugLog("TimerStatesManager: Current settings reference: \(settings != nil ? "valid" : "nil")")
         if let sound = settings?.selectedAlertSound {
-            print("TimerStatesManager: Current alert sound: \(sound.displayName)")
+            debugLog("TimerStatesManager: Current alert sound: \(sound.displayName)")
         }
         
         // Clear existing states
@@ -2414,7 +2414,7 @@ class TimerStatesManager: ObservableObject {
             states.append(TimerState(id: timer.id, interval: TimeInterval(timer.preset1), settings: settings))
         }
         
-        print("TimerStatesManager: Created \(states.count) timer states")
+        debugLog("TimerStatesManager: Created \(states.count) timer states")
     }
     
     // Add a new timer state for a new BBQTimer
@@ -2460,20 +2460,20 @@ class TimerStatesManager: ObservableObject {
     
     // Update settings
     func updateSettings(_ settings: Settings) {
-        print("TimerStatesManager: Updating settings reference")
+        debugLog("TimerStatesManager: Updating settings reference")
         self.settings = settings
         
         // Update settings in all timer states
         for (index, state) in states.enumerated() {
-            print("TimerStatesManager: Updating settings for timer state #\(index)")
+            debugLog("TimerStatesManager: Updating settings for timer state #\(index)")
             state.updateSettings(settings)
         }
         
         // Log sound settings for debugging
         if settings.isUsingCustomSound {
-            print("TimerStatesManager: Using custom sound with ID: \(settings.selectedCustomSoundID?.uuidString ?? "nil")")
+            debugLog("TimerStatesManager: Using custom sound with ID: \(settings.selectedCustomSoundID?.uuidString ?? "nil")")
         } else {
-            print("TimerStatesManager: Using system sound: \(settings.selectedAlertSound.displayName)")
+            debugLog("TimerStatesManager: Using system sound: \(settings.selectedAlertSound.displayName)")
         }
         
         // Force a refresh

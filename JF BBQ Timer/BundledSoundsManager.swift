@@ -64,9 +64,9 @@ class BundledSoundsManager: ObservableObject {
     @Published var allSounds: [BundledSound] = []
     
     init() {
-        print("🎵 BundledSoundsManager: Initializing...")
+        debugLog("🎵 BundledSoundsManager: Initializing...")
         loadBundledSounds()
-        print("🎵 BundledSoundsManager: Initialization complete. Loaded \(allSounds.count) sounds in \(categories.count) categories")
+        debugLog("🎵 BundledSoundsManager: Initialization complete. Loaded \(allSounds.count) sounds in \(categories.count) categories")
     }
     
     // Load sounds from the bundled JSON file
@@ -87,7 +87,7 @@ class BundledSoundsManager: ObservableObject {
             let candidate = dir.appendingPathComponent("sound_metadata.json")
             if FileManager.default.fileExists(atPath: candidate.path) {
                 jsonURL = candidate
-                print("✅ Found sound_metadata.json at: \(candidate.path)")
+                debugLog("✅ Found sound_metadata.json at: \(candidate.path)")
                 break
             }
         }
@@ -95,12 +95,12 @@ class BundledSoundsManager: ObservableObject {
         if jsonURL == nil {
             if let bundleURL = Bundle.main.url(forResource: "sound_metadata", withExtension: "json") {
                 jsonURL = bundleURL
-                print("✅ Found sound_metadata.json via Bundle.url: \(bundleURL.path)")
+                debugLog("✅ Found sound_metadata.json via Bundle.url: \(bundleURL.path)")
             }
         }
         // If not found, print error and return
         guard let finalJsonURL = jsonURL else {
-            print("❌ Could not find sound_metadata.json in any expected location.")
+            debugLog("❌ Could not find sound_metadata.json in any expected location.")
             self.categories = []
             self.allSounds = []
             self.soundsByCategory = [:]
@@ -111,7 +111,7 @@ class BundledSoundsManager: ObservableObject {
             let data = try Data(contentsOf: finalJsonURL)
             let decoder = JSONDecoder()
             let sounds = try decoder.decode([BundledSound].self, from: data)
-            print("✅ Decoded \(sounds.count) bundled sounds from JSON.")
+            debugLog("✅ Decoded \(sounds.count) bundled sounds from JSON.")
             self.allSounds = sounds
             // Organize by category
             var categoriesSet = Set<String>()
@@ -137,18 +137,18 @@ class BundledSoundsManager: ObservableObject {
             // Print found sound files
             for sound in sounds {
                 if let url = resolveFileURL(for: sound.filename) {
-                    print("✅ Found sound file: \(sound.filename) at \(url.path)")
+                    debugLog("✅ Found sound file: \(sound.filename) at \(url.path)")
                 } else {
-                    print("❌ Missing sound file: \(sound.filename)")
+                    debugLog("❌ Missing sound file: \(sound.filename)")
                 }
             }
             // Debug: print number of sounds in each category
             for category in sortedCategories {
                 let count = byCategory[category]?.count ?? 0
-                print("Category '", category, "' has ", count, " sounds.")
+                debugLog("Category '", category, "' has ", count, " sounds.")
             }
         } catch {
-            print("❌ Error decoding bundled sounds: \(error)")
+            debugLog("❌ Error decoding bundled sounds: \(error)")
             self.categories = []
             self.allSounds = []
             self.soundsByCategory = [:]
@@ -192,7 +192,7 @@ class BundledSoundsManager: ObservableObject {
         }
         
         // Use the AudioManager to play the sound
-        print("Playing bundled sound: \(sound.displayName)")
+        debugLog("Playing bundled sound: \(sound.displayName)")
         
         if AudioManager.shared.playSound(from: url) {
             // This is a workaround - we need to return something to match the interface
@@ -200,7 +200,7 @@ class BundledSoundsManager: ObservableObject {
             do {
                 return try AVAudioPlayer(contentsOf: url)
             } catch {
-                print("Error creating dummy audio player: \(error)")
+                debugLog("Error creating dummy audio player: \(error)")
             }
         }
         

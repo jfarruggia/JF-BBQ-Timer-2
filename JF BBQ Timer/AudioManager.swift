@@ -17,7 +17,7 @@ class AudioManager {
     
     /// Initialize the audio manager
     init() {
-        print("[DEBUG] AudioManager.init called. Singleton instance: \(Unmanaged.passUnretained(self).toOpaque())")
+        debugLog("[DEBUG] AudioManager.init called. Singleton instance: \(Unmanaged.passUnretained(self).toOpaque())")
         configureAudioSession()
     }
     
@@ -26,9 +26,9 @@ class AudioManager {
         do {
             try audioSession.setCategory(.playback, mode: .default)
             try audioSession.setActive(true)
-            print("✅ Audio session configured successfully")
+            debugLog("✅ Audio session configured successfully")
         } catch {
-            print("❌ Failed to configure audio session: \(error)")
+            debugLog("❌ Failed to configure audio session: \(error)")
         }
     }
     
@@ -40,7 +40,7 @@ class AudioManager {
     /// - Returns: Whether the sound was successfully played
     @discardableResult
     func playSound(from url: URL, loop: Bool = false, completion: (() -> Void)? = nil) -> Bool {
-        print("🎵 Playing sound from: \(url.path), loop: \(loop)")
+        debugLog("🎵 Playing sound from: \(url.path), loop: \(loop)")
         // Stop any existing playback
         stopSound()
         // Make sure audio session is active
@@ -49,7 +49,7 @@ class AudioManager {
                 try audioSession.setActive(true)
             }
         } catch {
-            print("❌ Error activating audio session: \(error)")
+            debugLog("❌ Error activating audio session: \(error)")
         }
         // Create and play the audio
         do {
@@ -61,10 +61,10 @@ class AudioManager {
             }
             audioPlayer?.prepareToPlay()
             audioPlayer?.play()
-            print("✅ Started playing sound")
+            debugLog("✅ Started playing sound")
             return true
         } catch {
-            print("❌ Error playing sound: \(error)")
+            debugLog("❌ Error playing sound: \(error)")
             return false
         }
     }
@@ -80,10 +80,10 @@ class AudioManager {
         let manager = BundledSoundsManager()
         guard let sound = manager.getSound(with: soundId),
               let url = sound.fileURL else {
-            print("❌ Failed to find bundled sound with ID: \(soundId)")
+            debugLog("❌ Failed to find bundled sound with ID: \(soundId)")
             return false
         }
-        print("🎵 Playing bundled sound: \(sound.displayName), loop: \(loop)")
+        debugLog("🎵 Playing bundled sound: \(sound.displayName), loop: \(loop)")
         return playSound(from: url, loop: loop, completion: completion)
     }
     
@@ -98,7 +98,7 @@ class AudioManager {
     ///   - soundID: The system sound ID to play
     ///   - completion: Optional completion handler called when playback finishes
     func playSystemSound(_ soundID: SystemSoundID, completion: (() -> Void)? = nil) {
-        print("🎵 Playing system sound: \(soundID)")
+        debugLog("🎵 Playing system sound: \(soundID)")
         
         // Stop any existing custom sound
         stopSound()
@@ -125,7 +125,7 @@ class AudioManager {
     /// Stop the currently playing sound
     func stopSound() {
         if let player = audioPlayer, player.isPlaying {
-            print("⏹️ Stopping audio playback")
+            debugLog("⏹️ Stopping audio playback")
             player.stop()
         }
         audioPlayer = nil
@@ -133,15 +133,15 @@ class AudioManager {
     
     /// Stop the currently playing alert sound (public for use by UI)
     func stopAlertSound() {
-        print("[DEBUG] AudioManager.stopAlertSound() called. audioPlayer: \(audioPlayer != nil ? "exists" : "nil")")
+        debugLog("[DEBUG] AudioManager.stopAlertSound() called. audioPlayer: \(audioPlayer != nil ? "exists" : "nil")")
         audioPlayer?.stop()
         audioPlayer = nil
         // Forcefully deactivate audio session to ensure all playback stops
         do {
             try audioSession.setActive(false, options: .notifyOthersOnDeactivation)
-            print("[DEBUG] Audio session deactivated after stopping alert sound.")
+            debugLog("[DEBUG] Audio session deactivated after stopping alert sound.")
         } catch {
-            print("[DEBUG] Error deactivating audio session: \(error)")
+            debugLog("[DEBUG] Error deactivating audio session: \(error)")
         }
     }
 }
@@ -155,7 +155,7 @@ class AudioPlayerDelegate: NSObject, AVAudioPlayerDelegate {
     var completionHandler: (() -> Void)?
     
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-        print("🎵 Audio player finished playing, success: \(flag)")
+        debugLog("🎵 Audio player finished playing, success: \(flag)")
         
         if let completion = completionHandler {
             completion()
@@ -164,7 +164,7 @@ class AudioPlayerDelegate: NSObject, AVAudioPlayerDelegate {
     }
     
     func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
-        print("❌ Audio player decode error: \(error?.localizedDescription ?? "unknown")")
+        debugLog("❌ Audio player decode error: \(error?.localizedDescription ?? "unknown")")
         
         if let completion = completionHandler {
             completion()

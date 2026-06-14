@@ -143,42 +143,42 @@ struct CustomPaywallView: View {
     }
     
     private func fetchPrice() {
-        print("🏷 Fetching price...")
+        debugLog("🏷 Fetching price...")
         Purchases.shared.getOfferings { offerings, error in
             if let error = error {
-                print("🚫 Error fetching offerings: \(error)")
+                debugLog("🚫 Error fetching offerings: \(error)")
                 return
             }
             
-            print("📦 Available offerings: \(offerings?.all.keys.joined(separator: ", ") ?? "none")")
+            debugLog("📦 Available offerings: \(offerings?.all.keys.joined(separator: ", ") ?? "none")")
             
             // Try the 'lifetime_unlock' offering first
             if let offering = offerings?.offering(identifier: "lifetime_unlock") {
-                print("✅ Found 'lifetime_unlock' offering")
+                debugLog("✅ Found 'lifetime_unlock' offering")
                 if let package = offering.availablePackages.first {
-                    print("💰 Found package with price: \(package.localizedPriceString)")
+                    debugLog("💰 Found package with price: \(package.localizedPriceString)")
                     DispatchQueue.main.async {
                         self.package = package
                         self.priceText = package.localizedPriceString
                     }
                 } else {
-                    print("❌ No packages in 'lifetime_unlock' offering")
+                    debugLog("❌ No packages in 'lifetime_unlock' offering")
                 }
             }
             // Fallback to current offering
             else if let package = offerings?.current?.lifetime {
-                print("💰 Found package in current offering: \(package.localizedPriceString)")
+                debugLog("💰 Found package in current offering: \(package.localizedPriceString)")
                 DispatchQueue.main.async {
                     self.package = package
                     self.priceText = package.localizedPriceString
                 }
             } else {
-                print("❌ No lifetime package found in any offering")
+                debugLog("❌ No lifetime package found in any offering")
                 // For debugging, list all available packages
                 if let current = offerings?.current {
-                    print("📝 Available packages in current offering:")
+                    debugLog("📝 Available packages in current offering:")
                     current.availablePackages.forEach { package in
-                        print(" - \(package.identifier): \(package.localizedPriceString)")
+                        debugLog(" - \(package.identifier): \(package.localizedPriceString)")
                     }
                 }
             }
@@ -189,36 +189,36 @@ struct CustomPaywallView: View {
         guard let package = package else { return }
         isPurchasing = true
         
-        print("🛍 Starting purchase process...")
+        debugLog("🛍 Starting purchase process...")
         Purchases.shared.purchase(package: package) { transaction, customerInfo, error, userCancelled in
             isPurchasing = false
             
             if let error = error {
-                print("❌ Purchase error: \(error)")
+                debugLog("❌ Purchase error: \(error)")
                 return
             }
             
             if userCancelled {
-                print("👋 User cancelled purchase")
+                debugLog("👋 User cancelled purchase")
                 return
             }
             
             let isActive = customerInfo?.entitlements["premium_access"]?.isActive == true
-            print("🔐 Premium active: \(isActive)")
+            debugLog("🔐 Premium active: \(isActive)")
             
             if isActive {
-                print("✅ Purchase successful!")
+                debugLog("✅ Purchase successful!")
                 // Add a slight delay to ensure RevenueCat has time to process
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                     // Double check the status one more time
                     Purchases.shared.getCustomerInfo { verifyInfo, verifyError in
                         if let error = verifyError {
-                            print("❌ Verification error: \(error)")
+                            debugLog("❌ Verification error: \(error)")
                             return
                         }
                         
                         let verifyActive = verifyInfo?.entitlements["premium_access"]?.isActive == true
-                        print("🔍 Verification status: \(verifyActive)")
+                        debugLog("🔍 Verification status: \(verifyActive)")
                         
                         if verifyActive {
                             settings.updatePremiumStatus()
@@ -226,24 +226,24 @@ struct CustomPaywallView: View {
                                 dismissAction()
                             }
                         } else {
-                            print("⚠️ Verification failed - premium not active after delay")
+                            debugLog("⚠️ Verification failed - premium not active after delay")
                         }
                     }
                 }
             } else {
-                print("⚠️ Purchase completed but premium not active")
+                debugLog("⚠️ Purchase completed but premium not active")
             }
         }
     }
     
     private func restorePurchases() {
         isPurchasing = true
-        print("🔄 Starting restore process...")
+        debugLog("🔄 Starting restore process...")
         
         Purchases.shared.restorePurchases { customerInfo, error in
             // Handle error and success paths with simple user-facing alerts
             if let error = error {
-                print("❌ Restore error: \(error)")
+                debugLog("❌ Restore error: \(error)")
                 DispatchQueue.main.async {
                     isPurchasing = false
                     shouldDismissAfterRestore = false
@@ -254,12 +254,12 @@ struct CustomPaywallView: View {
                 return
             }
             
-            print("✅ Restore completed")
-            print("📱 Customer info: \(String(describing: customerInfo))")
-            print("🔑 Entitlements: \(String(describing: customerInfo?.entitlements))")
+            debugLog("✅ Restore completed")
+            debugLog("📱 Customer info: \(String(describing: customerInfo))")
+            debugLog("🔑 Entitlements: \(String(describing: customerInfo?.entitlements))")
             
             let isActive = customerInfo?.entitlements["premium_access"]?.isActive == true
-            print("🔐 Premium active: \(isActive)")
+            debugLog("🔐 Premium active: \(isActive)")
             
             DispatchQueue.main.async {
                 isPurchasing = false
@@ -272,7 +272,7 @@ struct CustomPaywallView: View {
                     showRestoreAlert = true
                 } else {
                     // Clear, friendly guidance when nothing was found
-                    print("⚠️ No active premium entitlement found during restore")
+                    debugLog("⚠️ No active premium entitlement found during restore")
                     shouldDismissAfterRestore = false
                     restoreAlertTitle = "No Purchases Found"
                     restoreAlertMessage = "We couldn’t find any previous purchases for your Apple ID. If you bought Premium with a different Apple ID, sign in with that account and try again."
