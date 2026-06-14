@@ -255,18 +255,17 @@ struct TimersListView: View {
     }
 
     private func effectiveRemaining(for row: WatchTimersModel.Row) -> Int {
-        guard isRunning(row), let snap = model.lastSnapshotAt else { return row.remaining }
+        guard isRunning(row) else { return row.remaining }
+        // Use absolute endDate when available — stays correct across watch suspension.
+        if let end = row.endDate {
+            return max(0, Int(end.timeIntervalSinceNow))
+        }
+        // Fallback for snapshots without endDate: subtract elapsed time since snapshot.
+        guard let snap = model.lastSnapshotAt else { return row.remaining }
         let delta = max(0, Int(now.timeIntervalSince(snap)))
-        
-        // If drift is too large (> 5 seconds), request a fresh snapshot from iPhone
-        // This handles cases where Watch was offline or WatchConnectivity was delayed
         if delta > 5 {
-            #if DEBUG
-            debugLog("[Watch] Large drift detected (\(delta)s), requesting fresh snapshot")
-            #endif
             WCSessionManager.shared.sendCommand(["action": "requestSnapshot"])
         }
-        
         return max(0, row.remaining - delta)
     }
 
@@ -282,14 +281,11 @@ struct TimersListView: View {
     private func header(for row: WatchTimersModel.Row) -> some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 2) {
-                // Add a small label next to the main remaining-time counter
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text("Flip In")
                         .font(.headline)
                         .foregroundColor(.secondary)
-                    Text(format(seconds: effectiveRemaining(for: row)))
-                        .font(.title2)
-                        .fontWeight(.bold)
+                    remainingCountdown(for: row)
                 }
                 if let shownElapsed = effectiveElapsed(for: row) {
                     Text("Lit Time \(format(seconds: shownElapsed))")
@@ -297,8 +293,24 @@ struct TimersListView: View {
                         .foregroundColor(.secondary)
                 }
             }
-            .layoutPriority(1) // ensure text has space
+            .layoutPriority(1)
             Spacer()
+        }
+    }
+
+    // System-managed countdown — self-updates without app code running,
+    // so it stays live on Always-On Display even when the watch is suspended.
+    @ViewBuilder
+    private func remainingCountdown(for row: WatchTimersModel.Row) -> some View {
+        if let end = row.endDate, isRunning(row), end > Date() {
+            Text(timerInterval: Date.now...end, countsDown: true)
+                .font(.title2)
+                .fontWeight(.bold)
+                .monospacedDigit()
+        } else {
+            Text(format(seconds: effectiveRemaining(for: row)))
+                .font(.title2)
+                .fontWeight(.bold)
         }
     }
 
@@ -400,7 +412,7 @@ struct TimersListView: View {
     /// waiting for the iPhone round-trip. The next snapshot will reconcile if needed.
     private func optimisticStart(_ row: WatchTimersModel.Row, remainingOverride: Int? = nil) {
         let newRemaining = max(1, remainingOverride ?? effectiveRemaining(for: row))
-        // Nudge the local clock so effectiveRemaining() subtracts time smoothly
+        let optimisticEnd = Date().addingTimeInterval(TimeInterval(newRemaining))
         model.lastSnapshotAt = Date()
         model.timers = model.timers.map { item in
             if item.id == row.id {
@@ -411,15 +423,14 @@ struct TimersListView: View {
                     state: "running",
                     preset1Seconds: item.preset1Seconds,
                     preset2Seconds: item.preset2Seconds,
-                    elapsedSeconds: item.elapsedSeconds
+                    elapsedSeconds: item.elapsedSeconds,
+                    endDate: optimisticEnd
                 )
             }
             return item
         }
     }
 
-    /// Immediately reflect a local pause so the UI stops ticking at the current
-    /// effective remaining time.
     private func optimisticPause(_ row: WatchTimersModel.Row) {
         let currentRemaining = effectiveRemaining(for: row)
         model.timers = model.timers.map { item in
@@ -431,7 +442,8 @@ struct TimersListView: View {
                     state: "stopped",
                     preset1Seconds: item.preset1Seconds,
                     preset2Seconds: item.preset2Seconds,
-                    elapsedSeconds: item.elapsedSeconds
+                    elapsedSeconds: item.elapsedSeconds,
+                    endDate: nil
                 )
             }
             return item
@@ -494,14 +506,13 @@ final class WatchTimersModel: ObservableObject {
     struct Row: Identifiable, Equatable {
         let id: String
         let name: String
-        let remaining: Int
+        let remaining: Int          // snapshot value; prefer endDate for live display
         let state: String
-        // Optional: seconds for Preset 1 provided by iPhone snapshot
         let preset1Seconds: Int?
-        // Optional: seconds for Preset 2 provided by iPhone snapshot
         let preset2Seconds: Int?
-        // Optional: elapsed seconds provided by iPhone snapshot
         let elapsedSeconds: Int?
+        // Absolute end time from iPhone — survives watch suspension without drift.
+        let endDate: Date?
     }
 
     @Published var timers: [Row] = []
@@ -565,7 +576,8 @@ final class WatchTimersModel: ObservableObject {
                 let preset1 = item["preset1"] as? Int
                 let preset2 = item["preset2"] as? Int
                 let elapsed = item["elapsed"] as? Int
-                return Row(id: id, name: name, remaining: remaining, state: state, preset1Seconds: preset1, preset2Seconds: preset2, elapsedSeconds: elapsed)
+                let endDate: Date? = (item["endDate"] as? Double).map { Date(timeIntervalSince1970: $0) }
+                return Row(id: id, name: name, remaining: remaining, state: state, preset1Seconds: preset1, preset2Seconds: preset2, elapsedSeconds: elapsed, endDate: endDate)
             }
             
             let previousCount = self?.timers.count ?? 0

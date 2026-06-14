@@ -71,119 +71,117 @@ class AlertState: ObservableObject {
     }
 }
 
+// MARK: -
+
 class TimerState: ObservableObject {
     let id: UUID
+
+    // UI display values — updated by the refresh timer every second. Never the source of truth.
     @Published var intervalTime: TimeInterval
     @Published var elapsedTime: TimeInterval = 0
     @Published var isRunning: Bool = false
     @Published var isCompleted: Bool = false
 
+    // --- Sources of truth ---
+    // When running: endDate is when the countdown reaches zero.
+    // When paused/stopped: remainingAtPause holds the snapshot of remaining time.
+    // Elapsed: elapsedStartDate is when the "lit time" clock first started (never cleared by pause).
+    private(set) var endDate: Date?
+    private var remainingAtPause: TimeInterval
+    private var elapsedStartDate: Date?
+
+    var initialIntervalTime: TimeInterval
     private var settings: Settings?
-    private var intervalTimer: Timer?
-    private var elapsedTimer: Timer?
-    private var onCompleteAction: (() -> Void)?
-    private var completionTimer: Timer?
-    private var initialIntervalTime: TimeInterval
-    private var targetDate: Date?
+    private var refreshTimer: Timer?
+    var onCompleteAction: (() -> Void)?
     private var notificationIdentifier: String?
 
     init(id: UUID, interval: TimeInterval, settings: Settings? = nil) {
         self.id = id
         self.intervalTime = interval
+        self.remainingAtPause = interval
         self.initialIntervalTime = interval
         self.settings = settings
     }
 
-    func updateSettings(_ newSettings: Settings) {
-        debugLog("TimerState (\(self.id)): Updating settings reference")
-        let previousSetting = self.settings?.selectedAlertSound.displayName ?? "nil"
-        self.settings = newSettings
-        let newSetting = self.settings?.selectedAlertSound.displayName ?? "nil"
-        debugLog("TimerState (\(self.id)): Sound changed from \(previousSetting) to \(newSetting)")
+    // MARK: - Pure testable functions (injectable now)
+
+    /// Remaining countdown time at a given instant.
+    func remaining(at now: Date) -> TimeInterval {
+        guard let end = endDate else { return remainingAtPause }
+        return max(0, end.timeIntervalSince(now))
+    }
+
+    /// Total elapsed ("lit") time at a given instant.
+    func elapsed(at now: Date) -> TimeInterval {
+        guard let start = elapsedStartDate else { return 0 }
+        return max(0, now.timeIntervalSince(start))
+    }
+
+    // MARK: - State transitions
+
+    func start(onComplete: @escaping () -> Void) {
+        let starting = remainingAtPause > 0 ? remainingAtPause : initialIntervalTime
+        guard starting > 0 else {
+            debugLog("⚠️ TimerState (\(id)): Cannot start — no time remaining")
+            return
+        }
+
+        cancelPendingNotification()
+        let now = Date()
+        endDate = now.addingTimeInterval(starting)
+        remainingAtPause = 0
+        if elapsedStartDate == nil { elapsedStartDate = now }
+        isRunning = true
+        isCompleted = false
+        onCompleteAction = onComplete
+
+        scheduleCompletionNotification(at: endDate!)
+        startRefreshTimer()
+
+        intervalTime = starting
+        objectWillChange.send()
+        debugLog("TimerState (\(id)): started — endDate \(endDate!), starting \(Int(starting))s")
+
+        saveState()
+    }
+
+    func stop(at now: Date = Date()) {
+        remainingAtPause = remaining(at: now)
+        endDate = nil
+        isRunning = false
+        cancelPendingNotification()
+        // Refresh timer stays alive so elapsed continues ticking.
+        objectWillChange.send()
+        debugLog("TimerState (\(id)): stopped — \(Int(remainingAtPause))s remaining")
+
+        saveState()
     }
 
     func reset() {
-        stopIntervalTimer()
-        stopElapsedTimer()
-        completionTimer?.invalidate()
-        completionTimer = nil
+        endDate = nil
+        elapsedStartDate = nil
+        remainingAtPause = initialIntervalTime
         isRunning = false
         isCompleted = false
-        elapsedTime = 0
         intervalTime = initialIntervalTime
-        targetDate = nil
+        elapsedTime = 0
+        stopRefreshTimer()
         cancelPendingNotification()
         objectWillChange.send()
+        debugLog("TimerState (\(id)): reset")
+
+        clearPersistedState()
     }
 
-    private func createAndStartIntervalTimer() {
-        debugLog("Creating interval timer")
-        if !Thread.isMainThread {
-            DispatchQueue.main.async { [weak self] in
-                self?.createAndStartIntervalTimer()
-            }
-            return
-        }
-        self.intervalTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            guard let self = self else { return }
-            if self.intervalTime > 0 {
-                self.intervalTime -= 1
-                debugLog("Interval timer tick: \(self.intervalTime)")
-                self.objectWillChange.send()
-            } else {
-                debugLog("Interval timer complete")
-                self.stopIntervalTimer()
-                self.isCompleted = true
-                self.objectWillChange.send()
-                if let settingsObj = self.settings {
-                    debugLog("TimerState (\(self.id)): Timer complete with settings: \(settingsObj.selectedAlertSound.displayName)")
-                } else {
-                    debugLog("TimerState (\(self.id)): ⚠️ Timer complete but settings is nil")
-                }
-                self.onCompleteAction?()
-                DispatchQueue.main.async {
-                    if let settingsObj = self.settings, settingsObj.hapticsEnabled {
-                        switch settingsObj.hapticIntensity {
-                        case .light:
-                            let notif = UINotificationFeedbackGenerator()
-                            notif.notificationOccurred(.success)
-                        case .medium:
-                            let notif = UINotificationFeedbackGenerator()
-                            notif.notificationOccurred(.success)
-                            let heavy = UIImpactFeedbackGenerator(style: .heavy)
-                            heavy.impactOccurred(intensity: 0.9)
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
-                                let medium = UIImpactFeedbackGenerator(style: .medium)
-                                medium.impactOccurred(intensity: 0.9)
-                            }
-                        case .strong:
-                            let notif = UINotificationFeedbackGenerator()
-                            notif.notificationOccurred(.success)
-                            let heavy1 = UIImpactFeedbackGenerator(style: .heavy)
-                            heavy1.impactOccurred(intensity: 1.0)
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                                let heavy2 = UIImpactFeedbackGenerator(style: .heavy)
-                                heavy2.impactOccurred(intensity: 1.0)
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                                let medium = UIImpactFeedbackGenerator(style: .medium)
-                                medium.impactOccurred(intensity: 0.9)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        if let timer = self.intervalTimer {
-            RunLoop.main.add(timer, forMode: .common)
-        }
-    }
+    func resetToZero() { reset() }
 
     func setIntervalTime(_ time: TimeInterval) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
-            self.intervalTime = time
             self.initialIntervalTime = time
+            self.remainingAtPause = time
+            self.intervalTime = time
             self.objectWillChange.send()
         }
     }
@@ -191,6 +189,7 @@ class TimerState: ObservableObject {
     func setCurrentIntervalTime(_ time: TimeInterval) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
+            self.remainingAtPause = time
             self.intervalTime = time
             self.objectWillChange.send()
         }
@@ -200,196 +199,247 @@ class TimerState: ObservableObject {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             self.elapsedTime = time
+            self.elapsedStartDate = Date().addingTimeInterval(-time)
             self.objectWillChange.send()
         }
     }
 
-    func start(onComplete: @escaping () -> Void) {
-        debugLog("Starting timer with interval: \(intervalTime)")
-        intervalTimer?.invalidate()
-        intervalTimer = nil
-        self.isRunning = false
-        self.isCompleted = false
-        self.onCompleteAction = onComplete
-        stopIntervalTimer()
-        guard intervalTime > 0 else {
-            debugLog("⚠️ Cannot start timer - interval time is \(intervalTime)")
-            return
-        }
-        targetDate = Date().addingTimeInterval(intervalTime)
-        scheduleCompletionNotification(after: intervalTime)
-        startElapsedTimerIfNeeded()
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            self.isRunning = true
-            self.objectWillChange.send()
-            debugLog("Timer started - isRunning set to true")
-            self.createAndStartIntervalTimer()
-        }
-    }
+    // MARK: - Refresh timer (UI-only, not source of truth)
 
-    private func startElapsedTimerIfNeeded() {
-        guard elapsedTimer == nil else {
-            debugLog("Elapsed timer already running, continuing it")
-            return
-        }
-        debugLog("Starting elapsed timer")
-        DispatchQueue.main.async { [weak self] in
+    private func startRefreshTimer() {
+        guard refreshTimer == nil else { return }
+        let timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
-            self.elapsedTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-                guard let self = self else { return }
-                DispatchQueue.main.async {
-                    self.elapsedTime += 1
-                    debugLog("Elapsed timer tick: \(self.elapsedTime)")
-                    self.objectWillChange.send()
+            let now = Date()
+            self.elapsedTime = self.elapsed(at: now)
+            if self.isRunning {
+                let r = self.remaining(at: now)
+                self.intervalTime = r
+                if r <= 0 && !self.isCompleted {
+                    self.handleCompletion()
                 }
             }
-            if let timer = self.elapsedTimer {
-                RunLoop.main.add(timer, forMode: .common)
-                debugLog("Elapsed timer added to RunLoop")
-            }
-        }
-    }
-
-    private func stopIntervalTimer() {
-        intervalTimer?.invalidate()
-        intervalTimer = nil
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            self.isRunning = false
             self.objectWillChange.send()
         }
+        RunLoop.main.add(timer, forMode: .common)
+        refreshTimer = timer
     }
 
-    private func stopElapsedTimer() {
-        elapsedTimer?.invalidate()
-        elapsedTimer = nil
+    private func stopRefreshTimer() {
+        refreshTimer?.invalidate()
+        refreshTimer = nil
     }
 
-    func stop() {
-        stopIntervalTimer()
+    // MARK: - Completion
+
+    private func handleCompletion() {
+        endDate = nil
+        remainingAtPause = 0
+        isRunning = false
+        isCompleted = true
+        intervalTime = 0
+        stopRefreshTimer()
         cancelPendingNotification()
-        targetDate = nil
+        objectWillChange.send()
+        debugLog("TimerState (\(id)): completed")
+
+        clearPersistedState()
+        onCompleteAction?()
+        triggerCompletionHaptics()
     }
 
-    func resetToZero() {
-        stopIntervalTimer()
-        stopElapsedTimer()
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            self.elapsedTime = 0
-            self.intervalTime = self.initialIntervalTime
-            self.isRunning = false
-            self.objectWillChange.send()
-            debugLog("Timer reset to zero. Interval time is now: \(self.intervalTime)")
-        }
-        cancelPendingNotification()
-        targetDate = nil
-    }
-
-    func playSound() {
-        let defaultSoundID: SystemSoundID = 1005
-        if let settingsObj = self.settings, settingsObj.soundEnabled {
-            debugLog("TimerState (\(self.id)): Playing timer completion sound with announcement")
-            settingsObj.playTimerCompletionWithAnnouncement(timerId: self.id)
-        } else {
-            debugLog("TimerState (\(self.id)): ⚠️ Settings reference is nil or sound disabled")
-            AudioServicesPlaySystemSound(defaultSoundID)
-        }
-    }
+    func completeNow() { handleCompletion() }
 
     func resetCompletionState() {
-        debugLog("[DEBUG] TimerState.resetCompletionState() called for timer: \(id)")
         isCompleted = false
         objectWillChange.send()
     }
 
-    // MARK: - Background resync helpers
+    // MARK: - Foreground resync
 
+    /// Called when the app returns to the foreground, or after state is restored from persistence.
+    /// Corrects display values and restarts the refresh timer if needed.
     func resyncAfterForeground() {
-        guard let target = targetDate else { return }
-        let remaining = target.timeIntervalSinceNow
-        if remaining <= 0 {
-            completeNow()
+        let now = Date()
+        if let end = endDate {
+            let r = max(0, end.timeIntervalSince(now))
+            intervalTime = r
+            elapsedTime = elapsed(at: now)
+            if r <= 0 {
+                handleCompletion()
+            } else {
+                isRunning = true
+                if refreshTimer == nil { startRefreshTimer() }
+            }
+        } else if elapsedStartDate != nil {
+            elapsedTime = elapsed(at: now)
+        }
+        objectWillChange.send()
+    }
+
+    // MARK: - Sound & haptics
+
+    func playSound() {
+        if let settingsObj = settings, settingsObj.soundEnabled {
+            settingsObj.playTimerCompletionWithAnnouncement(timerId: self.id)
         } else {
-            setCurrentIntervalTime(remaining)
-            if isRunning && intervalTimer == nil {
-                createAndStartIntervalTimer()
+            AudioServicesPlaySystemSound(1005)
+        }
+    }
+
+    private func triggerCompletionHaptics() {
+        guard let settingsObj = settings, settingsObj.hapticsEnabled else { return }
+        DispatchQueue.main.async {
+            switch settingsObj.hapticIntensity {
+            case .light:
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+            case .medium:
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                UIImpactFeedbackGenerator(style: .heavy).impactOccurred(intensity: 0.9)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred(intensity: 0.9)
+                }
+            case .strong:
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                UIImpactFeedbackGenerator(style: .heavy).impactOccurred(intensity: 1.0)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                    UIImpactFeedbackGenerator(style: .heavy).impactOccurred(intensity: 1.0)
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred(intensity: 0.9)
+                }
             }
         }
     }
 
-    func completeNow() {
-        stopIntervalTimer()
-        isRunning = false
-        isCompleted = true
-        objectWillChange.send()
-        cancelPendingNotification()
-        onCompleteAction?()
-    }
+    // MARK: - Local notifications
 
-    // MARK: - Local notification scheduling
-
-    private func scheduleCompletionNotification(after interval: TimeInterval) {
+    private func scheduleCompletionNotification(at fireDate: Date) {
         let identifier = "timer-\(id.uuidString)"
         notificationIdentifier = identifier
         let content = UNMutableNotificationContent()
         content.title = "Timer Complete"
         content.body = "\(displayName()) timer is complete."
         content.sound = .default
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, interval), repeats: false)
+        let interval = max(1, fireDate.timeIntervalSinceNow)
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
-                debugLog("❌ Failed to schedule completion notification: \(error)")
+                debugLog("❌ Failed to schedule notification: \(error)")
             } else {
-                debugLog("🗓️ Scheduled completion notification for timer \(self.id) in \(Int(interval))s")
+                debugLog("🗓️ Scheduled notification for timer \(self.id) in \(Int(interval))s")
             }
         }
     }
 
     private func cancelPendingNotification() {
-        if let id = notificationIdentifier {
-            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id])
+        if let identifier = notificationIdentifier {
+            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [identifier])
             notificationIdentifier = nil
         }
     }
 
     private func displayName() -> String {
-        if let settings = settings {
-            if let timer = settings.allTimers.first(where: { $0.id == self.id }) {
-                return timer.name
-            }
+        if let settings = settings,
+           let timer = settings.allTimers.first(where: { $0.id == self.id }) {
+            return timer.name
         }
         return "Timer"
     }
+
+    // MARK: - Persistence (UserDefaults)
+
+    private var persistPrefix: String { "timerState_\(id.uuidString)" }
+
+    func saveState() {
+        let d = UserDefaults.standard
+        if let end = endDate {
+            d.set(end.timeIntervalSince1970, forKey: "\(persistPrefix)_endDate")
+        } else {
+            d.removeObject(forKey: "\(persistPrefix)_endDate")
+        }
+        d.set(remainingAtPause, forKey: "\(persistPrefix)_remaining")
+        if let start = elapsedStartDate {
+            d.set(start.timeIntervalSince1970, forKey: "\(persistPrefix)_elapsedStart")
+        } else {
+            d.removeObject(forKey: "\(persistPrefix)_elapsedStart")
+        }
+    }
+
+    func loadState() {
+        let d = UserDefaults.standard
+        // Restore elapsed start date (lit time continues across launches)
+        if let raw = d.object(forKey: "\(persistPrefix)_elapsedStart") as? Double {
+            elapsedStartDate = Date(timeIntervalSince1970: raw)
+        }
+        // Restore remaining-at-pause
+        let savedRemaining = d.double(forKey: "\(persistPrefix)_remaining")
+        if savedRemaining > 0 { remainingAtPause = savedRemaining }
+
+        // Restore running timer
+        if let raw = d.object(forKey: "\(persistPrefix)_endDate") as? Double {
+            let savedEnd = Date(timeIntervalSince1970: raw)
+            if savedEnd > Date() {
+                endDate = savedEnd
+                // isRunning stays false; resyncAfterForeground() will activate it
+            } else {
+                // Timer expired while app was killed — notification already fired
+                isCompleted = true
+                remainingAtPause = 0
+                intervalTime = 0
+            }
+        }
+        // Update display values from restored state
+        let now = Date()
+        if endDate != nil || remainingAtPause > 0 {
+            intervalTime = remaining(at: now)
+        }
+        if elapsedStartDate != nil {
+            elapsedTime = elapsed(at: now)
+        }
+    }
+
+    func clearPersistedState() {
+        let d = UserDefaults.standard
+        d.removeObject(forKey: "\(persistPrefix)_endDate")
+        d.removeObject(forKey: "\(persistPrefix)_remaining")
+        d.removeObject(forKey: "\(persistPrefix)_elapsedStart")
+    }
+
+    // MARK: -
+
+    func updateSettings(_ newSettings: Settings) {
+        let old = self.settings?.selectedAlertSound.displayName ?? "nil"
+        self.settings = newSettings
+        debugLog("TimerState (\(id)): sound \(old) → \(newSettings.selectedAlertSound.displayName)")
+    }
 }
+
+// MARK: -
 
 class TimerStatesManager: ObservableObject {
     @Published var states: [TimerState] = []
     private var settings: Settings?
 
     init(settings: Settings? = nil) {
-        debugLog("TimerStatesManager: Initializing with settings \(settings != nil ? "provided" : "nil")")
         self.settings = settings
     }
 
     func initializeTimerStates(timers: [BBQTimer]) {
-        debugLog("TimerStatesManager: Initializing timer states for \(timers.count) timers")
-        debugLog("TimerStatesManager: Current settings reference: \(settings != nil ? "valid" : "nil")")
-        if let sound = settings?.selectedAlertSound {
-            debugLog("TimerStatesManager: Current alert sound: \(sound.displayName)")
-        }
         for state in states { state.stop() }
         states = []
         for timer in timers {
-            states.append(TimerState(id: timer.id, interval: TimeInterval(timer.preset1), settings: settings))
+            let state = TimerState(id: timer.id, interval: TimeInterval(timer.preset1), settings: settings)
+            state.loadState()
+            states.append(state)
         }
-        debugLog("TimerStatesManager: Created \(states.count) timer states")
+        debugLog("TimerStatesManager: initialized \(states.count) states")
     }
 
     func addTimerState(for timer: BBQTimer) -> TimerState {
         let state = TimerState(id: timer.id, interval: TimeInterval(timer.preset1), settings: settings)
+        state.loadState()
         states.append(state)
         return state
     }
@@ -397,43 +447,31 @@ class TimerStatesManager: ObservableObject {
     func removeTimerState(for timerId: UUID) {
         if let index = states.firstIndex(where: { $0.id == timerId }) {
             states[index].stop()
+            states[index].clearPersistedState()
             states.remove(at: index)
         }
     }
 
     func state(for timerId: UUID) -> TimerState? {
-        return states.first { $0.id == timerId }
+        states.first { $0.id == timerId }
     }
 
     func syncTimerStates(timers: [BBQTimer]) {
         for timer in timers {
-            if state(for: timer.id) == nil {
-                _ = addTimerState(for: timer)
-            }
+            if state(for: timer.id) == nil { _ = addTimerState(for: timer) }
         }
         let timerIds = Set(timers.map { $0.id })
         states = states.filter { timerState in
-            if timerIds.contains(timerState.id) {
-                return true
-            } else {
-                timerState.stop()
-                return false
-            }
+            if timerIds.contains(timerState.id) { return true }
+            timerState.stop()
+            timerState.clearPersistedState()
+            return false
         }
     }
 
     func updateSettings(_ settings: Settings) {
-        debugLog("TimerStatesManager: Updating settings reference")
         self.settings = settings
-        for (index, state) in states.enumerated() {
-            debugLog("TimerStatesManager: Updating settings for timer state #\(index)")
-            state.updateSettings(settings)
-        }
-        if settings.isUsingCustomSound {
-            debugLog("TimerStatesManager: Using custom sound with ID: \(settings.selectedCustomSoundID?.uuidString ?? "nil")")
-        } else {
-            debugLog("TimerStatesManager: Using system sound: \(settings.selectedAlertSound.displayName)")
-        }
+        for state in states { state.updateSettings(settings) }
         objectWillChange.send()
     }
 }

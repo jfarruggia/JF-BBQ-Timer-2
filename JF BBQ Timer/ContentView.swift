@@ -68,6 +68,21 @@ struct ContentView: View {
         debugLog("ContentView: Initializing timer states with settings")
         timerStates.updateSettings(settings)
         timerStates.syncTimerStates(timers: settings.allTimers)
+        // Wire onComplete for any timers that were restored from persistence
+        // (their endDate is set but onCompleteAction is nil until the user taps Start).
+        rewireRunningTimerCallbacks()
+    }
+
+    private func rewireRunningTimerCallbacks() {
+        for timer in settings.allTimers {
+            guard let state = timerStates.state(for: timer.id),
+                  state.endDate != nil else { continue }
+            state.onCompleteAction = { [weak state] in
+                guard let state = state else { return }
+                if settings.soundEnabled { state.playSound() }
+                if settings.hapticsEnabled { alertState.isPresented = true }
+            }
+        }
     }
 
     private func fireHapticBurst() {
@@ -609,11 +624,12 @@ struct ContentView: View {
     private func buildWatchSnapshot() -> [String: Any] {
         let rows: [[String: Any]] = settings.allTimers.compactMap { timer in
             let state = timerStates.state(for: timer.id)
-            let remaining = Int((state?.intervalTime ?? TimeInterval(timer.preset1)).rounded())
+            let now = Date()
+            let remaining = Int((state?.remaining(at: now) ?? TimeInterval(timer.preset1)).rounded())
             let isRunning = state?.isRunning == true
             let status = isRunning ? "running" : "stopped"
-            let elapsed = Int((state?.elapsedTime ?? 0).rounded())
-            return [
+            let elapsed = Int((state?.elapsed(at: now) ?? 0).rounded())
+            var row: [String: Any] = [
                 "id": timer.id.uuidString,
                 "name": timer.name,
                 "remaining": remaining,
@@ -622,6 +638,12 @@ struct ContentView: View {
                 "preset2": timer.preset2,
                 "elapsed": elapsed,
             ]
+            // Absolute end date lets the watch compute remaining independently,
+            // surviving suspension without drifting.
+            if let end = state?.endDate {
+                row["endDate"] = end.timeIntervalSince1970
+            }
+            return row
         }
         return ["timers": rows]
     }
