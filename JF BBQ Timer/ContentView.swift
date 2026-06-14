@@ -27,6 +27,24 @@ struct ContentView: View {
     @State private var lastCompletedTimerId: UUID? = nil
 
     @ViewBuilder
+    private var backgroundLayer: some View {
+        if #available(iOS 26, *) {
+            LinearGradient(
+                colors: [
+                    Color(red: 0.77, green: 0.27, blue: 0.21),
+                    Color(red: 0.88, green: 0.38, blue: 0.17),
+                    Color(red: 0.72, green: 0.20, blue: 0.20),
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+        } else {
+            Color("PrimaryBackground").ignoresSafeArea()
+        }
+    }
+
+    @ViewBuilder
     private var appHeader: some View {
         if #available(iOS 26, *) {
             HStack {
@@ -396,7 +414,7 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            Color("PrimaryBackground").ignoresSafeArea()
+            backgroundLayer
 
             VStack(spacing: 0) {
                 appHeader

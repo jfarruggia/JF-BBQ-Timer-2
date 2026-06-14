@@ -59,21 +59,48 @@ struct IntervalTimerView: View {
     var theme: Theme
 
     var body: some View {
-        VStack(spacing: 2) {
-            Text("FLIP IN")
-                .font(.system(size: 28, weight: .bold))
-                .foregroundColor(Color("TimerAccent"))
-                .shadow(color: Color.black.opacity(0.7), radius: 3, x: 0, y: 2)
-                .padding(.top, 2)
+        intervalContent
+    }
 
-            FlipTimerView(timeInterval: timerState.intervalTime, theme: theme)
-                .padding(.bottom, 2)
+    @ViewBuilder
+    private var intervalContent: some View {
+        if #available(iOS 26, *) {
+            VStack(spacing: 2) {
+                Text("FLIP IN")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundColor(Color("TimerAccent"))
+                    .shadow(color: Color.black.opacity(0.8), radius: 3, x: 0, y: 2)
+                    .padding(.top, 2)
+                Text(TimeFormatter.timeString(from: Int(timerState.intervalTime)))
+                    .font(.system(size: 84, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                    .shadow(color: Color.black.opacity(0.8), radius: 4, x: 0, y: 2)
+                    .frame(height: 100)
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
+                    .animation(.easeInOut, value: timerState.intervalTime)
+                    .id("interval-\(timerState.intervalTime)")
+                    .padding(.bottom, 2)
+            }
+            .padding(.vertical, 10)
+            .padding(.horizontal, 10)
+            .frame(maxWidth: .infinity)
+        } else {
+            VStack(spacing: 2) {
+                Text("FLIP IN")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundColor(Color("TimerAccent"))
+                    .shadow(color: Color.black.opacity(0.7), radius: 3, x: 0, y: 2)
+                    .padding(.top, 2)
+                FlipTimerView(timeInterval: timerState.intervalTime, theme: theme)
+                    .padding(.bottom, 2)
+            }
+            .padding(.vertical, 10)
+            .padding(.horizontal, 10)
+            .background(theme.backgroundColor)
+            .cornerRadius(16)
+            .frame(maxWidth: .infinity)
         }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 10)
-        .background(theme.backgroundColor)
-        .cornerRadius(16)
-        .frame(maxWidth: .infinity)
     }
 }
 
@@ -82,35 +109,66 @@ struct ElapsedTimerView: View {
     var theme: Theme
 
     var body: some View {
-        VStack(spacing: 2) {
-            HStack(spacing: 8) {
-                Image(systemName: "flame.fill")
-                    .foregroundColor(Color("TimerRed"))
-                    .font(.system(size: 24))
-                    .shadow(color: Color.black.opacity(0.5), radius: 2, x: 0, y: 1)
+        elapsedContent
+    }
 
-                Text("LIT TIME")
-                    .font(.system(size: 28, weight: .bold))
-                    .foregroundColor(Color("TimerAccent"))
-                    .shadow(color: Color.black.opacity(0.7), radius: 3, x: 0, y: 2)
+    @ViewBuilder
+    private var elapsedContent: some View {
+        if #available(iOS 26, *) {
+            VStack(spacing: 2) {
+                HStack(spacing: 8) {
+                    Image(systemName: "flame.fill")
+                        .foregroundColor(Color("TimerRed"))
+                        .font(.system(size: 24))
+                        .shadow(color: Color.black.opacity(0.5), radius: 2, x: 0, y: 1)
+                    Text("LIT TIME")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(Color("TimerAccent"))
+                        .shadow(color: Color.black.opacity(0.8), radius: 3, x: 0, y: 2)
+                }
+                .padding(.top, 2)
+                Text(TimeFormatter.timeString(from: Int(timerState.elapsedTime)))
+                    .font(.system(size: 72, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                    .shadow(color: Color.black.opacity(0.8), radius: 4, x: 0, y: 2)
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
+                    .animation(.easeInOut, value: timerState.elapsedTime)
+                    .id("elapsed-\(timerState.elapsedTime)")
+                    .padding(.bottom, 2)
             }
-            .padding(.top, 2)
-
-            Text(TimeFormatter.timeString(from: Int(timerState.elapsedTime)))
-                .font(.system(size: 72, weight: .bold, design: .rounded))
-                .foregroundColor(theme.accentColor)
-                .shadow(color: Color.black.opacity(0.7), radius: 4, x: 0, y: 2)
-                .minimumScaleFactor(0.5)
-                .lineLimit(1)
-                .animation(.easeInOut, value: timerState.elapsedTime)
-                .id("elapsed-\(timerState.elapsedTime)")
-                .padding(.bottom, 2)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 10)
+            .frame(maxWidth: .infinity)
+        } else {
+            VStack(spacing: 2) {
+                HStack(spacing: 8) {
+                    Image(systemName: "flame.fill")
+                        .foregroundColor(Color("TimerRed"))
+                        .font(.system(size: 24))
+                        .shadow(color: Color.black.opacity(0.5), radius: 2, x: 0, y: 1)
+                    Text("LIT TIME")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(Color("TimerAccent"))
+                        .shadow(color: Color.black.opacity(0.7), radius: 3, x: 0, y: 2)
+                }
+                .padding(.top, 2)
+                Text(TimeFormatter.timeString(from: Int(timerState.elapsedTime)))
+                    .font(.system(size: 72, weight: .bold, design: .rounded))
+                    .foregroundColor(theme.accentColor)
+                    .shadow(color: Color.black.opacity(0.7), radius: 4, x: 0, y: 2)
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
+                    .animation(.easeInOut, value: timerState.elapsedTime)
+                    .id("elapsed-\(timerState.elapsedTime)")
+                    .padding(.bottom, 2)
+            }
+            .padding(.vertical, 10)
+            .padding(.horizontal, 10)
+            .background(theme.backgroundColor)
+            .cornerRadius(16)
+            .frame(maxWidth: .infinity)
         }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 10)
-        .background(theme.backgroundColor)
-        .cornerRadius(16)
-        .frame(maxWidth: .infinity)
     }
 }
 
@@ -234,7 +292,15 @@ struct CompactTimerView: View {
                 }
                 .padding(.horizontal, panelHPad)
                 .padding(.vertical, 2)
-                .background(Theme.defaultTheme.backgroundColor)
+                .background(
+                    Group {
+                        if #available(iOS 26, *) {
+                            Color.black.opacity(0.35)
+                        } else {
+                            Theme.defaultTheme.backgroundColor
+                        }
+                    }
+                )
                 .cornerRadius(14)
                 .padding(.leading, 2)
                 .frame(maxWidth: .infinity)
