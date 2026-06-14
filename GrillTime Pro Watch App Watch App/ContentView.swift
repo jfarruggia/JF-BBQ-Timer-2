@@ -666,6 +666,8 @@ final class ExtendedRuntimeController: NSObject, WKExtendedRuntimeSessionDelegat
         case .error: reasonDescription = "error"
         case .expired: reasonDescription = "expired"
         case .resignedFrontmost: reasonDescription = "resignedFrontmost"
+        case .sessionInProgress: reasonDescription = "sessionInProgress"
+        case .suppressedBySystem: reasonDescription = "suppressedBySystem"
         @unknown default: reasonDescription = "unknown(\(reason.rawValue))"
         }
         

@@ -142,45 +142,45 @@ class ComplicationController: NSObject, CLKComplicationDataSource {
         // Create a Graphic Rectangular template with title + time
         switch family {
         case .graphicRectangular:
-            let template = CLKComplicationTemplateGraphicRectangularStandardBody()
-            template.headerTextProvider = CLKSimpleTextProvider(text: timer.name)
-            template.body1TextProvider = CLKSimpleTextProvider(text: timeString)
-            return template
+            return CLKComplicationTemplateGraphicRectangularStandardBody(
+                headerTextProvider: CLKSimpleTextProvider(text: timer.name),
+                body1TextProvider: CLKSimpleTextProvider(text: timeString)
+            )
         default:
-            let template = CLKComplicationTemplateGraphicRectangularStandardBody()
-            template.headerTextProvider = CLKSimpleTextProvider(text: timer.name)
-            template.body1TextProvider = CLKSimpleTextProvider(text: timeString)
-            return template
+            return CLKComplicationTemplateGraphicRectangularStandardBody(
+                headerTextProvider: CLKSimpleTextProvider(text: timer.name),
+                body1TextProvider: CLKSimpleTextProvider(text: timeString)
+            )
         }
     }
     
     private func createEmptyTemplate(for family: CLKComplicationFamily) -> CLKComplicationTemplate {
         switch family {
         case .graphicRectangular:
-            let template = CLKComplicationTemplateGraphicRectangularStandardBody()
-            template.headerTextProvider = CLKSimpleTextProvider(text: "GrillTime")
-            template.body1TextProvider = CLKSimpleTextProvider(text: "No timers")
-            return template
+            return CLKComplicationTemplateGraphicRectangularStandardBody(
+                headerTextProvider: CLKSimpleTextProvider(text: "GrillTime"),
+                body1TextProvider: CLKSimpleTextProvider(text: "No timers")
+            )
         default:
-            let template = CLKComplicationTemplateGraphicRectangularStandardBody()
-            template.headerTextProvider = CLKSimpleTextProvider(text: "GrillTime")
-            template.body1TextProvider = CLKSimpleTextProvider(text: "No timers")
-            return template
+            return CLKComplicationTemplateGraphicRectangularStandardBody(
+                headerTextProvider: CLKSimpleTextProvider(text: "GrillTime"),
+                body1TextProvider: CLKSimpleTextProvider(text: "No timers")
+            )
         }
     }
     
     private func createSampleTemplate(for family: CLKComplicationFamily) -> CLKComplicationTemplate {
         switch family {
         case .graphicRectangular:
-            let template = CLKComplicationTemplateGraphicRectangularStandardBody()
-            template.headerTextProvider = CLKSimpleTextProvider(text: "Ribeye")
-            template.body1TextProvider = CLKSimpleTextProvider(text: "5:30")
-            return template
+            return CLKComplicationTemplateGraphicRectangularStandardBody(
+                headerTextProvider: CLKSimpleTextProvider(text: "Ribeye"),
+                body1TextProvider: CLKSimpleTextProvider(text: "5:30")
+            )
         default:
-            let template = CLKComplicationTemplateGraphicRectangularStandardBody()
-            template.headerTextProvider = CLKSimpleTextProvider(text: "Ribeye")
-            template.body1TextProvider = CLKSimpleTextProvider(text: "5:30")
-            return template
+            return CLKComplicationTemplateGraphicRectangularStandardBody(
+                headerTextProvider: CLKSimpleTextProvider(text: "Ribeye"),
+                body1TextProvider: CLKSimpleTextProvider(text: "5:30")
+            )
         }
     }
 }
