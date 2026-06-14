@@ -67,44 +67,44 @@ struct NewSettingsView: View {
     @State private var premiumPrice: String = "$3.99" // Default/fallback price
     
     private func checkPremiumStatus() {
-        print("🔍 Checking premium status in settings...")
+        debugLog("🔍 Checking premium status in settings...")
         settings.updatePremiumStatus()
     }
     
     private func fetchPremiumPrice() {
-        print("🏷 Fetching premium price...")
+        debugLog("🏷 Fetching premium price...")
         Purchases.shared.getOfferings { offerings, error in
             if let error = error {
-                print("❌ Error fetching offerings: \(error)")
+                debugLog("❌ Error fetching offerings: \(error)")
                 return
             }
             
-            print("📦 Available offerings: \(String(describing: offerings?.all))")
+            debugLog("📦 Available offerings: \(String(describing: offerings?.all))")
             
             if let offering = offerings?.current {
-                print("🎯 Current offering: \(offering.identifier)")
-                print("📱 Available packages: \(offering.availablePackages.map { $0.identifier })")
+                debugLog("🎯 Current offering: \(offering.identifier)")
+                debugLog("📱 Available packages: \(offering.availablePackages.map { $0.identifier })")
                 
                 // Look for the custom_lifetime_oneoff package
                 if let package = offering.availablePackages.first(where: { $0.identifier == "custom_lifetime_oneoff" }) {
                     let formattedPrice = package.storeProduct.localizedPriceString
-                    print("💰 Found lifetime package with price: \(formattedPrice)")
+                    debugLog("💰 Found lifetime package with price: \(formattedPrice)")
                     DispatchQueue.main.async {
                         self.premiumPrice = formattedPrice
                     }
                 } else {
-                    print("⚠️ Could not find custom_lifetime_oneoff package")
+                    debugLog("⚠️ Could not find custom_lifetime_oneoff package")
                     // Fallback to any available package if we can't find the specific one
                     if let firstPackage = offering.availablePackages.first {
                         let formattedPrice = firstPackage.storeProduct.localizedPriceString
-                        print("💰 Using fallback package: \(firstPackage.identifier) with price: \(formattedPrice)")
+                        debugLog("💰 Using fallback package: \(firstPackage.identifier) with price: \(formattedPrice)")
                         DispatchQueue.main.async {
                             self.premiumPrice = formattedPrice
                         }
                     }
                 }
             } else {
-                print("⚠️ No current offering available")
+                debugLog("⚠️ No current offering available")
             }
         }
     }
@@ -1429,7 +1429,7 @@ struct VoiceAnnouncementSettingsView: View {
             
             Section(header: Text("Test Speech"), footer: Text("Test how your announcement will sound.")) {
                 Button(action: {
-                    print("Test announcement button pressed")
+                    debugLog("Test announcement button pressed")
                     let timerName = settings.legacyTimersAsBBQTimers.first?.name ?? "Test"
                     let message = "\(timerName) timer is complete."
                     directAnnouncement(message: message, settings: settings)
@@ -1442,7 +1442,7 @@ struct VoiceAnnouncementSettingsView: View {
                 }
                 .accessibilityLabel("Test voice announcement")
                 Button(action: {
-                    print("Ultra basic test")
+                    debugLog("Ultra basic test")
                     AudioServicesPlaySystemSound(1005)
                     let utterance = AVSpeechUtterance(string: "Testing")
                     utterance.rate = 0.5

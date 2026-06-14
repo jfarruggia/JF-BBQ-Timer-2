@@ -15,7 +15,7 @@ struct GrillTime_Pro_Watch_App_Watch_AppApp: App {
         WCSessionManager.shared.activate()
         
         #if DEBUG
-        print("WCSession (watchOS) activated")
+        debugLog("WCSession (watchOS) activated")
         #endif
     }
     var body: some Scene {

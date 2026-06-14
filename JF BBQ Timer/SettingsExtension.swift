@@ -54,9 +54,9 @@ extension Settings {
                 try session.setCategory(.ambient, mode: .default, options: [])
             }
             try session.setActive(true, options: [])
-            print("🔊 Audio session configured. Bypass Silent: \(playSoundInSilentMode)")
+            debugLog("🔊 Audio session configured. Bypass Silent: \(playSoundInSilentMode)")
         } catch {
-            print("❌ Failed to set audio session: \(error)")
+            debugLog("❌ Failed to set audio session: \(error)")
         }
     }
     // The ID of the selected custom sound (if any)
@@ -196,13 +196,13 @@ extension Settings {
     // Play the bundled sound if one is selected
     func playBundledSound(loop: Bool = false) -> Bool {
         guard let id = selectedBundledSoundID else {
-            print("[DEBUG] No bundled sound ID selected.")
+            debugLog("[DEBUG] No bundled sound ID selected.")
             return false
         }
-        print("[DEBUG] playBundledSound called with ID: \(id), loop: \(loop)")
+        debugLog("[DEBUG] playBundledSound called with ID: \(id), loop: \(loop)")
         // Use the new AudioManager with looping
         let result = AudioManager.shared.playBundledSound(with: id, loop: loop)
-        print("[DEBUG] AudioManager.playBundledSound result: \(result)")
+        debugLog("[DEBUG] AudioManager.playBundledSound result: \(result)")
         return result
     }
     
@@ -210,34 +210,34 @@ extension Settings {
     func playTimerCompletionSound(loop: Bool = false) {
         // If sound is disabled, don't play anything
         guard soundEnabled else { 
-            print("[DEBUG] Sound is disabled in settings.")
+            debugLog("[DEBUG] Sound is disabled in settings.")
             return 
         }
         // Configure audio session according to user's Silent Mode preference
         configureAudioSessionForAlerts()
-        print("[DEBUG] playTimerCompletionSound called. loop: \(loop)")
+        debugLog("[DEBUG] playTimerCompletionSound called. loop: \(loop)")
         // First try the custom sound
         if isUsingCustomSound {
-            print("[DEBUG] Attempting to play custom sound.")
+            debugLog("[DEBUG] Attempting to play custom sound.")
             let playedCustom = playCustomSound(loop: loop)
             if playedCustom {
-                print("[DEBUG] Custom sound played successfully.")
+                debugLog("[DEBUG] Custom sound played successfully.")
                 return
             }
-            print("[DEBUG] Custom sound failed, falling back.")
+            debugLog("[DEBUG] Custom sound failed, falling back.")
         }
         // Then try bundled sound
         if isUsingBundledSound {
-            print("[DEBUG] Attempting to play bundled sound.")
+            debugLog("[DEBUG] Attempting to play bundled sound.")
             let playedBundled = playBundledSound(loop: loop)
             if playedBundled {
-                print("[DEBUG] Bundled sound played successfully.")
+                debugLog("[DEBUG] Bundled sound played successfully.")
                 return
             }
-            print("[DEBUG] Bundled sound failed, falling back.")
+            debugLog("[DEBUG] Bundled sound failed, falling back.")
         }
         // Otherwise play the selected system sound (cannot loop system sounds)
-        print("[DEBUG] Playing system sound: \(selectedAlertSound.displayName)")
+        debugLog("[DEBUG] Playing system sound: \(selectedAlertSound.displayName)")
         AudioServicesPlaySystemSound(selectedAlertSound.systemSoundID)
     }
     
@@ -251,7 +251,7 @@ extension Settings {
         let synthesizer = AVSpeechSynthesizer()
         // Configure the synthesizer for best results
         // This initialization ensures we have a properly configured instance
-        print("Creating shared speech synthesizer")
+        debugLog("Creating shared speech synthesizer")
         return synthesizer
     }()
     
@@ -271,21 +271,21 @@ extension Settings {
                    output.portType == .bluetoothHFP || 
                    output.portType == .bluetoothLE ||
                    output.portType == .airPlay {
-                    print("Bluetooth audio device connected: \(output.portName)")
+                    debugLog("Bluetooth audio device connected: \(output.portName)")
                     return true
                 }
                 
                 // Check for wired headphones/earbuds
                 if output.portType == .headphones {
-                    print("Wired headphones connected: \(output.portName)")
+                    debugLog("Wired headphones connected: \(output.portName)")
                     return true
                 }
             }
             
-            print("No headphones detected: \(currentRoute.outputs.map { $0.portType.rawValue }.joined(separator: ", "))")
+            debugLog("No headphones detected: \(currentRoute.outputs.map { $0.portType.rawValue }.joined(separator: ", "))")
             return false
         } catch let error as NSError {
-            print("Error checking audio route: \(error.localizedDescription)")
+            debugLog("Error checking audio route: \(error.localizedDescription)")
             if error.code == AVAudioSession.ErrorCode.isBusy.rawValue {
                 // If session is busy, there might be another audio app using it
                 // Try to check routes without setting session active
@@ -324,7 +324,7 @@ extension Settings {
     
     // Announce when timer completes
     func announceTimerCompletion(timerId: UUID) {
-        print("Timer completion for timer ID: \(timerId)")
+        debugLog("Timer completion for timer ID: \(timerId)")
         
         // Get timer name
         if let timerName = getTimerName(for: timerId) {
@@ -332,13 +332,13 @@ extension Settings {
             let message = "\(timerName) timer is complete."
             directAnnouncement(message: message, settings: self)
         } else {
-            print("⚠️ Could not find timer name for ID: \(timerId)")
+            debugLog("⚠️ Could not find timer name for ID: \(timerId)")
         }
     }
     
     // Announce when timer completes (by name)
     func announceTimerCompletion(for name: String) {
-        print("Timer completion for: \(name)")
+        debugLog("Timer completion for: \(name)")
         let message = "\(name) timer is complete."
         directAnnouncement(message: message, settings: self)
     }
@@ -366,7 +366,7 @@ extension Settings {
         
         // If no voices are available (voice services not ready), return empty array
         guard !allVoices.isEmpty else {
-            print("Warning: No speech voices available - voice services may not be ready")
+            debugLog("Warning: No speech voices available - voice services may not be ready")
             return []
         }
         
@@ -422,18 +422,18 @@ extension Settings {
     
     // Play sound and make announcement when timer completes
     func playTimerCompletionWithAnnouncement(timerId: UUID) {
-        print("===== PLAY TIMER COMPLETION WITH ANNOUNCEMENT =====")
-        print("Timer with ID \(timerId) completed")
+        debugLog("===== PLAY TIMER COMPLETION WITH ANNOUNCEMENT =====")
+        debugLog("Timer with ID \(timerId) completed")
         // Configure audio session once up front based on the user's preference
         configureAudioSessionForAlerts()
         
         // Check if voice announcements are enabled using class property
-        print("Voice announcements enabled: \(voiceAnnouncementsEnabled)")
+        debugLog("Voice announcements enabled: \(voiceAnnouncementsEnabled)")
         
         // Get headphone requirements 
         let requiresHeadphones = announceOnlyWithHeadphones
         let headphonesConnected = hasBluetoothHeadphonesConnected
-        print("Headphones required: \(requiresHeadphones), Connected: \(headphonesConnected)")
+        debugLog("Headphones required: \(requiresHeadphones), Connected: \(headphonesConnected)")
         
         let shouldAnnounce = voiceAnnouncementsEnabled && (!requiresHeadphones || headphonesConnected)
         let forceAnnouncement = false
@@ -451,40 +451,40 @@ extension Settings {
         
         if shouldAnnounce || forceAnnouncement {
             if headphonesConnected {
-                print("[LOGIC] Headphones connected: Only playing repeating voice announcement, skipping sound alert.")
+                debugLog("[LOGIC] Headphones connected: Only playing repeating voice announcement, skipping sound alert.")
                 // Only play the repeating announcement
                 if let timerName = getTimerName(for: timerId) {
                     let message = announcementMessage(for: timerName)
                     startRepeatingAnnouncement(message: message)
                 } else {
-                    print("Could not find timer name for ID: \(timerId)")
+                    debugLog("Could not find timer name for ID: \(timerId)")
                 }
-                print("===== END PLAY TIMER COMPLETION =====")
+                debugLog("===== END PLAY TIMER COMPLETION =====")
                 return
             } else {
                 // Play both sound and announcement (repeating announcement)
                 playTimerCompletionSound(loop: true)
-                print("[LOGIC] No headphones: Playing both sound and repeating announcement.")
+                debugLog("[LOGIC] No headphones: Playing both sound and repeating announcement.")
                 if let timerName = getTimerName(for: timerId) {
                     let message = announcementMessage(for: timerName)
                     startRepeatingAnnouncement(message: message)
                 } else {
-                    print("Could not find timer name for ID: \(timerId)")
+                    debugLog("Could not find timer name for ID: \(timerId)")
                 }
-                print("===== END PLAY TIMER COMPLETION =====")
+                debugLog("===== END PLAY TIMER COMPLETION =====")
                 return
             }
         } else {
             // Play only the sound
             playTimerCompletionSound(loop: true)
-            print("[LOGIC] Announcements not enabled: Playing only sound alert.")
-            print("===== END PLAY TIMER COMPLETION =====")
+            debugLog("[LOGIC] Announcements not enabled: Playing only sound alert.")
+            debugLog("===== END PLAY TIMER COMPLETION =====")
         }
     }
     
     // Stop any looping alert sound and repeating announcement
     func stopLoopingAlertSound() {
-        print("[DEBUG] stopLoopingAlertSound() called on Settings instance: \(Unmanaged.passUnretained(self).toOpaque())")
+        debugLog("[DEBUG] stopLoopingAlertSound() called on Settings instance: \(Unmanaged.passUnretained(self).toOpaque())")
         AudioManager.shared.stopAlertSound()
         stopRepeatingAnnouncement()
     }
@@ -493,33 +493,33 @@ extension Settings {
 // Add a delegate class to monitor speech synthesis
 class SpeechSynthesizerDelegate: NSObject, AVSpeechSynthesizerDelegate {
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
-        print("🎙️ Speech started for utterance: \(utterance.speechString)")
+        debugLog("🎙️ Speech started for utterance: \(utterance.speechString)")
     }
     
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        print("🎙️ Speech finished for utterance: \(utterance.speechString)")
+        debugLog("🎙️ Speech finished for utterance: \(utterance.speechString)")
     }
     
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
-        print("❌ Speech cancelled for utterance: \(utterance.speechString)")
+        debugLog("❌ Speech cancelled for utterance: \(utterance.speechString)")
     }
     
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didPause utterance: AVSpeechUtterance) {
-        print("⏸️ Speech paused for utterance: \(utterance.speechString)")
+        debugLog("⏸️ Speech paused for utterance: \(utterance.speechString)")
     }
     
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didContinue utterance: AVSpeechUtterance) {
-        print("▶️ Speech continued for utterance: \(utterance.speechString)")
+        debugLog("▶️ Speech continued for utterance: \(utterance.speechString)")
     }
     
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, willSpeakRangeOfSpeechString characterRange: NSRange, utterance: AVSpeechUtterance) {
-        print("🎙️ Speaking range: \(characterRange) of utterance: \(utterance.speechString)")
+        debugLog("🎙️ Speaking range: \(characterRange) of utterance: \(utterance.speechString)")
     }
 }
 
 // Function for direct announcement
 func directAnnouncement(message: String, settings: Settings) {
-    print("🔊 SUPER SIMPLE DIRECT ANNOUNCEMENT 🔊")
+    debugLog("🔊 SUPER SIMPLE DIRECT ANNOUNCEMENT 🔊")
     // Configure audio session according to user's Silent Mode preference
     // If bypass is OFF we still set up a session that respects Silent (ambient)
     do {
@@ -530,36 +530,36 @@ func directAnnouncement(message: String, settings: Settings) {
             try audioSession.setCategory(.ambient, mode: .spokenAudio, options: [])
         }
         try audioSession.setActive(true)
-        print("✓ Audio session active (bypass Silent: \(settings.playSoundInSilentMode))")
+        debugLog("✓ Audio session active (bypass Silent: \(settings.playSoundInSilentMode))")
     } catch {
-        print("✗ Audio session error: \(error)")
+        debugLog("✗ Audio session error: \(error)")
     }
     
     // Create a completely fresh synthesizer instance
     let synthesizer = AVSpeechSynthesizer()
-    print("✓ Created synthesizer")
+    debugLog("✓ Created synthesizer")
     
     // Setup a basic utterance
     let utterance = AVSpeechUtterance(string: message)
     utterance.rate = 0.5  // Slower
     utterance.volume = 1.0  // Maximum volume
-    print("✓ Created utterance: \"\(message)\"")
+    debugLog("✓ Created utterance: \"\(message)\"")
     
     // Try to get the selected voice from settings
     if let selectedVoice = AVSpeechSynthesisVoice(identifier: settings.selectedVoiceIdentifier) {
         utterance.voice = selectedVoice
-        print("✓ Using selected voice: \(selectedVoice.name)")
+        debugLog("✓ Using selected voice: \(selectedVoice.name)")
     } else {
         // fallback to default
         utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
-        print("✓ Using default voice: en-US")
+        debugLog("✓ Using default voice: en-US")
     }
     
     // Keep a reference to prevent deallocation
     DirectSpeech.shared.synthesizer = synthesizer
     
     // Speak!
-    print("▶️ Starting speech...")
+    debugLog("▶️ Starting speech...")
     synthesizer.speak(utterance)
 }
 

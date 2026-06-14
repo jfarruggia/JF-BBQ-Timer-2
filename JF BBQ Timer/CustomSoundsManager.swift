@@ -50,7 +50,7 @@ class CustomSoundsManager: ObservableObject {
             // Load saved custom sounds
             loadCustomSounds()
         } catch {
-            print("Error setting up custom sounds directory: \(error)")
+            debugLog("Error setting up custom sounds directory: \(error)")
         }
     }
     
@@ -91,7 +91,7 @@ class CustomSoundsManager: ObservableObject {
             
             return newSound.id
         } catch {
-            print("Error importing sound: \(error)")
+            debugLog("Error importing sound: \(error)")
             return nil
         }
     }
@@ -113,7 +113,7 @@ class CustomSoundsManager: ObservableObject {
             // Save the updated list
             saveCustomSounds()
         } catch {
-            print("Error deleting sound: \(error)")
+            debugLog("Error deleting sound: \(error)")
         }
     }
     
@@ -149,7 +149,7 @@ class CustomSoundsManager: ObservableObject {
             player.play()
             return player
         } catch {
-            print("Error playing sound: \(error)")
+            debugLog("Error playing sound: \(error)")
             return nil
         }
     }

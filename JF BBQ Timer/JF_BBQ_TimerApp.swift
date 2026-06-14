@@ -53,15 +53,15 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     
     // Copy sound resources to Documents directory for easier access
     private func setupSoundResources() {
-        print("=== Setting up sound resources ===")
+        debugLog("=== Setting up sound resources ===")
         
         // Get the Documents directory
         guard let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
-            print("❌ Could not access Documents directory")
+            debugLog("❌ Could not access Documents directory")
             return
         }
         
-        print("📁 Documents directory: \(documentsDirectory.path)")
+        debugLog("📁 Documents directory: \(documentsDirectory.path)")
         
         // Create a Resources/Sounds directory inside documents if it doesn't exist
         let soundsDirectory = documentsDirectory.appendingPathComponent("Resources/Sounds")
@@ -70,9 +70,9 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             // Create the directory if it doesn't exist
             if !FileManager.default.fileExists(atPath: soundsDirectory.path) {
                 try FileManager.default.createDirectory(at: soundsDirectory, withIntermediateDirectories: true)
-                print("✅ Created directory: \(soundsDirectory.path)")
+                debugLog("✅ Created directory: \(soundsDirectory.path)")
             } else {
-                print("ℹ️ Directory already exists: \(soundsDirectory.path)")
+                debugLog("ℹ️ Directory already exists: \(soundsDirectory.path)")
             }
             
             // List of potential source directories to check
@@ -83,37 +83,37 @@ class AppDelegate: NSObject, UIApplicationDelegate {
                 Bundle.main.bundleURL.appendingPathComponent("Sounds")
             ].compactMap { $0 }
             
-            print("🔍 Checking \(potentialSourceDirs.count) potential source directories")
+            debugLog("🔍 Checking \(potentialSourceDirs.count) potential source directories")
             
             var foundSourceDir = false
             
             for (index, sourceDir) in potentialSourceDirs.enumerated() {
-                print("📂 Checking source directory \(index + 1): \(sourceDir.path)")
+                debugLog("📂 Checking source directory \(index + 1): \(sourceDir.path)")
                 
                 if FileManager.default.fileExists(atPath: sourceDir.path) {
-                    print("✅ Source directory exists")
+                    debugLog("✅ Source directory exists")
                     
                     do {
                         let files = try FileManager.default.contentsOfDirectory(at: sourceDir, includingPropertiesForKeys: nil)
                         let soundFiles = files.filter { $0.pathExtension.lowercased() == "mp3" }
                         
                         if soundFiles.isEmpty {
-                            print("ℹ️ No MP3 files found in directory")
+                            debugLog("ℹ️ No MP3 files found in directory")
                             continue
                         }
                         
-                        print("🎵 Found \(soundFiles.count) sound files:")
+                        debugLog("🎵 Found \(soundFiles.count) sound files:")
                         
                         // Copy each sound file to the Documents directory
                         for fileURL in soundFiles {
-                            print("  - \(fileURL.lastPathComponent)")
+                            debugLog("  - \(fileURL.lastPathComponent)")
                             let destURL = soundsDirectory.appendingPathComponent(fileURL.lastPathComponent)
                             
                             if !FileManager.default.fileExists(atPath: destURL.path) {
                                 try FileManager.default.copyItem(at: fileURL, to: destURL)
-                                print("  ✅ Copied to Documents")
+                                debugLog("  ✅ Copied to Documents")
                             } else {
-                                print("  ℹ️ Already exists in Documents")
+                                debugLog("  ℹ️ Already exists in Documents")
                             }
                         }
                         
@@ -122,64 +122,64 @@ class AppDelegate: NSObject, UIApplicationDelegate {
                         let metadataDest = soundsDirectory.appendingPathComponent("sound_metadata.json")
                         
                         if FileManager.default.fileExists(atPath: metadataSource.path) {
-                            print("📄 Found metadata file")
+                            debugLog("📄 Found metadata file")
                             
                             if !FileManager.default.fileExists(atPath: metadataDest.path) {
                                 try FileManager.default.copyItem(at: metadataSource, to: metadataDest)
-                                print("✅ Copied metadata to Documents")
+                                debugLog("✅ Copied metadata to Documents")
                             } else {
-                                print("ℹ️ Metadata already exists in Documents")
+                                debugLog("ℹ️ Metadata already exists in Documents")
                             }
                         } else {
-                            print("❓ No metadata file found at: \(metadataSource.path)")
+                            debugLog("❓ No metadata file found at: \(metadataSource.path)")
                         }
                         
                         foundSourceDir = true
                         break
                     } catch {
-                        print("❌ Error copying files: \(error)")
+                        debugLog("❌ Error copying files: \(error)")
                     }
                 } else {
-                    print("❌ Source directory does not exist")
+                    debugLog("❌ Source directory does not exist")
                 }
             }
             
             if !foundSourceDir {
-                print("⚠️ Could not find any sound source directory in the bundle")
+                debugLog("⚠️ Could not find any sound source directory in the bundle")
                 
                 // Try direct resource loading as a fallback
-                print("🔍 Attempting direct resource loading fallback...")
+                debugLog("🔍 Attempting direct resource loading fallback...")
                 
                 if let soundMetadata = Bundle.main.url(forResource: "sound_metadata", withExtension: "json") {
-                    print("✅ Found sound_metadata.json directly in bundle: \(soundMetadata.path)")
+                    debugLog("✅ Found sound_metadata.json directly in bundle: \(soundMetadata.path)")
                     
                     let destMetadata = soundsDirectory.appendingPathComponent("sound_metadata.json")
                     if !FileManager.default.fileExists(atPath: destMetadata.path) {
                         try FileManager.default.copyItem(at: soundMetadata, to: destMetadata)
-                        print("✅ Copied metadata file to Documents")
+                        debugLog("✅ Copied metadata file to Documents")
                     }
                     
                     // Look for sound files directly in bundle
                     let soundsFromJSON = try Data(contentsOf: soundMetadata)
                     if let soundsArray = try? JSONSerialization.jsonObject(with: soundsFromJSON) as? [[String: Any]] {
-                        print("✅ Parsed \(soundsArray.count) sounds from JSON")
+                        debugLog("✅ Parsed \(soundsArray.count) sounds from JSON")
                         
                         for sound in soundsArray {
                             if let filename = sound["filename"] as? String,
                                let fileURL = Bundle.main.url(forResource: filename.replacingOccurrences(of: ".mp3", with: ""), 
                                                              withExtension: "mp3") {
-                                print("✅ Found sound file directly in bundle: \(filename)")
+                                debugLog("✅ Found sound file directly in bundle: \(filename)")
                                 
                                 let destURL = soundsDirectory.appendingPathComponent(filename)
                                 if !FileManager.default.fileExists(atPath: destURL.path) {
                                     try FileManager.default.copyItem(at: fileURL, to: destURL)
-                                    print("✅ Copied \(filename) to Documents")
+                                    debugLog("✅ Copied \(filename) to Documents")
                                 }
                             }
                         }
                     }
                 } else {
-                    print("❌ Could not find sound_metadata.json directly in bundle")
+                    debugLog("❌ Could not find sound_metadata.json directly in bundle")
                 }
             }
             
@@ -189,17 +189,17 @@ class AppDelegate: NSObject, UIApplicationDelegate {
                 let soundFiles = files.filter { $0.pathExtension.lowercased() == "mp3" }
                 let hasMetadata = files.contains { $0.lastPathComponent == "sound_metadata.json" }
                 
-                print("=== Final Results ===")
-                print("📂 \(soundFiles.count) sound files in Documents/Resources/Sounds")
-                print("📄 Metadata file in Documents: \(hasMetadata ? "Yes" : "No")")
+                debugLog("=== Final Results ===")
+                debugLog("📂 \(soundFiles.count) sound files in Documents/Resources/Sounds")
+                debugLog("📄 Metadata file in Documents: \(hasMetadata ? "Yes" : "No")")
             } catch {
-                print("❌ Error verifying results: \(error)")
+                debugLog("❌ Error verifying results: \(error)")
             }
         } catch {
-            print("❌ Error setting up sound resources: \(error)")
+            debugLog("❌ Error setting up sound resources: \(error)")
         }
         
-        print("=== Sound resources setup complete ===")
+        debugLog("=== Sound resources setup complete ===")
     }
     
     func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
@@ -220,7 +220,7 @@ struct JF_BBQ_TimerApp: App {
         // Activate WatchConnectivity session manager and log in debug builds
         WCSessionManager.shared.activate()
         #if DEBUG
-        print("WCSession (iOS) activated")
+        debugLog("WCSession (iOS) activated")
         #endif
     }
 
@@ -228,13 +228,13 @@ struct JF_BBQ_TimerApp: App {
     private func updatePremiumStatus() {
         Purchases.shared.getCustomerInfo { customerInfo, error in
             if let error = error {
-                print("❌ Error fetching customer info: \(error)")
+                debugLog("❌ Error fetching customer info: \(error)")
                 return
             }
             
             let isPremium = customerInfo?.entitlements["premium_access"]?.isActive == true
-            print("📱 Premium status: \(isPremium)")
-            print("🔑 Entitlements: \(String(describing: customerInfo?.entitlements))")
+            debugLog("📱 Premium status: \(isPremium)")
+            debugLog("🔑 Entitlements: \(String(describing: customerInfo?.entitlements))")
             
             DispatchQueue.main.async {
                 // Only persist the premium flag here to avoid overwriting
