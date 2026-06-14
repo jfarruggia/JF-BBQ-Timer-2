@@ -10,17 +10,11 @@ import UIKit
 import RevenueCat
 import WatchConnectivity
 
-// This class will handle the orientation lock
-class OrientationLock: ObservableObject {
-    init() {
-        // Lock the orientation to portrait on launch
-        UIDevice.current.setValue(UIInterfaceOrientation.portrait.rawValue, forKey: "orientation")
-        AppDelegate.orientationLock = .portrait
-    }
-}
-
 // Add a class to handle app delegate functionality
 class AppDelegate: NSObject, UIApplicationDelegate {
+    // Single source of truth for allowed orientations. Returned from
+    // supportedInterfaceOrientationsFor below to lock the app to portrait —
+    // the App Store-safe approach (no private UIDevice key-value hack).
     static var orientationLock = UIInterfaceOrientationMask.portrait
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
@@ -210,9 +204,9 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 @main
 struct JF_BBQ_TimerApp: App {
     @AppStorage("hasOnboarded") private var hasOnboarded: Bool = false
-    // Add the app delegate and orientation lock
+    // App delegate. Orientation is locked to portrait via the delegate's
+    // supportedInterfaceOrientationsFor + the Info.plist orientation settings.
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    @StateObject var orientationLock = OrientationLock()
     @StateObject private var settings = Settings()
 
     // Initialize app-wide services
