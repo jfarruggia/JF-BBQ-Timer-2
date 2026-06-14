@@ -1,2 +1,5 @@
 JF BBQ Timer.xcodeproj/project.xcworkspace/xcuserdata/jamesfarruggia.xcuserdatad/UserInterfaceState.xcuserstate
 *.xcuserstate
+
+# Xcode per-user state (scheme order, breakpoints, navigator scopes) — personal, not shared
+xcuserdata/
