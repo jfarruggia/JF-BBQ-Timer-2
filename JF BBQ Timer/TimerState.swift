@@ -89,6 +89,10 @@ class TimerState: ObservableObject {
     private(set) var endDate: Date?
     private var remainingAtPause: TimeInterval
     private var elapsedStartDate: Date?
+    // Total duration the current run counts down from — the ring's "full".
+    // Set when a fresh duration is established (preset applied / reset), and
+    // deliberately left unchanged across pause/resume so the ring stays continuous.
+    private(set) var runDuration: TimeInterval
 
     var initialIntervalTime: TimeInterval
     private var settings: Settings?
@@ -101,6 +105,7 @@ class TimerState: ObservableObject {
         self.intervalTime = interval
         self.remainingAtPause = interval
         self.initialIntervalTime = interval
+        self.runDuration = interval
         self.settings = settings
     }
 
@@ -116,6 +121,14 @@ class TimerState: ObservableObject {
     func elapsed(at now: Date) -> TimeInterval {
         guard let start = elapsedStartDate else { return 0 }
         return max(0, now.timeIntervalSince(start))
+    }
+
+    /// Fraction of the countdown still remaining at a given instant (0...1).
+    /// Drives the progress ring: 1 when full, 0 at completion. Measured against
+    /// `runDuration` so pausing and resuming doesn't refill the ring.
+    func progress(at now: Date) -> Double {
+        guard runDuration > 0 else { return 0 }
+        return min(1, max(0, remaining(at: now) / runDuration))
     }
 
     // MARK: - State transitions
@@ -162,6 +175,7 @@ class TimerState: ObservableObject {
         endDate = nil
         elapsedStartDate = nil
         remainingAtPause = initialIntervalTime
+        runDuration = initialIntervalTime
         isRunning = false
         isCompleted = false
         intervalTime = initialIntervalTime
@@ -181,6 +195,7 @@ class TimerState: ObservableObject {
             guard let self = self else { return }
             self.initialIntervalTime = time
             self.remainingAtPause = time
+            self.runDuration = time
             self.intervalTime = time
             self.objectWillChange.send()
         }
@@ -190,6 +205,7 @@ class TimerState: ObservableObject {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             self.remainingAtPause = time
+            self.runDuration = time
             self.intervalTime = time
             self.objectWillChange.send()
         }

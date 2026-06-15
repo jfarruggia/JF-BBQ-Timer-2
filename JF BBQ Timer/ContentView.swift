@@ -240,29 +240,47 @@ struct ContentView: View {
 
     @ViewBuilder
     private func compactTimerView(for timer: BBQTimer, state: TimerState) -> some View {
-        VStack(spacing: 6) {
-            TimerHeaderView(name: timer.name)
-
-            CompactTimerView(
-                name: timer.name,
-                preset1: TimeInterval(timer.preset1),
-                preset2: TimeInterval(timer.preset2),
+        if #available(iOS 26, *) {
+            GlassCompactTimerContent(
+                timer: timer,
                 state: state,
                 settings: settings,
                 alertState: alertState
             )
-        }
-        .padding(8)
-        .timerContainerAppearance(
-            timerState: state,
-            onTimerComplete: { timerId in
-                debugLog("Timer \(timerId) completed, scrolling to view")
-                lastCompletedTimerId = timerId
+            .timerContainerAppearance(
+                timerState: state,
+                onTimerComplete: { timerId in
+                    debugLog("Timer \(timerId) completed, scrolling to view")
+                    lastCompletedTimerId = timerId
+                }
+            )
+            .padding(.bottom, 8)
+            .frame(maxWidth: .infinity)
+        } else {
+            VStack(spacing: 6) {
+                TimerHeaderView(name: timer.name)
+
+                CompactTimerView(
+                    name: timer.name,
+                    preset1: TimeInterval(timer.preset1),
+                    preset2: TimeInterval(timer.preset2),
+                    state: state,
+                    settings: settings,
+                    alertState: alertState
+                )
             }
-        )
-        .padding(.horizontal, 12)
-        .padding(.bottom, 5)
-        .frame(maxWidth: .infinity)
+            .padding(8)
+            .timerContainerAppearance(
+                timerState: state,
+                onTimerComplete: { timerId in
+                    debugLog("Timer \(timerId) completed, scrolling to view")
+                    lastCompletedTimerId = timerId
+                }
+            )
+            .padding(.horizontal, 12)
+            .padding(.bottom, 5)
+            .frame(maxWidth: .infinity)
+        }
     }
 
     @ViewBuilder

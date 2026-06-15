@@ -214,3 +214,66 @@ struct PauseResumeMathTests {
         #expect(!state.isCompleted)
     }
 }
+
+// MARK: - progress(at:) tests (drives the countdown ring)
+
+@Suite("TimerState progress(at:)")
+struct ProgressTests {
+
+    @Test("Full (1.0) before the timer starts")
+    func fullBeforeStart() {
+        let state = TimerState(id: UUID(), interval: 300)
+        #expect(state.progress(at: Date()) == 1.0)
+    }
+
+    @Test("Half (0.5) at the midpoint of the run")
+    func halfwayThrough() {
+        let state = TimerState(id: UUID(), interval: 300)
+        state.start { }
+        guard let end = state.endDate else {
+            Issue.record("endDate should be set after start()")
+            return
+        }
+        let mid = end.addingTimeInterval(-150) // 150s of 300 remaining
+        #expect(abs(state.progress(at: mid) - 0.5) < 0.01)
+        state.reset()
+    }
+
+    @Test("Zero (0.0) at and past the end date")
+    func zeroAtEnd() {
+        let state = TimerState(id: UUID(), interval: 300)
+        state.start { }
+        guard let end = state.endDate else {
+            Issue.record("endDate should be set after start()")
+            return
+        }
+        #expect(state.progress(at: end.addingTimeInterval(5)) == 0.0)
+        state.reset()
+    }
+
+    @Test("Pause/resume stays continuous — the ring does not refill")
+    func pauseResumeStaysContinuous() {
+        let state = TimerState(id: UUID(), interval: 300)
+        state.start { }
+        guard let end = state.endDate else {
+            Issue.record("endDate should be set after start()")
+            return
+        }
+        // 240s remaining → 0.8 of the original 300s total
+        let afterSixty = end.addingTimeInterval(-240)
+        #expect(abs(state.progress(at: afterSixty) - 0.8) < 0.01)
+
+        state.stop(at: afterSixty)
+        // Still measured against the original total, not refilled to 1.0
+        #expect(abs(state.progress(at: afterSixty.addingTimeInterval(3600)) - 0.8) < 0.01)
+
+        state.start { } // resume
+        guard let newEnd = state.endDate else {
+            Issue.record("endDate should be set after resume")
+            return
+        }
+        // Just after resume: ~239/300, NOT 1.0
+        #expect(abs(state.progress(at: newEnd.addingTimeInterval(-239)) - (239.0 / 300.0)) < 0.02)
+        state.reset()
+    }
+}

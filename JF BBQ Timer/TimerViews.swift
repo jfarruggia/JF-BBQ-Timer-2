@@ -385,6 +385,34 @@ struct CompactTimerView: View {
 
 // MARK: - iOS 26 Liquid Glass redesign (large timer card)
 
+/// Circular countdown ring shared by the large and compact glass cards. The
+/// orange arc shows how much of the run remains; `center` supplies the
+/// number/labels drawn inside it.
+@available(iOS 26.0, *)
+struct CircularTimerRing<Center: View>: View {
+    /// 0...1 remaining (1 = full, 0 = complete).
+    var progress: Double
+    var lineWidth: CGFloat
+    @ViewBuilder var center: () -> Center
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(Color.white.opacity(0.18), lineWidth: lineWidth)
+            Circle()
+                .trim(from: 0, to: max(0.0001, progress))
+                .stroke(
+                    Color("TimerAccent"),
+                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+                )
+                .rotationEffect(.degrees(-90))
+                .animation(.easeInOut(duration: 0.4), value: progress)
+            center()
+                .padding(lineWidth + 6)
+        }
+    }
+}
+
 /// Redesigned content for a large timer card on iOS 26.
 ///
 /// Direction (see design review): one hero number ("Flip in"), the elapsed
@@ -424,37 +452,39 @@ struct GlassLargeTimerContent: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(timer.name)
-                .font(.system(size: 17, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white.opacity(0.95))
-
-            Text("Flip in")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.white.opacity(0.6))
-                .padding(.top, 14)
-
-            Text(timeLabel(Int(state.intervalTime)))
-                .font(.system(size: 56, weight: .semibold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(.white)
-                .minimumScaleFactor(0.5)
-                .lineLimit(1)
-                .contentTransition(.numericText())
-                .animation(.easeInOut, value: state.intervalTime)
-
-            HStack(spacing: 5) {
-                Image(systemName: "flame.fill")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Color("TimerAccent"))
-                Text("Lit \(timeLabel(Int(state.elapsedTime)))")
-                    .font(.system(size: 14, weight: .medium))
-                    .monospacedDigit()
-                    .foregroundStyle(.white.opacity(0.7))
+        VStack(spacing: 14) {
+            HStack {
+                Text(timer.name)
+                    .font(.system(size: 17, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.95))
+                Spacer()
             }
-            .padding(.top, 8)
 
-            Spacer(minLength: 16)
+            CircularTimerRing(progress: state.progress(at: Date()), lineWidth: 12) {
+                VStack(spacing: 2) {
+                    Text("Flip in")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.6))
+                    Text(timeLabel(Int(state.intervalTime)))
+                        .font(.system(size: 44, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(.white)
+                        .minimumScaleFactor(0.5)
+                        .lineLimit(1)
+                        .contentTransition(.numericText())
+                        .animation(.easeInOut, value: state.intervalTime)
+                    HStack(spacing: 5) {
+                        Image(systemName: "flame.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Color("TimerAccent"))
+                        Text("Lit \(timeLabel(Int(state.elapsedTime)))")
+                            .font(.system(size: 13, weight: .medium))
+                            .monospacedDigit()
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
+                }
+            }
+            .frame(width: 190, height: 190)
 
             HStack(spacing: 10) {
                 Button {
@@ -499,9 +529,8 @@ struct GlassLargeTimerContent: View {
                 Spacer()
             }
             .buttonStyle(.plain)
-            .padding(.top, 12)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity)
         .padding(.horizontal, 18)
         .padding(.vertical, 16)
     }
@@ -514,31 +543,154 @@ struct GlassLargeTimerContent: View {
 struct GlassActionButtonStyle: ButtonStyle {
     enum Kind { case primary, secondary }
     let kind: Kind
+    var compact: Bool = false
 
     private let onAccent = Color(red: 0.30, green: 0.13, blue: 0.02)
 
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 17, weight: .semibold, design: .rounded))
+        let radius: CGFloat = compact ? 11 : 14
+        return configuration.label
+            .font(.system(size: compact ? 14 : 17, weight: .semibold, design: .rounded))
             .foregroundStyle(kind == .primary ? onAccent : Color.white)
             .lineLimit(1)
             .minimumScaleFactor(0.7)
-            .padding(.vertical, 13)
-            .padding(.horizontal, 16)
+            .padding(.vertical, compact ? 9 : 13)
+            .padding(.horizontal, compact ? 12 : 16)
             .background {
                 if kind == .primary {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    RoundedRectangle(cornerRadius: radius, style: .continuous)
                         .fill(Color("TimerAccent"))
                 } else {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    RoundedRectangle(cornerRadius: radius, style: .continuous)
                         .fill(.white.opacity(0.18))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            RoundedRectangle(cornerRadius: radius, style: .continuous)
                                 .stroke(.white.opacity(0.25), lineWidth: 0.5)
                         )
                 }
             }
             .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
+    }
+}
+
+/// Compact-layout counterpart to `GlassLargeTimerContent` for iOS 26. Same visual
+/// language (tinted glass, white text, no opaque inner panels, orange accent,
+/// clean mm:ss) but a denser horizontal layout — times on the left, controls on
+/// the right — so more timers fit on screen. Container glass, completion flash and
+/// the onComplete callback still come from `.timerContainerAppearance(...)`.
+@available(iOS 26.0, *)
+struct GlassCompactTimerContent: View {
+    let timer: BBQTimer
+    @ObservedObject var state: TimerState
+    let settings: Settings
+    @ObservedObject var alertState: AlertState
+
+    private func startWithPreset(_ preset: TimeInterval) {
+        state.stop()
+        state.setCurrentIntervalTime(preset)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            state.start {
+                if settings.soundEnabled { state.playSound() }
+                if settings.hapticsEnabled { alertState.isPresented = true }
+            }
+        }
+    }
+
+    /// mm:ss, expanding to h:mm:ss only when there are whole hours.
+    private func timeLabel(_ seconds: Int) -> String {
+        let total = max(0, seconds)
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        let secs = total % 60
+        return hours > 0
+            ? String(format: "%d:%02d:%02d", hours, minutes, secs)
+            : String(format: "%d:%02d", minutes, secs)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(timer.name)
+                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.95))
+                .padding(.leading, 16)
+
+            HStack(alignment: .center, spacing: 0) {
+                Spacer(minLength: 12)
+                VStack(spacing: 4) {
+                    CircularTimerRing(progress: state.progress(at: Date()), lineWidth: 7) {
+                        VStack(spacing: 0) {
+                            Text("Flip in")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.55))
+                            Text(timeLabel(Int(state.intervalTime)))
+                                .font(.system(size: 21, weight: .semibold, design: .rounded))
+                                .monospacedDigit()
+                                .foregroundStyle(.white)
+                                .minimumScaleFactor(0.4)
+                                .lineLimit(1)
+                                .contentTransition(.numericText())
+                                .animation(.easeInOut, value: state.intervalTime)
+                        }
+                    }
+                    .frame(width: 94, height: 94)
+
+                    HStack(spacing: 4) {
+                        Image(systemName: "flame.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(Color("TimerAccent"))
+                        Text("Lit \(timeLabel(Int(state.elapsedTime)))")
+                            .font(.system(size: 11, weight: .medium))
+                            .monospacedDigit()
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
+                }
+
+                Spacer(minLength: 12)
+
+                VStack(spacing: 6) {
+                    Button {
+                        startWithPreset(TimeInterval(timer.preset1))
+                    } label: {
+                        Text(timeLabel(timer.preset1)).frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(GlassActionButtonStyle(kind: .primary, compact: true))
+
+                    Button {
+                        startWithPreset(TimeInterval(timer.preset2))
+                    } label: {
+                        Text(timeLabel(timer.preset2)).frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(GlassActionButtonStyle(kind: .secondary, compact: true))
+
+                    HStack(spacing: 16) {
+                        if state.isRunning {
+                            Button {
+                                state.stop()
+                                settings.stopLoopingAlertSound()
+                            } label: {
+                                Text("Stop").font(.system(size: 13, weight: .semibold))
+                            }
+                            .foregroundStyle(Color("TimerRed"))
+                        }
+                        Button {
+                            state.reset()
+                            settings.stopLoopingAlertSound()
+                        } label: {
+                            Text("Reset").font(.system(size: 13, weight: .medium))
+                        }
+                        .foregroundStyle(.white.opacity(0.75))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 2)
+                }
+                .frame(width: 132)
+
+                Spacer(minLength: 12)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 14)
     }
 }

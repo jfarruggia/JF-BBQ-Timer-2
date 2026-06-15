@@ -202,7 +202,10 @@ struct TimerContainerAppearance: ViewModifier {
                     )
             } else {
                 content
-                    .glassEffect(in: RoundedRectangle(cornerRadius: 0))
+                    .glassEffect(
+                        .regular.tint(.grillGlassTint),
+                        in: RoundedRectangle(cornerRadius: 15)
+                    )
             }
         } else {
             content
