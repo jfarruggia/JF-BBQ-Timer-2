@@ -1,6 +1,13 @@
 import SwiftUI
 import UIKit
 
+extension Color {
+    /// Shared warm tint applied to Liquid Glass surfaces on iOS 26 (cards,
+    /// header, preheat button) so white text keeps contrast against the bright
+    /// background and every glass surface reads as the same material.
+    static let grillGlassTint = Color(red: 0.40, green: 0.10, blue: 0.05).opacity(0.55)
+}
+
 struct BouncyButtonStyle: ButtonStyle {
     let buttonID: UUID
     @Binding var pressedButtonId: UUID?
@@ -184,9 +191,19 @@ struct TimerContainerAppearance: ViewModifier {
     @ViewBuilder
     private func styledCard(_ content: Content) -> some View {
         if #available(iOS 26, *) {
-            content
-                .padding(.vertical, isLargeTimer ? 8 : 0)
-                .glassEffect(in: RoundedRectangle(cornerRadius: isLargeTimer ? 15 : 0))
+            if isLargeTimer {
+                // Warm dark tint deepens the glass (closer to the approved mockup)
+                // and gives white text real contrast against the bright background.
+                content
+                    .padding(.vertical, 8)
+                    .glassEffect(
+                        .regular.tint(.grillGlassTint),
+                        in: RoundedRectangle(cornerRadius: 15)
+                    )
+            } else {
+                content
+                    .glassEffect(in: RoundedRectangle(cornerRadius: 0))
+            }
         } else {
             content
                 .padding(.vertical, isLargeTimer ? 8 : 0)

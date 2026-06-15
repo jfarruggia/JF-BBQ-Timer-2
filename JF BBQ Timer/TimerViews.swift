@@ -382,3 +382,163 @@ struct CompactTimerView: View {
         }
     }
 }
+
+// MARK: - iOS 26 Liquid Glass redesign (large timer card)
+
+/// Redesigned content for a large timer card on iOS 26.
+///
+/// Direction (see design review): one hero number ("Flip in"), the elapsed
+/// "Lit" time demoted to a quiet secondary line, no black text shadows, a
+/// single warm accent for the primary action, and translucent controls so the
+/// glass card material actually reads through. This view is the *content* only —
+/// the glass material, completion-flash border and adaptive height still come
+/// from `.timerContainerAppearance(isLargeTimer:)` applied by the caller, so the
+/// timer mechanics are untouched.
+@available(iOS 26.0, *)
+struct GlassLargeTimerContent: View {
+    let timer: BBQTimer
+    @ObservedObject var state: TimerState
+    let settings: Settings
+    @ObservedObject var alertState: AlertState
+
+    private func startWithPreset(_ preset: TimeInterval) {
+        state.stop()
+        state.setCurrentIntervalTime(preset)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            state.start {
+                if settings.soundEnabled { state.playSound() }
+                if settings.hapticsEnabled { alertState.isPresented = true }
+            }
+        }
+    }
+
+    /// mm:ss, expanding to h:mm:ss only when there are whole hours.
+    private func timeLabel(_ seconds: Int) -> String {
+        let total = max(0, seconds)
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        let secs = total % 60
+        return hours > 0
+            ? String(format: "%d:%02d:%02d", hours, minutes, secs)
+            : String(format: "%d:%02d", minutes, secs)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(timer.name)
+                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.95))
+
+            Text("Flip in")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.white.opacity(0.6))
+                .padding(.top, 14)
+
+            Text(timeLabel(Int(state.intervalTime)))
+                .font(.system(size: 56, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(.white)
+                .minimumScaleFactor(0.5)
+                .lineLimit(1)
+                .contentTransition(.numericText())
+                .animation(.easeInOut, value: state.intervalTime)
+
+            HStack(spacing: 5) {
+                Image(systemName: "flame.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color("TimerAccent"))
+                Text("Lit \(timeLabel(Int(state.elapsedTime)))")
+                    .font(.system(size: 14, weight: .medium))
+                    .monospacedDigit()
+                    .foregroundStyle(.white.opacity(0.7))
+            }
+            .padding(.top, 8)
+
+            Spacer(minLength: 16)
+
+            HStack(spacing: 10) {
+                Button {
+                    startWithPreset(TimeInterval(timer.preset1))
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "play.fill").font(.system(size: 13))
+                        Text(timeLabel(timer.preset1))
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(GlassActionButtonStyle(kind: .primary))
+
+                Button {
+                    startWithPreset(TimeInterval(timer.preset2))
+                } label: {
+                    Text(timeLabel(timer.preset2))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(GlassActionButtonStyle(kind: .secondary))
+            }
+
+            HStack(spacing: 20) {
+                if state.isRunning {
+                    Button {
+                        state.stop()
+                        settings.stopLoopingAlertSound()
+                    } label: {
+                        Label("Stop", systemImage: "stop.fill")
+                            .font(.system(size: 14, weight: .medium))
+                    }
+                    .foregroundStyle(Color("TimerRed"))
+                }
+                Button {
+                    state.reset()
+                    settings.stopLoopingAlertSound()
+                } label: {
+                    Label("Reset", systemImage: "arrow.counterclockwise")
+                        .font(.system(size: 14, weight: .medium))
+                }
+                .foregroundStyle(.white.opacity(0.75))
+                Spacer()
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 12)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 16)
+    }
+}
+
+/// Button style for the glass timer card's actions. Primary is a solid warm
+/// accent pill (a control sitting *on* the glass — deliberately not glass, to
+/// avoid stacking glass on glass); secondary is a quiet translucent chip.
+@available(iOS 26.0, *)
+struct GlassActionButtonStyle: ButtonStyle {
+    enum Kind { case primary, secondary }
+    let kind: Kind
+
+    private let onAccent = Color(red: 0.30, green: 0.13, blue: 0.02)
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 17, weight: .semibold, design: .rounded))
+            .foregroundStyle(kind == .primary ? onAccent : Color.white)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .padding(.vertical, 13)
+            .padding(.horizontal, 16)
+            .background {
+                if kind == .primary {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(Color("TimerAccent"))
+                } else {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(.white.opacity(0.18))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .stroke(.white.opacity(0.25), lineWidth: 0.5)
+                        )
+                }
+            }
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
+    }
+}

@@ -63,7 +63,8 @@ struct ContentView: View {
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
-            .glassEffect()
+            .glassEffect(.regular.tint(.grillGlassTint))
+            .padding(.horizontal, 16)
         } else {
             HStack {
                 Spacer()
@@ -266,68 +267,86 @@ struct ContentView: View {
 
     @ViewBuilder
     private func largeTimerView(for timer: BBQTimer, state: TimerState) -> some View {
-        VStack(spacing: 8) {
-            TimerHeaderView(name: timer.name)
-                .padding(.top, 4)
-
-            IntervalTimerView(timerState: state, theme: Theme.defaultTheme)
-                .padding(.top, 4)
-
-            ElapsedTimerView(timerState: state, theme: Theme.defaultTheme)
-                .padding(.bottom, 4)
-
-            HStack(spacing: 14) {
-                TimerPresetButton(
-                    presetTime: TimeInterval(timer.preset1),
-                    timeStringConverter: timeStringNoLeadingHours,
-                    action: {
-                        state.stop()
-                        state.setCurrentIntervalTime(TimeInterval(timer.preset1))
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            state.start {
-                                if settings.soundEnabled { state.playSound() }
-                                if settings.hapticsEnabled { alertState.isPresented = true }
-                            }
-                        }
-                    }
-                )
-
-                TimerPresetButton(
-                    presetTime: TimeInterval(timer.preset2),
-                    timeStringConverter: timeStringNoLeadingHours,
-                    action: {
-                        state.stop()
-                        state.setCurrentIntervalTime(TimeInterval(timer.preset2))
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            state.start {
-                                if settings.soundEnabled { state.playSound() }
-                                if settings.hapticsEnabled { alertState.isPresented = true }
-                            }
-                        }
-                    }
-                )
-            }
-            .padding(.top, 4)
-
-            TimerControlButtons(
+        if #available(iOS 26, *) {
+            GlassLargeTimerContent(
+                timer: timer,
                 state: state,
                 settings: settings,
                 alertState: alertState
             )
-            .padding(.bottom, 4)
+            .timerContainerAppearance(
+                timerState: state,
+                onTimerComplete: { timerId in
+                    debugLog("Timer \(timerId) completed, scrolling to view")
+                    lastCompletedTimerId = timerId
+                },
+                isLargeTimer: true
+            )
+            .padding(.bottom, 8)
+        } else {
+            VStack(spacing: 8) {
+                TimerHeaderView(name: timer.name)
+                    .padding(.top, 4)
+
+                IntervalTimerView(timerState: state, theme: Theme.defaultTheme)
+                    .padding(.top, 4)
+
+                ElapsedTimerView(timerState: state, theme: Theme.defaultTheme)
+                    .padding(.bottom, 4)
+
+                HStack(spacing: 14) {
+                    TimerPresetButton(
+                        presetTime: TimeInterval(timer.preset1),
+                        timeStringConverter: timeStringNoLeadingHours,
+                        action: {
+                            state.stop()
+                            state.setCurrentIntervalTime(TimeInterval(timer.preset1))
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                state.start {
+                                    if settings.soundEnabled { state.playSound() }
+                                    if settings.hapticsEnabled { alertState.isPresented = true }
+                                }
+                            }
+                        }
+                    )
+
+                    TimerPresetButton(
+                        presetTime: TimeInterval(timer.preset2),
+                        timeStringConverter: timeStringNoLeadingHours,
+                        action: {
+                            state.stop()
+                            state.setCurrentIntervalTime(TimeInterval(timer.preset2))
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                state.start {
+                                    if settings.soundEnabled { state.playSound() }
+                                    if settings.hapticsEnabled { alertState.isPresented = true }
+                                }
+                            }
+                        }
+                    )
+                }
+                .padding(.top, 4)
+
+                TimerControlButtons(
+                    state: state,
+                    settings: settings,
+                    alertState: alertState
+                )
+                .padding(.bottom, 4)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .timerContainerAppearance(
+                timerState: state,
+                onTimerComplete: { timerId in
+                    debugLog("Timer \(timerId) completed, scrolling to view")
+                    lastCompletedTimerId = timerId
+                },
+                isLargeTimer: true
+            )
+            .padding(.horizontal, 8)
+            .padding(.bottom, 8)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .timerContainerAppearance(
-            timerState: state,
-            onTimerComplete: { timerId in
-                debugLog("Timer \(timerId) completed, scrolling to view")
-                lastCompletedTimerId = timerId
-            },
-            isLargeTimer: true
-        )
-        .padding(.horizontal, 8)
-        .padding(.bottom, 8)
     }
 
     private func preheatButtonView() -> some View {
@@ -351,6 +370,55 @@ struct ContentView: View {
             }
             startPreheatTimer()
         }) {
+            preheatLabel(anyTimerRunning: anyTimerRunning)
+        }
+        .disabled(anyTimerRunning && !isUITest)
+        .contextMenu {
+            if preheatTimeRemaining > 0 {
+                Button(action: { resetPreheatTimer() }) {
+                    Label("Reset Preheat Timer", systemImage: "arrow.counterclockwise")
+                }
+            }
+        }
+        .if(debugSettings.isEnabled && debugSettings.showLabels) { view in
+            view.debugFrame(
+                debugSettings.showFrames,
+                color: .red,
+                showPadding: debugSettings.showPadding,
+                showBackground: debugSettings.showBackgrounds,
+                label: "Preheat Button"
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func preheatLabel(anyTimerRunning: Bool) -> some View {
+        let timeText = preheatTimeRemaining > 0
+            ? timeString(from: preheatTimeRemaining)
+            : timeString(from: TimeInterval(settings.preheatDuration))
+
+        if #available(iOS 26, *) {
+            HStack(spacing: 10) {
+                Image(systemName: "flame.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                VStack(spacing: 1) {
+                    Text("Preheat grill")
+                        .font(.system(size: 17, weight: .semibold, design: .rounded))
+                    Text(timeText)
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .monospacedDigit()
+                        .opacity(0.8)
+                }
+            }
+            .foregroundStyle(anyTimerRunning ? Color.white.opacity(0.4) : Color.white)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 16)
+            .frame(maxWidth: .infinity)
+            .glassEffect(.regular.tint(.grillGlassTint), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .scaleEffect(preheatPressPulse ? 0.97 : 1.0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: preheatPressPulse)
+            .modifier(PreheatCompleteModifier(isPreheatComplete: isPreheatComplete))
+        } else {
             VStack {
                 HStack(alignment: .center) {
                     Spacer()
@@ -358,7 +426,7 @@ struct ContentView: View {
                         .font(.system(size: 22, weight: .bold))
                     Spacer()
                 }
-                Text(preheatTimeRemaining > 0 ? timeString(from: preheatTimeRemaining) : timeString(from: TimeInterval(settings.preheatDuration)))
+                Text(timeText)
                     .font(.system(size: 24, weight: .bold))
             }
             .padding(.horizontal, 20)
@@ -383,23 +451,6 @@ struct ContentView: View {
             .scaleEffect(preheatPressPulse ? 0.97 : 1.0)
             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: preheatPressPulse)
             .modifier(PreheatCompleteModifier(isPreheatComplete: isPreheatComplete))
-        }
-        .disabled(anyTimerRunning && !isUITest)
-        .contextMenu {
-            if preheatTimeRemaining > 0 {
-                Button(action: { resetPreheatTimer() }) {
-                    Label("Reset Preheat Timer", systemImage: "arrow.counterclockwise")
-                }
-            }
-        }
-        .if(debugSettings.isEnabled && debugSettings.showLabels) { view in
-            view.debugFrame(
-                debugSettings.showFrames,
-                color: .red,
-                showPadding: debugSettings.showPadding,
-                showBackground: debugSettings.showBackgrounds,
-                label: "Preheat Button"
-            )
         }
     }
 
