@@ -96,5 +96,15 @@ The app builds against the iOS/watchOS 26 SDK. Recompiling against this SDK caus
 - Prefer small, reviewable commits with clear messages.
 - **Work autonomously on low-risk tasks** (reading, builds/tests, searches, code edits, committing/merging build-verified cleanup & refactor PRs, docs/config) — act and report, don't ask. **Pause and ask only for consequential decisions:** changes that risk the live app's user-facing behavior, anything irreversible (force-push, history rewrite, data deletion), new dependencies, App Store submission, or design choices with real tradeoffs. A scoped permissions allowlist in `.claude/settings.json` reflects this (routine tools auto-approved; destructive git denied).
 
+### Git & branching (solo App Store workflow)
+
+- `main` is **production** — only finished, shippable work lands there. Tag each App Store release (`v1.2.1`, `v2.0`, …).
+- Develop a body of work on **one feature branch** (currently `Apple-Watch-Suport`, which is really the **V2** branch). Small, focused commits.
+- **Hotfix flow:** branch from `main`, fix, merge to `main`, ship + tag — then merge `main` → the feature branch to absorb the fix.
+- **Stay current:** whenever `main` gains a commit, merge `main` → feature branch soon after, so the eventual merge-back stays small and clean.
+- **Ship:** when the feature work is done, merge feature → `main`, tag, release.
+- **Jim performs merges in Xcode** (Source Control ▸ Merge), not command-line git. Claude prepares — predicts conflicts, writes the exact click-path — and verifies the build afterward. Claude does **not** run `git merge`/rebase or force-push, and never resolves `project.pbxproj` conflicts by hand.
+- Push branches to `origin` regularly (backup).
+
 ---
 *Keep this file current. If you discover the architecture differs from what's described here, update it as part of your change.*
