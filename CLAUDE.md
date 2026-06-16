@@ -2,7 +2,7 @@
 
 This file orients Claude Code on the Grill Time Pro codebase. Read it fully before making changes.
 
-> **Note:** Several fields below are marked `‹TODO›`. They are things only the project itself can confirm. On your **first run**, inspect the project and fill these in (see "First Run" below), then keep this file accurate as the architecture evolves.
+> **Note:** Keep this file accurate as the architecture evolves. The working backlog of pending tasks lives in [TODO.md](TODO.md) — check it at the start of a session and keep it updated as items land or arise.
 
 ---
 
