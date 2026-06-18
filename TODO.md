@@ -69,8 +69,12 @@ background shows through the glass.
       iCloud Key-Value preset sync over full CloudKit live-sync.
 
 ## Release / process
-- [ ] **Reconcile `Apple-Watch-Suport` ↔ `main`** — branches have diverged; Jim
-      does this merge in Xcode (not command-line git) before shipping.
+- [x] **Absorb `main` → `Apple-Watch-Suport`** (2026-06-17, merge `1009263`,
+      build-verified + pushed). Brought in main's app-icon restructure; our `1.3.0`
+      kept over main's `1.2.2`. Xcode 26.5's merge dialog bugged out, so finished via
+      terminal whole-file `--ours/--theirs` (see branch-reconciliation memory).
+- [ ] **Final ship merge `Apple-Watch-Suport` → `main`** once V2 is done — then tag +
+      release. (Optional pre-merge tidy: drop now-unreferenced `Icon-60@2x/3x.png`.)
 - [ ] App Store submission once the watch features are ready.
 
 ## Recently shipped (2026-06-14)
