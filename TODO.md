@@ -18,7 +18,9 @@ All items below are **Version 2**. Planned sequence:
 Isolated quick wins (voice announcements, preheat→`endDate`, the two bugs) slot in anytime.
 
 ## Up next
-- [ ] **Combustion Bluetooth probe** (details under Features) — V2 step 2, the headliner.
+- [ ] **Combustion probe 2C** — forward a compact reading to the watch over `WCSession`;
+      render core temp + drifting predicted-ready countdown on phone + watch.
+      (2A decoders + 2B foreground connection are done and on-device verified.)
 
 _Ember-glow note (lands in step 3):_ deep warm base + soft orange/red radial
 pools, iOS 26-gated; when it's in, dial `Color.grillGlassTint` back down so the
@@ -30,14 +32,14 @@ background shows through the glass.
   since 2023 + drags in a DFU lib). Phased:
   - [x] **2A — domain models + Probe Status decoders + unit tests** (`9f7bc42`). Pure
         Swift, 49 tests, bit layouts transcribed from combustion-ios-ble.
-  - [~] **2B — CoreBluetooth central (foreground):** code complete (`f853f87`) —
-        `ProbeBLEManager` (scan/connect/notify/decode, 16 tests via fake central),
-        thin real `CoreBluetoothProbeCentral`, minimal `ProbePickerView` behind a
-        DEBUG Settings entry. Info.plist/capability config done (`b2236e7`):
-        usage string + `bluetooth-central` on iOS target; watch declares no BT.
-        DEBUG hex-logging of raw payloads added (`116f59f`). **Still pending:**
-        on-device verification with the physical probe + capture real payloads
-        as test fixtures to pin against the 2A decoder.
+  - [x] **2B — CoreBluetooth central (foreground):** DONE. `ProbeBLEManager`
+        (scan/connect/notify/decode) + thin real `CoreBluetoothProbeCentral` +
+        `ProbePickerView` behind a DEBUG Settings entry (`f853f87`); Info.plist
+        config — usage string + `bluetooth-central` on iOS, none on watch (`b2236e7`).
+        **On-device verified:** connects to a real probe & streams. Caught + fixed a
+        temp byte-order bug (block must be reversed before unpacking) and pinned 4
+        real-probe payloads as fixtures (`f20d70a`); room-temp probe now decodes to
+        ~27 °C. Jim to rebuild and eyeball the corrected temps.
   - [ ] **2C — forward compact reading to watch** over existing `WCSession`; render core
         temp + drifting predicted-ready countdown on phone + watch.
   - [ ] **2D — background state restoration + reconnection** for long cooks.
