@@ -280,7 +280,24 @@ struct NewSettingsView: View {
                         .accessibilityIdentifier("SupportLink")
                 }
 
-                // Debug tools hidden for production
+                #if DEBUG
+                Section(header: Text("Debug"),
+                        footer: Text("DEBUG builds only. Overrides premium status for testing — never affects real purchases.")) {
+                    Toggle("Override Premium", isOn: $settings.debugPremiumOverrideEnabled)
+                        .onChange(of: settings.debugPremiumOverrideEnabled) { isOn in
+                            // When turning the override OFF, immediately re-sync the real status
+                            // from RevenueCat so we don't linger on a forced value.
+                            if !isOn { settings.updatePremiumStatus() }
+                        }
+                    if settings.debugPremiumOverrideEnabled {
+                        Picker("Status", selection: $settings.isPremiumUser) {
+                            Text("Free").tag(false)
+                            Text("Paid").tag(true)
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                }
+                #endif
             }
             .listStyle(InsetGroupedListStyle())
             .navigationTitle("Settings")

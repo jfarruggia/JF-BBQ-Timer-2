@@ -72,6 +72,12 @@ struct JF_BBQ_TimerApp: App {
             debugLog("🔑 Entitlements: \(String(describing: customerInfo?.entitlements))")
             
             DispatchQueue.main.async {
+                #if DEBUG
+                if settings.debugPremiumOverrideEnabled {
+                    debugLog("🧪 Debug premium override active — ignoring RevenueCat sync")
+                    return
+                }
+                #endif
                 // Only persist the premium flag here to avoid overwriting
                 // onboarding defaults (timer names/presets) with zeros from
                 // the initial Settings() instance.

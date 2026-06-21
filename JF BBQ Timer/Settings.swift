@@ -88,6 +88,16 @@ class Settings: ObservableObject {
     @Published var announceOnlyWithHeadphones: Bool
 
     // Premium features flag - one-time purchase
+    #if DEBUG
+    // DEBUG-only: when true, RevenueCat sync is ignored so isPremiumUser can be
+    // set manually for testing. Never compiled into release builds.
+    @Published var debugPremiumOverrideEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(debugPremiumOverrideEnabled, forKey: "debugPremiumOverrideEnabled")
+        }
+    }
+    #endif
+
     @Published var isPremiumUser: Bool {
         didSet {
             debugLog("🔄 isPremiumUser changed from \(oldValue) to \(isPremiumUser)")
@@ -114,6 +124,12 @@ class Settings: ObservableObject {
             debugLog("🔑 Entitlements: \(String(describing: customerInfo?.entitlements))")
 
             DispatchQueue.main.async {
+                #if DEBUG
+                if self?.debugPremiumOverrideEnabled == true {
+                    debugLog("🧪 Debug premium override active — ignoring RevenueCat sync")
+                    return
+                }
+                #endif
                 if self?.isPremiumUser != isPremium {
                     debugLog("⚠️ Local premium status doesn't match RevenueCat - updating...")
                     self?.isPremiumUser = isPremium
@@ -155,6 +171,9 @@ class Settings: ObservableObject {
         }
 
         self.isPremiumUser = UserDefaults.standard.bool(forKey: "isPremiumUser")
+        #if DEBUG
+        self.debugPremiumOverrideEnabled = UserDefaults.standard.bool(forKey: "debugPremiumOverrideEnabled")
+        #endif
         debugLog("📱 Initialized premium status from UserDefaults: \(self.isPremiumUser)")
 
         if UserDefaults.standard.object(forKey: "soundEnabled") == nil {
