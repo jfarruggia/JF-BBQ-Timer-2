@@ -22,6 +22,14 @@ Grill Time Pro is a shipping iOS app (live on the App Store) that helps users ti
 
 ## Build & test
 
+> **Jim's Xcode version: 26.5 (17F42).** When giving GUI directions (menu paths,
+> Settings panels, where to click), reference *this* version — Xcode moves things
+> between releases, so instructions written for older versions can send him to the
+> wrong place. Known 26.x change: **merging a branch is in the Source Control
+> *navigator*** (2nd sidebar icon → expand repo → Branches → right-click the branch
+> → "Merge … into …"), **not** the Integrate menu. If unsure where something lives in
+> 26.5, say so rather than guessing a path from an older version.
+
 The architecture fields above were confirmed on 2026-06-14. Useful commands:
 
 ```bash
