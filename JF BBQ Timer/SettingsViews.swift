@@ -65,6 +65,9 @@ struct NewSettingsView: View {
     @State private var showSettingsSaved = false
     @State private var showTestPlayed = false
     @State private var premiumPrice: String = "$3.99" // Default/fallback price
+    #if DEBUG && os(iOS)
+    @StateObject private var probeManager = ProbeBLEManager()
+    #endif
     
     private func checkPremiumStatus() {
         debugLog("🔍 Checking premium status in settings...")
@@ -296,6 +299,11 @@ struct NewSettingsView: View {
                         }
                         .pickerStyle(.segmented)
                     }
+                    #if os(iOS)
+                    NavigationLink("Connect Probe (debug)") {
+                        ProbePickerView(probeManager: probeManager)
+                    }
+                    #endif
                 }
                 #endif
             }
