@@ -30,10 +30,13 @@ background shows through the glass.
   since 2023 + drags in a DFU lib). Phased:
   - [x] **2A — domain models + Probe Status decoders + unit tests** (`9f7bc42`). Pure
         Swift, 49 tests, bit layouts transcribed from combustion-ios-ble.
-  - [ ] **2B — CoreBluetooth central (foreground):** scan → probe picker → connect →
-        subscribe → publish `ProbeReading`/`ProbePrediction`. ⚠️ Needs manual Xcode steps
-        (Info.plist `NSBluetoothAlwaysUsageDescription` + Background Modes → Uses BLE
-        accessories) — hand Jim the click-path. Capture real probe payloads as test fixtures.
+  - [~] **2B — CoreBluetooth central (foreground):** code complete (`f853f87`) —
+        `ProbeBLEManager` (scan/connect/notify/decode, 16 tests via fake central),
+        thin real `CoreBluetoothProbeCentral`, minimal `ProbePickerView` behind a
+        DEBUG Settings entry. **Still pending:** (a) manual Xcode steps — Info.plist
+        `NSBluetoothAlwaysUsageDescription` + Background Modes → Uses BLE accessories;
+        (b) on-device verification with the physical probe; (c) capture real payloads
+        as test fixtures to pin against the 2A decoder.
   - [ ] **2C — forward compact reading to watch** over existing `WCSession`; render core
         temp + drifting predicted-ready countdown on phone + watch.
   - [ ] **2D — background state restoration + reconnection** for long cooks.
