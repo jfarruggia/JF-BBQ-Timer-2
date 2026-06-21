@@ -167,6 +167,12 @@ final class ProbeBLEManager: ObservableObject {
     /// Decodes the raw bytes; if valid, updates `latestReading`.
     /// Short or malformed data leaves `latestReading` unchanged.
     func handleStatusNotification(_ data: Data) {
+        #if DEBUG
+        // Log the raw payload as hex so real-probe notifications can be copied from
+        // the Xcode console and pinned as decoder test fixtures (Phase 2B item c).
+        let hex = data.map { String(format: "%02X", $0) }.joined()
+        debugLog("🌡️ Probe status payload (\(data.count) bytes): \(hex)")
+        #endif
         guard let reading = ProbeReading.decode(data: data) else { return }
         latestReading = reading
     }
