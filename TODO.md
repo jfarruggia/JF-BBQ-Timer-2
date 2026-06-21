@@ -33,9 +33,10 @@ background shows through the glass.
   - [~] **2B — CoreBluetooth central (foreground):** code complete (`f853f87`) —
         `ProbeBLEManager` (scan/connect/notify/decode, 16 tests via fake central),
         thin real `CoreBluetoothProbeCentral`, minimal `ProbePickerView` behind a
-        DEBUG Settings entry. **Still pending:** (a) manual Xcode steps — Info.plist
-        `NSBluetoothAlwaysUsageDescription` + Background Modes → Uses BLE accessories;
-        (b) on-device verification with the physical probe; (c) capture real payloads
+        DEBUG Settings entry. Info.plist/capability config done (`b2236e7`):
+        usage string + `bluetooth-central` on iOS target; watch declares no BT.
+        DEBUG hex-logging of raw payloads added (`116f59f`). **Still pending:**
+        on-device verification with the physical probe + capture real payloads
         as test fixtures to pin against the 2A decoder.
   - [ ] **2C — forward compact reading to watch** over existing `WCSession`; render core
         temp + drifting predicted-ready countdown on phone + watch.
