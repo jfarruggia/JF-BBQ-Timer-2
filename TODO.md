@@ -25,10 +25,20 @@ pools, iOS 26-gated; when it's in, dial `Color.grillGlassTint` back down so the
 background shows through the glass.
 
 ## Features
-- [ ] **Combustion Bluetooth probe support** — see `combustion-probe-ble-spec.md`.
-      Greenfield (no BLE code yet). First step: review the spec and decide raw
-      CoreBluetooth vs the Combustion SDK — the latter is a **new dependency to
-      flag/approve** before adding.
+- **Combustion Bluetooth probe support** — see `combustion-probe-ble-spec.md`.
+  Decision made: **raw CoreBluetooth + our own parser** (not the SDK; SDK is dormant
+  since 2023 + drags in a DFU lib). Phased:
+  - [x] **2A — domain models + Probe Status decoders + unit tests** (`9f7bc42`). Pure
+        Swift, 49 tests, bit layouts transcribed from combustion-ios-ble.
+  - [ ] **2B — CoreBluetooth central (foreground):** scan → probe picker → connect →
+        subscribe → publish `ProbeReading`/`ProbePrediction`. ⚠️ Needs manual Xcode steps
+        (Info.plist `NSBluetoothAlwaysUsageDescription` + Background Modes → Uses BLE
+        accessories) — hand Jim the click-path. Capture real probe payloads as test fixtures.
+  - [ ] **2C — forward compact reading to watch** over existing `WCSession`; render core
+        temp + drifting predicted-ready countdown on phone + watch.
+  - [ ] **2D — background state restoration + reconnection** for long cooks.
+  - [ ] **2E — on-screen probe UI** (folds into the main-screen layout pass, step 3).
+  - [ ] **2F (later) — UART commands** (alarms, set-prediction): separate spec, out of scope.
 - [x] **Dev-only free⇄paid toggle** for testing premium gating — shipped `4ec2ca8`.
       `#if DEBUG`-only "Debug" section at the bottom of Settings: "Override Premium"
       switch + Free/Paid segmented picker. Overrides `isPremiumUser` locally; both
