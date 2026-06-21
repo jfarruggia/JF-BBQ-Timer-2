@@ -43,8 +43,9 @@ private func makeValidPayload() -> Data {
     bytes[0] = 0x01
     // maxLog = 256 LE
     bytes[5] = 0x01
-    // temp block (golden fixture from ProbeStatusDecoderTests)
-    let tempBlock: [UInt8] = [0x55, 0x55, 0x55, 0x7F, 0xFE, 0x00, 0x10, 0x64, 0x01, 0x90, 0x32, 0x00, 0x00]
+    // temp block: wire-order (reversed fromReversed layout) matching the updated decoder.
+    // Decodes to: T1=-20°C, T2=0°C, T3=-15°C, T4=-10°C, T5=-19.95°C, T6=389.55°C, T7=253.05°C, T8=116.5°C
+    let tempBlock: [UInt8] = [0x00, 0x00, 0x32, 0x90, 0x01, 0x64, 0x10, 0x00, 0xFE, 0x7F, 0x55, 0x55, 0x55]
     for (i, b) in tempBlock.enumerated() { bytes[8 + i] = b }
     // ModeId = 0x29 (instantRead, color3, ID2)
     bytes[21] = 0x29

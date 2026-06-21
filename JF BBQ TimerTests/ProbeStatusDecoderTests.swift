@@ -46,14 +46,19 @@ struct TemperatureConversionTests {
 
 // MARK: - Test-only temperature block encoder
 //
-// Packs eight 13-bit raw values into 13 bytes, inverting the documented decoder layout.
+// Packs eight 13-bit raw values into 13 bytes in WIRE order (matching the updated decoder).
+// The decoder now reverses the 13 bytes before bit-extraction (mirroring the reference
+// library's fromRawData), so this encoder must also reverse its output to produce valid
+// wire-order bytes.  The encode→decode round-trip therefore remains correct: the encoder
+// reverses, the decoder un-reverses, then both apply the same fromReversed bit math.
+//
 // This encoder is used for round-trip tests ONLY. The golden fixture below is computed
 // BY HAND from first principles — it does NOT use this encoder — to catch mirrored bugs.
 
 private func encodeTempBlock(_ raws: [UInt16]) -> [UInt8] {
     precondition(raws.count == 8, "encodeTempBlock requires exactly 8 raw values")
 
-    // The decoder inserts in reverse order:
+    // The decoder (after reversing) inserts in reverse order:
     //   line-1 (r[7]=T8), line-2 (r[6]=T7), …, line-8 (r[0]=T1)
     // So raws[0]=T1 maps to line-8; raws[7]=T8 maps to line-1.
     let r = raws  // r[0]=T1 … r[7]=T8
@@ -62,6 +67,7 @@ private func encodeTempBlock(_ raws: [UInt16]) -> [UInt8] {
     let r8 = r[7], r7 = r[6], r6 = r[5], r5 = r[4]
     let r4 = r[3], r3 = r[2], r2 = r[1], r1 = r[0]
 
+    // Pack into the fromReversed byte layout (before wire reversal).
     var b = [UInt8](repeating: 0, count: 13)
 
     // Line 1: r8 = b[0]<<5 | b[1]>>3  (13 bits split 8+5)
@@ -100,7 +106,9 @@ private func encodeTempBlock(_ raws: [UInt16]) -> [UInt8] {
     b[11] |= UInt8((r1 >> 8) & 0x1F)
     b[12]  = UInt8(r1 & 0xFF)
 
-    return b
+    // Reverse to produce wire-order bytes.  The decoder reverses on input, so
+    // encode(reverse(b)) followed by decode(reverse(wire)) = decode(b) = identity.
+    return b.reversed()
 }
 
 // MARK: - Round-trip tests (encoder → decoder)
@@ -162,60 +170,36 @@ struct TempBlockRoundTripTests {
 //   T3 = 0x0064 (100)  →  -15.00 °C
 //   T4 = 0x00C8 (200)  →  -10.00 °C
 //   T5 = 0x0001 (  1)  → -19.95 °C
-//   T6 = 0x1FFF (8191) → 389.55 °C  (wait, valid range is up to ~369 but 8191 is the 13-bit max, okay for packing test)
+//   T6 = 0x1FFF (8191) → 389.55 °C  (13-bit max, valid for packing test)
 //   T7 = 0x1555 (5461) → 253.05 °C
 //   T8 = 0x0AAA (2730) → 116.50 °C
 //
-// The decoder processes lines in the order T8…T1 (because each insert pushes to front).
+// The decoder (after reversing the wire bytes) processes lines in the order T8…T1
+// (each insert pushes to front).
 // r8=2730=0x0AAA, r7=5461=0x1555, r6=8191=0x1FFF, r5=1=0x0001
 // r4=200=0x00C8,  r3=100=0x0064,  r2=400=0x0190,   r1=0=0x0000
 //
-// Byte-by-byte derivation:
+// The fromReversed byte layout (what the bit-math sees after reversal) is derived
+// exactly as before:
 //
-// Line 1 (T8, r8=0x0AAA=0b0_0101_0101_0101_0):
-//   b[0] = r8 >> 5 = 0x0AAA >> 5 = 0x55
-//   b[1] upper = (r8 & 0x1F) << 3 = (0x0A) << 3 = 0x50
+//   fromReversed bytes: 55 55 55 7F FE 00 10 64 01 90 32 00 00
 //
-// Line 2 (T7, r7=0x1555=0b1_0101_0101_0101_0):
-//   b[1] lower = r7 >> 10 = 5 → b[1] = 0x50 | 0x05 = 0x55
-//   b[2] = (r7 >> 2) & 0xFF = 0x1555 >> 2 = 0x555 & 0xFF = 0x55
-//   b[3] upper = (r7 & 0x03) << 6 = 0x01 << 6 = 0x40
+// Since the decoder now reverses the wire block before running the bit-math, the
+// WIRE bytes that produce this layout are the reverse of the above:
 //
-// Line 3 (T6, r6=0x1FFF=0b1_1111_1111_1111_0):
-//   b[3] lower = (r6 >> 7) & 0x3F = 0x3F → b[3] = 0x40 | 0x3F = 0x7F
-//   b[4] upper = (r6 & 0x7F) << 1 = 0x7F << 1 = 0xFE
+//   Wire bytes (what goes into decode(block:)): 00 00 32 90 01 64 10 00 FE 7F 55 55 55
 //
-// Line 4 (T5, r5=0x0001=1):
-//   b[4] lsb = (r5 >> 12) & 0x01 = 0 → b[4] = 0xFE | 0x00 = 0xFE
-//   b[5] = (r5 >> 4) & 0xFF = 0x00
-//   b[6] upper = (r5 & 0x0F) << 4 = 0x01 << 4 = 0x10
-//
-// Line 5 (T4, r4=0x00C8=200=0b0_0000_1100_1000):
-//   b[6] lower = (r4 >> 9) & 0x0F = 0 → b[6] = 0x10 | 0x00 = 0x10
-//   b[7] = (r4 >> 1) & 0xFF = 100 = 0x64
-//   b[8] msb = (r4 & 0x01) << 7 = 0 → b[8] bit7 = 0x00
-//
-// Line 6 (T3, r3=0x0064=100=0b0_0000_0110_0100):
-//   b[8] lower7 = (r3 >> 6) & 0x7F = 1 → b[8] = 0x00 | 0x01 = 0x01
-//   b[9] upper = (r3 & 0x3F) << 2 = 0x24 << 2 = 0x90
-//
-// Line 7 (T2, r2=0x0190=400=0b0_0001_1001_0000):
-//   b[9] lower = (r2 >> 11) & 0x03 = 0 → b[9] = 0x90 | 0x00 = 0x90
-//   b[10] = (r2 >> 3) & 0xFF = 50 = 0x32
-//   b[11] upper = (r2 & 0x07) << 5 = 0 → 0x00
-//
-// Line 8 (T1, r1=0x0000=0):
-//   b[11] lower = (r1 >> 8) & 0x1F = 0 → b[11] = 0x00
-//   b[12] = r1 & 0xFF = 0x00
-//
-// Final 13 bytes (hex): 55 55 55 7F FE 00 10 64 01 90 32 00 00
+// Verification: reversed([00,00,32,90,01,64,10,00,FE,7F,55,55,55])
+//             = [55,55,55,7F,FE,00,10,64,01,90,32,00,00]  ✓ same fromReversed layout as before.
 
 @Suite("Temperature block golden fixture (hand-computed)")
 struct TempBlockGoldenFixtureTests {
 
-    // The 13 bytes derived above by hand.
+    // Wire-order bytes = reverse of the hand-derived fromReversed layout above.
+    // The decoder reverses these back to [55 55 55 7F FE 00 10 64 01 90 32 00 00]
+    // before applying the fromReversed bit-extraction.
     private let goldenBlock: [UInt8] = [
-        0x55, 0x55, 0x55, 0x7F, 0xFE, 0x00, 0x10, 0x64, 0x01, 0x90, 0x32, 0x00, 0x00
+        0x00, 0x00, 0x32, 0x90, 0x01, 0x64, 0x10, 0x00, 0xFE, 0x7F, 0x55, 0x55, 0x55
     ]
 
     private let tolerance = 1e-9
@@ -612,8 +596,8 @@ struct ProbeStatusPayloadTests {
         bytes[0] = 0x01; bytes[1] = 0x00; bytes[2] = 0x00; bytes[3] = 0x00
         // maxLog = 256 (LE)
         bytes[4] = 0x00; bytes[5] = 0x01; bytes[6] = 0x00; bytes[7] = 0x00
-        // temp block
-        let tempBlock: [UInt8] = [0x55, 0x55, 0x55, 0x7F, 0xFE, 0x00, 0x10, 0x64, 0x01, 0x90, 0x32, 0x00, 0x00]
+        // temp block: wire-order (= reversed fromReversed layout); decoder un-reverses before bit-math
+        let tempBlock: [UInt8] = [0x00, 0x00, 0x32, 0x90, 0x01, 0x64, 0x10, 0x00, 0xFE, 0x7F, 0x55, 0x55, 0x55]
         for (i, b) in tempBlock.enumerated() { bytes[8 + i] = b }
         // ModeId
         bytes[21] = 0x29
@@ -726,5 +710,191 @@ struct ProbeStatusPayloadTests {
     func exactlyThirtyBytesDecodes() {
         let minimal = Data(makePayload().prefix(30))
         #expect(ProbeReading.decode(data: minimal) != nil)
+    }
+}
+
+// MARK: - Hex string → Data helper (test-only)
+
+/// Converts a hex string (no spaces, even length) to Data.
+/// Asserts precondition on odd-length input or invalid characters.
+private func dataFromHex(_ hex: String) -> Data {
+    precondition(hex.count % 2 == 0, "Hex string must have even length")
+    var data = Data()
+    var index = hex.startIndex
+    while index < hex.endIndex {
+        let nextIndex = hex.index(index, offsetBy: 2)
+        let byteString = String(hex[index..<nextIndex])
+        guard let byte = UInt8(byteString, radix: 16) else {
+            preconditionFailure("Invalid hex byte: \(byteString)")
+        }
+        data.append(byte)
+        index = nextIndex
+    }
+    return data
+}
+
+// MARK: - Real device payload tests
+
+// Payloads captured from a physical Combustion probe at room temperature (~27 °C), NOT inserted.
+// Each hex string is 94 bytes (188 hex chars) — a full Probe Status notification.
+//
+// NORMAL mode (all 8 thermistors populated):
+//   A: 0000000003000000B02376C48ED8613B6E47ED001E00C0000000F0FF1F3B…
+//   B: 0000000004000000B12376C88ED8513B6C07EDC01D00C0000000F0FF1F3B…
+//   C: 0000000005000000B14376C88ED8613B6E87EDB81D0040000000F0FF1F3B…
+//
+// INSTANT-READ / idle (only T1 populated; T2–T8 raw 0 = -20 °C):
+//   D: 0000000002000000B003000000000000000000000001C000000000000000…
+
+@Suite("Real device payload tests")
+struct RealProbePayloadTests {
+
+    // 94-byte payloads from real hardware (room temp ~27 °C, probe not inserted).
+    private let hexA = "0000000003000000B02376C48ED8613B6E47ED001E00C0000000F0FF1F3B00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    private let hexB = "0000000004000000B12376C88ED8513B6C07EDC01D00C0000000F0FF1F3B00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    private let hexC = "0000000005000000B14376C88ED8613B6E87EDB81D0040000000F0FF1F3B00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+    private let hexD = "0000000002000000B003000000000000000000000001C00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+
+    // Room-temperature band: all 8 thermistors should read between 20 and 35 °C
+    // when the probe is at ambient (~27 °C).  The max–min spread should be < 5 °C
+    // since all sensors sit in uniform air.
+    private let bandLow:  Double = 20.0
+    private let bandHigh: Double = 35.0
+    private let maxSpread: Double = 5.0
+
+    // -------------------------------------------------------------------------
+    // Payload A — NORMAL mode, room temp
+    // -------------------------------------------------------------------------
+
+    @Test("Payload A: mode == .normal")
+    func payloadA_mode() {
+        guard let r = ProbeReading.decode(data: dataFromHex(hexA)) else {
+            Issue.record("Payload A: decode returned nil"); return
+        }
+        #expect(r.mode == .normal)
+    }
+
+    @Test("Payload A: batteryStatus == .ok")
+    func payloadA_battery() {
+        guard let r = ProbeReading.decode(data: dataFromHex(hexA)) else {
+            Issue.record("Payload A: decode returned nil"); return
+        }
+        #expect(r.batteryStatus == .ok)
+    }
+
+    @Test("Payload A: prediction.state == .probeNotInserted")
+    func payloadA_predictionState() {
+        guard let r = ProbeReading.decode(data: dataFromHex(hexA)) else {
+            Issue.record("Payload A: decode returned nil"); return
+        }
+        #expect(r.prediction.state == .probeNotInserted)
+    }
+
+    @Test("Payload A: all 8 thermistors in room-temp band (20–35 °C)")
+    func payloadA_bandCheck() {
+        guard let r = ProbeReading.decode(data: dataFromHex(hexA)) else {
+            Issue.record("Payload A: decode returned nil"); return
+        }
+        let temps = r.temperatures.values
+        for (i, t) in temps.enumerated() {
+            #expect(t > bandLow,  "T\(i+1) = \(t) °C is below \(bandLow) °C")
+            #expect(t < bandHigh, "T\(i+1) = \(t) °C is above \(bandHigh) °C")
+        }
+        let spread = temps.max()! - temps.min()!
+        #expect(spread < maxSpread, "Max−min spread = \(spread) °C, expected < \(maxSpread) °C")
+    }
+
+    // Regression pin for payload A (exact values decoded by the corrected decoder
+    // from the real hardware capture, rounded to 0.05 °C = one raw unit):
+    //   T1 = 27.20 °C  (raw 944)
+    //   T2 = 27.25 °C  (raw 945)
+    //   T3 = 27.25 °C  (raw 945)
+    //   T4 = 27.25 °C  (raw 945)
+    //   T5 = 27.50 °C  (raw 950)
+    //   T6 = 27.55 °C  (raw 951)
+    //   T7 = 27.45 °C  (raw 949)
+    //   T8 = 28.00 °C  (raw 960)
+    // Tolerance ±0.026 — just over half a 0.05-step — so a single-raw-unit error shows as failure.
+    @Test("Payload A: regression pin — exact T1–T8 values to 0.05 °C")
+    func payloadA_regressionPin() {
+        guard let r = ProbeReading.decode(data: dataFromHex(hexA)) else {
+            Issue.record("Payload A: decode returned nil"); return
+        }
+        let t = r.temperatures
+        let tol = 0.026  // half a 0.05-step
+        #expect(abs(t.t1 - 27.20) < tol, "T1 = \(t.t1)")
+        #expect(abs(t.t2 - 27.25) < tol, "T2 = \(t.t2)")
+        #expect(abs(t.t3 - 27.25) < tol, "T3 = \(t.t3)")
+        #expect(abs(t.t4 - 27.25) < tol, "T4 = \(t.t4)")
+        #expect(abs(t.t5 - 27.50) < tol, "T5 = \(t.t5)")
+        #expect(abs(t.t6 - 27.55) < tol, "T6 = \(t.t6)")
+        #expect(abs(t.t7 - 27.45) < tol, "T7 = \(t.t7)")
+        #expect(abs(t.t8 - 28.00) < tol, "T8 = \(t.t8)")
+    }
+
+    // -------------------------------------------------------------------------
+    // Payload B — NORMAL mode, room temp
+    // -------------------------------------------------------------------------
+
+    @Test("Payload B: mode == .normal, battery == .ok, all thermistors in band")
+    func payloadB_normalBandCheck() {
+        guard let r = ProbeReading.decode(data: dataFromHex(hexB)) else {
+            Issue.record("Payload B: decode returned nil"); return
+        }
+        #expect(r.mode == .normal)
+        #expect(r.batteryStatus == .ok)
+        #expect(r.prediction.state == .probeNotInserted)
+        let temps = r.temperatures.values
+        for (i, t) in temps.enumerated() {
+            #expect(t > bandLow,  "B T\(i+1) = \(t) °C below band")
+            #expect(t < bandHigh, "B T\(i+1) = \(t) °C above band")
+        }
+        let spread = temps.max()! - temps.min()!
+        #expect(spread < maxSpread, "B spread = \(spread) °C")
+    }
+
+    // -------------------------------------------------------------------------
+    // Payload C — NORMAL mode, room temp
+    // -------------------------------------------------------------------------
+
+    @Test("Payload C: mode == .normal, battery == .ok, all thermistors in band")
+    func payloadC_normalBandCheck() {
+        guard let r = ProbeReading.decode(data: dataFromHex(hexC)) else {
+            Issue.record("Payload C: decode returned nil"); return
+        }
+        #expect(r.mode == .normal)
+        #expect(r.batteryStatus == .ok)
+        #expect(r.prediction.state == .probeNotInserted)
+        let temps = r.temperatures.values
+        for (i, t) in temps.enumerated() {
+            #expect(t > bandLow,  "C T\(i+1) = \(t) °C below band")
+            #expect(t < bandHigh, "C T\(i+1) = \(t) °C above band")
+        }
+        let spread = temps.max()! - temps.min()!
+        #expect(spread < maxSpread, "C spread = \(spread) °C")
+    }
+
+    // -------------------------------------------------------------------------
+    // Payload D — INSTANT-READ / idle mode
+    // -------------------------------------------------------------------------
+
+    @Test("Payload D: T1 in room-temp band; T2–T8 at -20 °C (raw 0)")
+    func payloadD_instantReadIdle() {
+        guard let r = ProbeReading.decode(data: dataFromHex(hexD)) else {
+            Issue.record("Payload D: decode returned nil"); return
+        }
+        let t = r.temperatures
+        // T1 should be a valid ambient reading
+        #expect(t.t1 > bandLow,  "D T1 = \(t.t1) °C below band")
+        #expect(t.t1 < bandHigh, "D T1 = \(t.t1) °C above band")
+        // T2–T8 should be -20.0 °C (raw 0) in idle instant-read
+        let tolerance = 0.01
+        #expect(abs(t.t2 - (-20.0)) < tolerance, "D T2 = \(t.t2)")
+        #expect(abs(t.t3 - (-20.0)) < tolerance, "D T3 = \(t.t3)")
+        #expect(abs(t.t4 - (-20.0)) < tolerance, "D T4 = \(t.t4)")
+        #expect(abs(t.t5 - (-20.0)) < tolerance, "D T5 = \(t.t5)")
+        #expect(abs(t.t6 - (-20.0)) < tolerance, "D T6 = \(t.t6)")
+        #expect(abs(t.t7 - (-20.0)) < tolerance, "D T7 = \(t.t7)")
+        #expect(abs(t.t8 - (-20.0)) < tolerance, "D T8 = \(t.t8)")
     }
 }

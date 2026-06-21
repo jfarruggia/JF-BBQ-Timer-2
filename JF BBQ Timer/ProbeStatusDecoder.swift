@@ -19,13 +19,22 @@ import Foundation
 extension ProbeTemperatures {
 
     /// Decodes 8 thermistor temperatures from the 13-byte raw temperature block.
-    /// Implements the `ProbeTemperatures.fromReversed` algorithm from combustion-ios-ble:
-    /// each raw 13-bit value is converted with `Double(raw) * 0.05 - 20.0`.
     ///
-    /// - Parameter block: Exactly 13 bytes (normalised to 0-based indexing before calling).
+    /// Mirrors the reference library's `fromRawData`: first reverses the 13 wire bytes,
+    /// then applies the `fromReversed` bit-extraction algorithm.  The byte reversal is
+    /// required because the Probe Status BLE notification sends the temperature block in
+    /// the opposite byte order from what the bit-math expects.
+    ///
+    /// Each raw 13-bit value is converted with `Double(raw) * 0.05 - 20.0`.
+    ///
+    /// - Parameter block: Exactly 13 bytes in wire order (as received from the notification).
     /// - Returns: nil if `block.count != 13`.
-    static func decode(block bytes: [UInt8]) -> ProbeTemperatures? {
-        guard bytes.count == 13 else { return nil }
+    static func decode(block rawBlock: [UInt8]) -> ProbeTemperatures? {
+        guard rawBlock.count == 13 else { return nil }
+
+        // Reverse the wire bytes before bit-extraction, mirroring combustion-ios-ble
+        // `fromRawData` which calls `reversed()` before passing to `fromReversed`.
+        let bytes = Array(rawBlock.reversed())
 
         // Unpack 8 × 13-bit values using `insert(at: 0)` reversal so T1 ends at index 0.
         // Each line extracts a 13-bit raw value that spans two or three bytes.
