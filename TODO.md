@@ -18,7 +18,7 @@ All items below are **Version 2**. Planned sequence:
 Isolated quick wins (voice announcements, preheat→`endDate`, the two bugs) slot in anytime.
 
 ## Up next
-- [ ] **DEBUG-only free⇄paid toggle** (details under Features) — agreed first task.
+- [ ] **Combustion Bluetooth probe** (details under Features) — V2 step 2, the headliner.
 
 _Ember-glow note (lands in step 3):_ deep warm base + soft orange/red radial
 pools, iOS 26-gated; when it's in, dial `Color.grillGlassTint` back down so the
@@ -29,10 +29,11 @@ background shows through the glass.
       Greenfield (no BLE code yet). First step: review the spec and decide raw
       CoreBluetooth vs the Combustion SDK — the latter is a **new dependency to
       flag/approve** before adding.
-- [ ] **Dev-only free⇄paid toggle** for testing premium gating. Must be
-      `#if DEBUG`-only — overrides `isPremiumUser` locally, never ships to users
-      and never touches real RevenueCat entitlements. (A `-UITEST_PREMIUM` launch
-      arg already exists; this is an interactive in-app toggle for manual testing.)
+- [x] **Dev-only free⇄paid toggle** for testing premium gating — shipped `4ec2ca8`.
+      `#if DEBUG`-only "Debug" section at the bottom of Settings: "Override Premium"
+      switch + Free/Paid segmented picker. Overrides `isPremiumUser` locally; both
+      RevenueCat sync points back off while it's on; turning it off re-syncs the real
+      entitlement. Release build verified to strip it. Never calls purchase/restore.
 
 ## UX / layout
 - [ ] **Reposition the Preheat grill button** — bottom placement is easy to miss.
