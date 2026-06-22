@@ -11,6 +11,7 @@ import WatchKit
 
 struct TimersListView: View {
     @StateObject private var model = WatchTimersModel()
+    @StateObject private var probeModel = WatchProbeModel()
     // Local ticker so the watch UI updates every second without waiting for iPhone
     // Only active when timers are running to save battery
     @State private var now = Date()
@@ -131,9 +132,75 @@ struct TimersListView: View {
         if model.timers.isEmpty {
             emptyState
                 .overlay(alertBanner, alignment: .top)
+                .safeAreaInset(edge: .bottom) { probeSection }
         } else {
             timersPager
                 .overlay(alertBanner, alignment: .top)
+                .safeAreaInset(edge: .bottom) { probeSection }
+        }
+    }
+
+    // MARK: - Probe section (shown only when iPhone has an active BLE probe connection)
+    @ViewBuilder
+    private var probeSection: some View {
+        if let probe = probeModel.probe, probe.connected {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Image(systemName: "thermometer.medium")
+                        .font(.caption2)
+                        .foregroundColor(.orange)
+                    // Core temp — large, prominent
+                    if let coreC = probe.coreC {
+                        Text("\(Int(coreC.rounded()))°")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                            .monospacedDigit()
+                    } else {
+                        Text("—")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                    }
+                    if probe.batteryLow {
+                        Image(systemName: "battery.25")
+                            .font(.caption2)
+                            .foregroundColor(.yellow)
+                    }
+                }
+
+                HStack(spacing: 8) {
+                    // Surface
+                    Group {
+                        Text("Sfc ") + Text(probe.surfaceC.map { "\(Int($0.rounded()))°" } ?? "—")
+                    }
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+
+                    // Ambient
+                    Group {
+                        Text("Amb ") + Text(probe.ambientC.map { "\(Int($0.rounded()))°" } ?? "—")
+                    }
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                }
+
+                // Live countdown to predicted ready time
+                if let readyDate = probe.predictedReadyDate, readyDate > Date() {
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock.arrow.trianglehead.counterclockwise.rotate.90")
+                            .font(.caption2)
+                            .foregroundColor(.green)
+                        Text(timerInterval: Date.now...readyDate, countsDown: true)
+                            .font(.caption2)
+                            .monospacedDigit()
+                            .foregroundColor(.green)
+                    }
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
+            .padding(.horizontal, 4)
         }
     }
 

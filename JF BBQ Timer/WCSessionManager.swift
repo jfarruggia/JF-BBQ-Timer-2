@@ -124,6 +124,27 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
         }
     }
 
+    /// Sends a compact probe reading dict to the watch via sendMessage.
+    /// Probe data is ephemeral — if the watch is not currently reachable the
+    /// send is skipped (no context/userInfo fallback) to avoid stale readings.
+    /// - Parameter dict: Wire dict produced by `probeReadingWireDict`.
+    /// - Returns: true if sendMessage was called; false if skipped (not reachable/activated).
+    @discardableResult
+    func sendProbeReading(_ dict: [String: Any]) -> Bool {
+        guard WCSession.isSupported() else { return false }
+        let session = WCSession.default
+        guard session.activationState == .activated else { return false }
+        guard session.isReachable else {
+            debugLog("[\(platformTag)] ⏭️ sendProbeReading: watch not reachable — skipping (ephemeral)")
+            return false
+        }
+        session.sendMessage(dict, replyHandler: nil) { [weak self] error in
+            debugLog("[\(self?.platformTag ?? "?")] ❌ sendProbeReading ERROR: \(error.localizedDescription)")
+        }
+        debugLog("[\(platformTag)] 📡 sendProbeReading sent (connected=\(dict["connected"] as? Bool ?? false))")
+        return true
+    }
+
     /// Sends a command to the counterpart. If the session is reachable, uses sendMessage
     /// with an optional reply handler; otherwise falls back to transferUserInfo.
     /// - Parameters:
@@ -237,6 +258,8 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
                 name = "receivedAlert"
             } else if action == "snapshot" {
                 name = "receivedTimersSnapshot"
+            } else if action == "probe" {
+                name = "receivedProbeReading"
             } else {
                 name = "receivedCommand"
             }
@@ -271,6 +294,8 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
                 name = "receivedAlert"
             } else if action == "snapshot" {
                 name = "receivedTimersSnapshot"
+            } else if action == "probe" {
+                name = "receivedProbeReading"
             } else {
                 name = "receivedCommand"
             }
@@ -307,6 +332,8 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
                 name = "receivedAlert"
             } else if action == "snapshot" {
                 name = "receivedTimersSnapshot"
+            } else if action == "probe" {
+                name = "receivedProbeReading"
             } else {
                 name = "receivedCommand"
             }
@@ -320,6 +347,58 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
         // Minimal acknowledgement to keep the channel healthy
         replyHandler([:])
     }
+}
+
+// MARK: - Probe wire types (shared across iOS + watchOS)
+//
+// Defined here because this file is compiled into BOTH targets, giving a single
+// source of truth for the probe-reading wire format. The iOS-only encoder
+// (`probeReadingWireDict`, which needs `ProbeReading`) lives in ProbeWatchSync.swift.
+
+/// Compact, plist-safe representation of a probe reading forwarded iPhone → watch.
+struct WatchProbeReading: Equatable {
+    /// True when the iPhone has an active BLE connection to the probe.
+    var connected: Bool
+    /// Core virtual-sensor temperature in °C; nil when no valid reading.
+    var coreC: Double?
+    /// Surface virtual-sensor temperature in °C; nil when no valid reading.
+    var surfaceC: Double?
+    /// Ambient virtual-sensor temperature in °C; nil when no valid reading.
+    var ambientC: Double?
+    /// Raw value of the probe's `PredictionState` enum.
+    var predictionStateRaw: UInt8
+    /// Absolute date the probe predicts the food will be ready; nil unless predicting.
+    var predictedReadyDate: Date?
+    /// True when the probe reports its battery is low.
+    var batteryLow: Bool
+}
+
+/// Decodes a WatchConnectivity wire dict into a `WatchProbeReading`.
+/// Returns nil if `dict["action"]` is not `"probe"`. Missing temperature keys
+/// decode to nil (meaning "no valid reading" for that sensor).
+func decodeWatchProbeReading(from dict: [String: Any]) -> WatchProbeReading? {
+    guard dict["action"] as? String == "probe" else { return nil }
+
+    let connected    = dict["connected"] as? Bool ?? false
+    let batteryLow   = dict["batteryLow"] as? Bool ?? false
+    let predStateRaw = UInt8((dict["predStateRaw"] as? Int) ?? 0)
+
+    let coreC:    Double? = dict["coreC"]    as? Double
+    let surfaceC: Double? = dict["surfaceC"] as? Double
+    let ambientC: Double? = dict["ambientC"] as? Double
+
+    let predictedReadyDate: Date? = (dict["predReadyEpoch"] as? Double)
+        .map { Date(timeIntervalSince1970: $0) }
+
+    return WatchProbeReading(
+        connected: connected,
+        coreC: coreC,
+        surfaceC: surfaceC,
+        ambientC: ambientC,
+        predictionStateRaw: predStateRaw,
+        predictedReadyDate: predictedReadyDate,
+        batteryLow: batteryLow
+    )
 }
 
 
