@@ -18,9 +18,9 @@ All items below are **Version 2**. Planned sequence:
 Isolated quick wins (voice announcements, preheat→`endDate`, the two bugs) slot in anytime.
 
 ## Up next
-- [ ] **Combustion probe 2C** — forward a compact reading to the watch over `WCSession`;
-      render core temp + drifting predicted-ready countdown on phone + watch.
-      (2A decoders + 2B foreground connection are done and on-device verified.)
+- [ ] **Combustion probe 2D** — background state restoration + reconnection for long cooks
+      (CoreBluetooth restore identifier + reconnect on disconnect). 2A/2B done & on-device
+      verified; 2C (watch forwarding) done in code, pending an on-device phone→watch check.
 
 _Ember-glow note (lands in step 3):_ deep warm base + soft orange/red radial
 pools, iOS 26-gated; when it's in, dial `Color.grillGlassTint` back down so the
@@ -40,8 +40,12 @@ background shows through the glass.
         temp byte-order bug (block must be reversed before unpacking) and pinned 4
         real-probe payloads as fixtures (`f20d70a`); room-temp probe now decodes to
         ~27 °C. Jim to rebuild and eyeball the corrected temps.
-  - [ ] **2C — forward compact reading to watch** over existing `WCSession`; render core
-        temp + drifting predicted-ready countdown on phone + watch.
+  - [~] **2C — forward compact reading to watch** over existing `WCSession`: DONE in code
+        (`4d2b6ef`/`19290c9`). Additive `sendProbeReading` + `"probe"` routing; shared wire
+        types live once in WCSessionManager; iOS `ProbeWatchForwarder` (throttled ~1/s)
+        wired in the DEBUG Settings screen; watch shows a probe section (core temp +
+        predicted countdown + status). 9 mapping/throttle tests; iOS+watch builds green.
+        **Pending:** on-device verification (connect probe on phone → raise watch → see temp).
   - [ ] **2D — background state restoration + reconnection** for long cooks.
   - [ ] **2E — on-screen probe UI** (folds into the main-screen layout pass, step 3).
   - [ ] **2F (later) — UART commands** (alarms, set-prediction): separate spec, out of scope.
