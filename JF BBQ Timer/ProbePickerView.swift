@@ -100,21 +100,26 @@ struct ProbePickerView: View {
                 }
             }
 
-            // MARK: Disconnect button (when connected)
-            if case .connected = probeManager.connectionState {
-                Section {
-                    Button("Disconnect") {
-                        probeManager.disconnect()
-                    }
-                    .foregroundStyle(.red)
-                }
-            }
+            // MARK: Disconnect button (when connected or reconnecting)
+            // Shown during `.reconnecting` too so the user can cancel a stuck reconnect.
+            if case .connected   = probeManager.connectionState { disconnectSection }
+            if case .reconnecting = probeManager.connectionState { disconnectSection }
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Connect Probe")
     }
 
     // MARK: - Helpers
+
+    @ViewBuilder
+    private var disconnectSection: some View {
+        Section {
+            Button("Disconnect") {
+                probeManager.disconnect()
+            }
+            .foregroundStyle(.red)
+        }
+    }
 
     private var connectionStateDescription: String {
         switch probeManager.connectionState {
@@ -128,6 +133,8 @@ struct ProbePickerView: View {
             return "Connecting to \(id.uuidString.prefix(8))…"
         case .connected(let id):
             return "Connected to \(id.uuidString.prefix(8))"
+        case .reconnecting(let id):
+            return "Reconnecting to \(id.uuidString.prefix(8))…"
         case .disconnected:
             return "Disconnected"
         }

@@ -32,6 +32,10 @@ protocol ProbeCentral: AnyObject {
     func stopScan()
     func connect(identifier: UUID)
     func disconnect()
+    /// Re-issue a CoreBluetooth connect for the peripheral retained from the last
+    /// `connect(identifier:)` call. Called by the manager when an unexpected disconnect
+    /// occurs and the user's intent is still "connected". No-op if no peripheral is retained.
+    func reconnect()
 }
 
 // MARK: - DiscoveredProbe
@@ -52,6 +56,8 @@ enum ProbeConnectionState: Equatable {
     case scanning
     case connecting(UUID)
     case connected(UUID)
+    /// Probe disconnected unexpectedly; manager is actively trying to reconnect.
+    case reconnecting(UUID)
     case disconnected
 }
 
@@ -75,6 +81,12 @@ final class ProbeBLEManager: ObservableObject {
 
     /// The underlying BLE transport. Injected at init for testability.
     private let central: ProbeCentral
+
+    /// True while the user's intent is "stay connected".
+    /// Set by `connect(_:)`; cleared by `disconnect()` (explicit user action).
+    /// When the probe disconnects unexpectedly and this is `true`, the manager
+    /// enters `.reconnecting` and issues `central.reconnect()`.
+    private var shouldReconnect: Bool = false
 
     // MARK: Init
 
@@ -109,13 +121,18 @@ final class ProbeBLEManager: ObservableObject {
     }
 
     /// Initiate a connection to the probe with the given peripheral identifier.
+    /// Sets `shouldReconnect = true` so the manager will auto-reconnect on
+    /// unexpected disconnects until the user explicitly calls `disconnect()`.
     func connect(_ id: UUID) {
+        shouldReconnect = true
         connectionState = .connecting(id)
         central.connect(identifier: id)
     }
 
     /// Disconnect from the currently connected probe.
+    /// Clears `shouldReconnect` so the manager does NOT auto-reconnect after this.
     func disconnect() {
+        shouldReconnect = false
         central.disconnect()
     }
 
@@ -158,9 +175,27 @@ final class ProbeBLEManager: ObservableObject {
 
     /// Called when a peripheral disconnects (expected or unexpected).
     /// Clears `latestReading` on disconnect — the data is stale once the link drops.
+    /// If `shouldReconnect` is true (user-initiated connection still active), the
+    /// manager enters `.reconnecting` and issues `central.reconnect()` so CoreBluetooth
+    /// will re-establish the link as soon as the peripheral is in range again.
     func handleDisconnected(id: UUID) {
-        connectionState = .disconnected
         latestReading = nil
+        if shouldReconnect {
+            connectionState = .reconnecting(id)
+            central.reconnect()
+        } else {
+            connectionState = .disconnected
+        }
+    }
+
+    /// Called by `CoreBluetoothProbeCentral.willRestoreState` to re-establish the
+    /// manager's intent after a CoreBluetooth state-restoration wake.
+    /// - Parameters:
+    ///   - id:        Identifier of the restored peripheral.
+    ///   - connected: Whether the peripheral is still connected at restoration time.
+    func noteRestored(id: UUID, connected: Bool) {
+        shouldReconnect = true
+        connectionState = connected ? .connected(id) : .reconnecting(id)
     }
 
     /// Called when the probe status characteristic fires a notification.
@@ -199,7 +234,15 @@ final class CoreBluetoothProbeCentral: NSObject, ProbeCentral {
     override init() {
         super.init()
         // Initialise on the main queue so delegate calls arrive on Main.
-        centralManager = CBCentralManager(delegate: self, queue: .main)
+        // The restore identifier opts this central into CoreBluetooth state restoration:
+        // the system will re-launch the app and call willRestoreState if the app was
+        // suspended while an active BLE connection (or pending connect) was in progress.
+        centralManager = CBCentralManager(
+            delegate: self,
+            queue: .main,
+            options: [CBCentralManagerOptionRestoreIdentifierKey:
+                          "com.jamesfarruggia.grilltime.probe.central"]
+        )
     }
 
     // MARK: ProbeCentral conformance
@@ -227,9 +270,19 @@ final class CoreBluetoothProbeCentral: NSObject, ProbeCentral {
         centralManager.connect(peripheral, options: nil)
     }
 
+    /// Re-issue a connect for the peripheral that was last connected.
+    /// CoreBluetooth will reconnect with no timeout as soon as the peripheral
+    /// is back in range; `connectedPeripheral` MUST still be set (kept on
+    /// unexpected disconnect, cleared only by `disconnect()`).
+    func reconnect() {
+        guard let p = connectedPeripheral else { return }
+        centralManager.connect(p, options: nil)
+    }
+
     func disconnect() {
         if let p = connectedPeripheral {
             centralManager.cancelPeripheralConnection(p)
+            connectedPeripheral = nil    // only user-initiated path clears this
         }
     }
 }
@@ -262,7 +315,7 @@ extension CoreBluetoothProbeCentral: CBCentralManagerDelegate {
     }
 
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
-        // Discover only the probe status service
+        // Discover only the probe status service (also covers re-subscribe after reconnect)
         peripheral.discoverServices([probeStatusServiceUUID])
         Task { @MainActor in
             manager?.handleConnected(id: peripheral.identifier)
@@ -274,7 +327,9 @@ extension CoreBluetoothProbeCentral: CBCentralManagerDelegate {
         didDisconnectPeripheral peripheral: CBPeripheral,
         error: Error?
     ) {
-        connectedPeripheral = nil
+        // Do NOT nil connectedPeripheral here — if the manager wants to reconnect it
+        // calls `reconnect()` which needs the reference. Only `disconnect()` (user-
+        // initiated) clears `connectedPeripheral`.
         Task { @MainActor in
             manager?.handleDisconnected(id: peripheral.identifier)
         }
@@ -285,9 +340,42 @@ extension CoreBluetoothProbeCentral: CBCentralManagerDelegate {
         didFailToConnect peripheral: CBPeripheral,
         error: Error?
     ) {
-        connectedPeripheral = nil
+        // Same policy: keep the peripheral so a reconnect attempt can reuse it.
         Task { @MainActor in
             manager?.handleDisconnected(id: peripheral.identifier)
+        }
+    }
+
+    /// CoreBluetooth state restoration — called when the system relaunches the app
+    /// after it was suspended while an active BLE session (or pending connect) existed.
+    func centralManager(
+        _ central: CBCentralManager,
+        willRestoreState dict: [String: Any]
+    ) {
+        // Recover any peripherals that were connected (or connecting) at suspend time.
+        guard let peripherals = dict[CBCentralManagerRestoredStatePeripheralsKey]
+                as? [CBPeripheral],
+              let peripheral = peripherals.first
+        else { return }
+
+        // Re-adopt the peripheral into our local state.
+        peripheral.delegate = self
+        connectedPeripheral = peripheral
+        discoveredPeripherals[peripheral.identifier] = peripheral
+
+        let isConnected = (peripheral.state == .connected)
+
+        // Tell the manager to restore its intent and publish the correct state.
+        Task { @MainActor in
+            manager?.noteRestored(id: peripheral.identifier, connected: isConnected)
+        }
+
+        if isConnected {
+            // Already connected — re-discover services to re-subscribe to notifications.
+            peripheral.discoverServices([probeStatusServiceUUID])
+        } else {
+            // Not yet connected — issue a new connect; CB will pick it up when BT is ready.
+            central.connect(peripheral, options: nil)
         }
     }
 }

@@ -16,10 +16,11 @@ import Foundation
 final class FakeProbeCentral: ProbeCentral {
 
     // Call-tracking counters
-    private(set) var startScanCallCount  = 0
-    private(set) var stopScanCallCount   = 0
-    private(set) var connectCallCount    = 0
-    private(set) var disconnectCallCount = 0
+    private(set) var startScanCallCount   = 0
+    private(set) var stopScanCallCount    = 0
+    private(set) var connectCallCount     = 0
+    private(set) var disconnectCallCount  = 0
+    private(set) var reconnectCallCount   = 0
 
     // Last arguments
     private(set) var lastConnectID: UUID?
@@ -28,6 +29,7 @@ final class FakeProbeCentral: ProbeCentral {
     func stopScan()                   { stopScanCallCount   += 1 }
     func connect(identifier: UUID)    { connectCallCount    += 1; lastConnectID = identifier }
     func disconnect()                 { disconnectCallCount += 1 }
+    func reconnect()                  { reconnectCallCount  += 1 }
 }
 #endif
 
@@ -226,20 +228,74 @@ struct ProbeBLEManagerTests {
 
     // MARK: 6. handleDisconnected
 
-    @Test("handleDisconnected sets state to .disconnected and clears latestReading")
-    func handleDisconnectedClearsState() {
-        let (mgr, _) = makeManager()
+    @Test("handleDisconnected after connect() → .reconnecting(id), reconnect() called, latestReading nil")
+    func handleDisconnectedAfterConnectReconnects() {
+        let (mgr, fake) = makeManager()
         let id = UUID()
         mgr.connect(id)
         mgr.handleConnected(id: id)
         mgr.handleStatusNotification(makeValidPayload())
-        // Verify we have a reading before disconnect
         #expect(mgr.latestReading != nil)
 
+        // Unexpected disconnect — manager should reconnect because shouldReconnect=true
+        mgr.handleDisconnected(id: id)
+        if case .reconnecting(let rID) = mgr.connectionState {
+            #expect(rID == id)
+        } else {
+            Issue.record("Expected .reconnecting state, got \(mgr.connectionState)")
+        }
+        #expect(fake.reconnectCallCount == 1)
+        // latestReading cleared (stale data policy)
+        #expect(mgr.latestReading == nil)
+    }
+
+    @Test("handleDisconnected without prior connect() → .disconnected, reconnect() NOT called")
+    func handleDisconnectedWithoutConnectIntentStaysDisconnected() {
+        let (mgr, fake) = makeManager()
+        let id = UUID()
+        // No connect() call — shouldReconnect stays false
         mgr.handleDisconnected(id: id)
         #expect(mgr.connectionState == .disconnected)
-        // latestReading is cleared on disconnect (stale data policy)
+        #expect(fake.reconnectCallCount == 0)
         #expect(mgr.latestReading == nil)
+    }
+
+    @Test("handleDisconnected after disconnect() → .disconnected, reconnect() NOT called")
+    func handleDisconnectedAfterUserDisconnectStaysDisconnected() {
+        let (mgr, fake) = makeManager()
+        let id = UUID()
+        mgr.connect(id)
+        mgr.handleConnected(id: id)
+        // User explicitly disconnects — clears shouldReconnect
+        mgr.disconnect()
+        // Simulate CB confirming the disconnect
+        mgr.handleDisconnected(id: id)
+        #expect(mgr.connectionState == .disconnected)
+        #expect(fake.reconnectCallCount == 0)
+        #expect(mgr.latestReading == nil)
+    }
+
+    @Test("full reconnect cycle: connect → connected → unexpected disconnect → reconnecting → connected again")
+    func fullReconnectCycle() {
+        let (mgr, fake) = makeManager()
+        let id = UUID()
+
+        // 1. Connect
+        mgr.connect(id)
+        mgr.handleConnected(id: id)
+        if case .connected(let cID) = mgr.connectionState { #expect(cID == id) }
+        else { Issue.record("Expected .connected after handleConnected") }
+
+        // 2. Unexpected disconnect → manager should reconnect
+        mgr.handleDisconnected(id: id)
+        if case .reconnecting(let rID) = mgr.connectionState { #expect(rID == id) }
+        else { Issue.record("Expected .reconnecting after unexpected disconnect") }
+        #expect(fake.reconnectCallCount == 1)
+
+        // 3. Peripheral comes back in range → CB fires didConnect → handleConnected
+        mgr.handleConnected(id: id)
+        if case .connected(let cID2) = mgr.connectionState { #expect(cID2 == id) }
+        else { Issue.record("Expected .connected after re-connection") }
     }
 
     // MARK: stopScanning
