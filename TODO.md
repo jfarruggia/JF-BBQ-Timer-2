@@ -45,7 +45,9 @@ background shows through the glass.
         types live once in WCSessionManager; iOS `ProbeWatchForwarder` (throttled ~1/s)
         wired in the DEBUG Settings screen; watch shows a probe section (core temp +
         predicted countdown + status). 9 mapping/throttle tests; iOS+watch builds green.
-        **Pending:** on-device verification (connect probe on phone → raise watch → see temp).
+        **Deferred:** on-watch visual check — Apple Watch dev tooling was uncooperative
+        (couldn't get the fresh watch build on device). Code is test-verified + builds;
+        confirm the watch probe section later (fresh watch build, or naturally during a cook).
   - [ ] **2D — background state restoration + reconnection** for long cooks.
   - [ ] **2E — on-screen probe UI** (folds into the main-screen layout pass, step 3).
   - [ ] **2F (later) — UART commands** (alarms, set-prediction): separate spec, out of scope.
