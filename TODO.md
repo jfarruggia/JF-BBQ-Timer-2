@@ -18,9 +18,11 @@ All items below are **Version 2**. Planned sequence:
 Isolated quick wins (voice announcements, preheat→`endDate`, the two bugs) slot in anytime.
 
 ## Up next
-- [ ] **Combustion probe 2D** — background state restoration + reconnection for long cooks
-      (CoreBluetooth restore identifier + reconnect on disconnect). 2A/2B done & on-device
-      verified; 2C (watch forwarding) done in code, pending an on-device phone→watch check.
+- [ ] **Main-screen layout pass (V2 step 3)** — now that the probe BLE foundation
+      (2A–2D) is built, lay the screen out once: beefier header + reposition preheat +
+      ember-glow background + **the real probe UI (2E)** with an app-wide probe manager
+      (replacing the temporary DEBUG Settings entry) and "—" for no-reading sensors.
+      Deferred probe checks to fold in here: on-watch visual + a real long-cook on-device pass.
 
 _Ember-glow note (lands in step 3):_ deep warm base + soft orange/red radial
 pools, iOS 26-gated; when it's in, dial `Color.grillGlassTint` back down so the
@@ -48,7 +50,11 @@ background shows through the glass.
         **Deferred:** on-watch visual check — Apple Watch dev tooling was uncooperative
         (couldn't get the fresh watch build on device). Code is test-verified + builds;
         confirm the watch probe section later (fresh watch build, or naturally during a cook).
-  - [ ] **2D — background state restoration + reconnection** for long cooks.
+  - [x] **2D — background state restoration + reconnection** (`50d6160`): restore
+        identifier + willRestoreState recovers the connection after suspend/relaunch;
+        auto-reconnect on unexpected disconnect (intent in manager, mechanism in central);
+        `.reconnecting` state in the picker. 4 reconnect tests; iOS+watch builds green.
+        **Deferred (with 2C):** on-device verification during a real long cook.
   - [ ] **2E — on-screen probe UI** (folds into the main-screen layout pass, step 3).
   - [ ] **2F (later) — UART commands** (alarms, set-prediction): separate spec, out of scope.
 - [x] **Dev-only free⇄paid toggle** for testing premium gating — shipped `4ec2ca8`.
