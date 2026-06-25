@@ -65,12 +65,10 @@ struct NewSettingsView: View {
     @State private var showSettingsSaved = false
     @State private var showTestPlayed = false
     @State private var premiumPrice: String = "$3.99" // Default/fallback price
-    #if DEBUG && os(iOS)
-    @StateObject private var probeManager = ProbeBLEManager()
-    /// Forwards probe readings to the watch while this screen is alive. Created in
-    /// onAppear because it needs a reference to `probeManager`. (App-wide ownership
-    /// comes with the real probe UI in a later phase.)
-    @State private var probeForwarder: ProbeWatchForwarder?
+    #if os(iOS)
+    /// Injected from the app-level environment so the probe connection persists
+    /// regardless of which screen is visible (not just while Settings is open).
+    @EnvironmentObject var probeManager: ProbeBLEManager
     #endif
     
     private func checkPremiumStatus() {
@@ -369,11 +367,6 @@ struct NewSettingsView: View {
         .onAppear {
             checkPremiumStatus()
             fetchPremiumPrice()
-            #if DEBUG && os(iOS)
-            if probeForwarder == nil {
-                probeForwarder = ProbeWatchForwarder(bleManager: probeManager)
-            }
-            #endif
         }
     }
 }

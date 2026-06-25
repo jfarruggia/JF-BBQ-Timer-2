@@ -42,6 +42,16 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     }
 }
 
+// MARK: - ProbeForwarderHolder
+// Retains the ProbeWatchForwarder for the app's lifetime.
+// A plain class (not ObservableObject) is enough — we only need stable storage,
+// not published-change observation.
+#if os(iOS)
+private final class ProbeForwarderHolder: ObservableObject {
+    var forwarder: ProbeWatchForwarder?
+}
+#endif
+
 @main
 struct JF_BBQ_TimerApp: App {
     @AppStorage("hasOnboarded") private var hasOnboarded: Bool = false
@@ -49,6 +59,12 @@ struct JF_BBQ_TimerApp: App {
     // supportedInterfaceOrientationsFor + the Info.plist orientation settings.
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var settings = Settings()
+    #if os(iOS)
+    /// App-wide probe BLE manager — single instance shared across all screens via the environment.
+    @StateObject private var probeManager = ProbeBLEManager()
+    /// Retains the ProbeWatchForwarder for the full app lifetime (not just while Settings is open).
+    @StateObject private var probeForwarderHolder = ProbeForwarderHolder()
+    #endif
 
     // Initialize app-wide services
     init() {
@@ -93,9 +109,15 @@ struct JF_BBQ_TimerApp: App {
                 if hasOnboarded {
                     ContentView()
                         .environmentObject(settings)
+                        #if os(iOS)
+                        .environmentObject(probeManager)
+                        #endif
                 } else {
                     OnboardingFlowView()
                         .environmentObject(settings)
+                        #if os(iOS)
+                        .environmentObject(probeManager)
+                        #endif
                 }
             }
             .onAppear {
@@ -107,6 +129,14 @@ struct JF_BBQ_TimerApp: App {
                 applyUITestArguments()
                 // Note: Watch sync is handled by ContentView's startWatchSyncTimer(),
                 // which builds and sends the real timer snapshot.
+                #if os(iOS)
+                // Create the app-level probe watch forwarder once. Forwarding runs
+                // for the app's lifetime so probe readings reach the watch regardless
+                // of which screen is currently visible.
+                if probeForwarderHolder.forwarder == nil {
+                    probeForwarderHolder.forwarder = ProbeWatchForwarder(bleManager: probeManager)
+                }
+                #endif
             }
             .onChange(of: hasOnboarded) { didOnboard in
                 if didOnboard {
