@@ -31,6 +31,10 @@ Design decided with Jim (mockups reviewed). Build in focused, one-concern steps:
 - **Ember-glow background:** deep warm base + soft orange/red radial pools, iOS 26-gated;
   dial `grillGlassTint` DOWN so it shows through the glass.
 - Multi-probe is out of V2 scope (single probe; design extends to a primary+list later).
+- **Compact mode:** same header / ember-glow / bottom Preheat bar; only the cards densify
+  to a single row (small ring + name + `flip in · lit` line + compact buttons). `lit` stays
+  on every compact card; the probe card adds ONE slim line (`Core · ready`), others stay tight.
+  (Both large + compact card layouts need the probe strip — build step 3 covers both.)
 
 Build order (each its own commit, verify on device as we go):
 1. [ ] App-wide probe manager (move ownership out of the DEBUG Settings entry).
