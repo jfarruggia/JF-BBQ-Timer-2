@@ -17,12 +17,30 @@ All items below are **Version 2**. Planned sequence:
 
 Isolated quick wins (voice announcements, preheat→`endDate`, the two bugs) slot in anytime.
 
-## Up next
-- [ ] **Main-screen layout pass (V2 step 3)** — now that the probe BLE foundation
-      (2A–2D) is built, lay the screen out once: beefier header + reposition preheat +
-      ember-glow background + **the real probe UI (2E)** with an app-wide probe manager
-      (replacing the temporary DEBUG Settings entry) and "—" for no-reading sensors.
-      Deferred probe checks to fold in here: on-watch visual + a real long-cook on-device pass.
+## Up next — Main-screen layout pass (V2 step 3), design AGREED (2026-06-24)
+Design decided with Jim (mockups reviewed). Build in focused, one-concern steps:
+- **Probe attaches to a cook**, not a global readout. Pick which cook/timer when
+  connecting. The flip-interval timer and the probe's doneness prediction stay separate
+  mechanisms (per spec) but are **co-located on that cook's card**.
+- **Cook card shows three labeled time facets:** `lit` elapsed (demoted line up top —
+  KEEP THIS on every card, Jim explicitly wants it), the `flip in` countdown ring (hero),
+  and a `ready` probe strip (core temp + predicted-ready) shown only when a probe is attached.
+- **Header:** beefier (flame mark + title + a connect-probe/Bluetooth button + gear). No
+  global probe status line. No-reading sensors render `—` (not −20 °C).
+- **Preheat:** fixed bottom bar, always visible (flips to live countdown + stop while running).
+- **Ember-glow background:** deep warm base + soft orange/red radial pools, iOS 26-gated;
+  dial `grillGlassTint` DOWN so it shows through the glass.
+- Multi-probe is out of V2 scope (single probe; design extends to a primary+list later).
+
+Build order (each its own commit, verify on device as we go):
+1. [ ] App-wide probe manager (move ownership out of the DEBUG Settings entry).
+2. [ ] Probe↔cook attachment model + "pick a cook on connect" flow (lightweight data-model add).
+3. [ ] Probe strip on the cook card (core temp + predicted-ready), iOS 26 glass.
+4. [ ] Header beef-up + connect button.
+5. [ ] Fixed bottom Preheat bar.
+6. [ ] Ember-glow background + dial down `grillGlassTint`.
+
+Deferred probe checks to fold in here: on-watch visual + a real long-cook on-device pass.
 
 _Ember-glow note (lands in step 3):_ deep warm base + soft orange/red radial
 pools, iOS 26-gated; when it's in, dial `Color.grillGlassTint` back down so the
