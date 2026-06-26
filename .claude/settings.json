@@ -22,7 +22,15 @@
       "Bash(cat:*)",
       "Bash(wc:*)",
       "Bash(head:*)",
-      "Bash(tail:*)"
+      "Bash(tail:*)",
+      "Bash(echo:*)",
+      "Bash(sleep:*)",
+      "Bash(pgrep:*)",
+      "Bash(ps:*)",
+      "Bash(pkill:*)",
+      "Bash(caffeinate:*)",
+      "Bash(xcrun simctl:*)",
+      "Bash(plutil:*)"
     ],
     "deny": [
       "Bash(git push --force:*)",
@@ -31,6 +39,7 @@
       "Bash(git reset --hard:*)",
       "Bash(git rebase:*)",
       "Bash(git filter-branch:*)",
+      "Bash(git merge:*)",
       "Bash(git clean:*)",
       "Bash(gh repo delete:*)"
     ]
