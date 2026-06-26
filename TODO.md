@@ -36,15 +36,21 @@ Design decided with Jim (mockups reviewed). Build in focused, one-concern steps:
   on every compact card; the probe card adds ONE slim line (`Core · ready`), others stay tight.
   (Both large + compact card layouts need the probe strip — build step 3 covers both.)
 
-Build order (each its own commit, verify on device as we go):
-1. [ ] App-wide probe manager (move ownership out of the DEBUG Settings entry).
-2. [ ] Probe↔cook attachment model + "pick a cook on connect" flow (lightweight data-model add).
-3. [ ] Probe strip on the cook card (core temp + predicted-ready), iOS 26 glass.
-4. [ ] Header beef-up + connect button.
-5. [ ] Fixed bottom Preheat bar.
-6. [ ] Ember-glow background + dial down `grillGlassTint`.
+Build order — ALL SIX BUILT (committed, build+test verified; **visual review on device pending**):
+1. [x] App-wide probe manager (`19bba7c`).
+2. [x] Probe↔cook attachment model + "pick a cook on connect" (`129c71e`).
+3. [x] Probe strip on the cook card — large + compact, iOS 26 + pre-26 (`ab87de0`).
+4. [x] Header beef-up + connect button (`03a30e2`).
+5. [x] Fixed bottom Preheat bar (`69aad43`).
+6. [x] Ember-glow background + dial `grillGlassTint` 0.55→0.42 (`8a0eee2`).
 
-Deferred probe checks to fold in here: on-watch visual + a real long-cook on-device pass.
+**Pending = Jim's visual pass** (none of the UI was eyeballed, only compiled/tested):
+- Tuning knobs flagged by the build: ember-glow intensity (pool opacities ~0.35–0.50) and
+  `grillGlassTint` opacity (now 0.42 — nudge toward 0.48–0.50 if white card text feels thin).
+- Confirm header / probe strip / preheat bar read well on real devices + small screens.
+- Still-deferred probe device checks: on-watch probe section visual + a real long-cook pass.
+- Tidy-up later: remove the now-redundant DEBUG "Connect Probe (debug)" Settings entry
+  (header button supersedes it); decide °F vs °C for probe temps (currently °C).
 
 _Ember-glow note (lands in step 3):_ deep warm base + soft orange/red radial
 pools, iOS 26-gated; when it's in, dial `Color.grillGlassTint` back down so the
