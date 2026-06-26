@@ -317,5 +317,57 @@ struct ProbeBLEManagerTests {
         mgr.disconnect()
         #expect(fake.disconnectCallCount == 1)
     }
+
+    // MARK: 8. Cook attachment
+
+    @Test("attach(toCookID:) sets attachedCookID; detach() clears it")
+    func attachAndDetach() {
+        let (mgr, _) = makeManager()
+        let cookID = UUID()
+        mgr.attach(toCookID: cookID)
+        #expect(mgr.attachedCookID == cookID)
+        mgr.detach()
+        #expect(mgr.attachedCookID == nil)
+    }
+
+    @Test("unexpected disconnect while reconnecting keeps attachedCookID")
+    func unexpectedDisconnectKeepsAttachedCook() {
+        let (mgr, fake) = makeManager()
+        let probeID = UUID()
+        let cookID  = UUID()
+
+        // Connect and attach to a cook
+        mgr.connect(probeID)
+        mgr.handleConnected(id: probeID)
+        mgr.attach(toCookID: cookID)
+        #expect(mgr.attachedCookID == cookID)
+
+        // Unexpected drop — shouldReconnect is true → .reconnecting
+        mgr.handleDisconnected(id: probeID)
+        if case .reconnecting(let rID) = mgr.connectionState {
+            #expect(rID == probeID)
+        } else {
+            Issue.record("Expected .reconnecting, got \(mgr.connectionState)")
+        }
+        #expect(fake.reconnectCallCount == 1)
+        // Cook association must survive the reconnect
+        #expect(mgr.attachedCookID == cookID)
+    }
+
+    @Test("explicit disconnect clears attachedCookID")
+    func explicitDisconnectClearsAttachedCook() {
+        let (mgr, _) = makeManager()
+        let probeID = UUID()
+        let cookID  = UUID()
+
+        mgr.connect(probeID)
+        mgr.handleConnected(id: probeID)
+        mgr.attach(toCookID: cookID)
+        #expect(mgr.attachedCookID == cookID)
+
+        // Explicit user disconnect → attachedCookID cleared
+        mgr.disconnect()
+        #expect(mgr.attachedCookID == nil)
+    }
 }
 #endif // os(iOS)

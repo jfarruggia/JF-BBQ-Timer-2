@@ -76,6 +76,9 @@ final class ProbeBLEManager: ObservableObject {
     @Published private(set) var discoveredProbes: [DiscoveredProbe] = []
     @Published private(set) var latestReading: ProbeReading?
     @Published private(set) var bluetoothReady: Bool = false
+    /// The id of the cook (BBQTimer) this probe is currently attached to.
+    /// nil means the probe is connected but not yet assigned to any cook.
+    @Published private(set) var attachedCookID: UUID? = nil
 
     // MARK: Private
 
@@ -131,9 +134,24 @@ final class ProbeBLEManager: ObservableObject {
 
     /// Disconnect from the currently connected probe.
     /// Clears `shouldReconnect` so the manager does NOT auto-reconnect after this.
+    /// Also clears `attachedCookID` — an explicit disconnect ends the cook association.
     func disconnect() {
         shouldReconnect = false
+        attachedCookID = nil
         central.disconnect()
+    }
+
+    // MARK: - Cook attachment
+
+    /// Associate the probe with a specific cook (timer). Call after the probe connects
+    /// and the user has picked which cook the probe belongs to.
+    func attach(toCookID id: UUID) {
+        attachedCookID = id
+    }
+
+    /// Remove the cook association without disconnecting the probe.
+    func detach() {
+        attachedCookID = nil
     }
 
     // MARK: - Event handler methods (called by the CB delegate adapter)

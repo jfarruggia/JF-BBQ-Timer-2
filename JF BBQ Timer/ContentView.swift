@@ -8,10 +8,16 @@ import WatchConnectivity
 // Remove the duplicate NewSettingsView declaration and keep only the most complete version
 struct ContentView: View {
     @EnvironmentObject var settings: Settings
+    #if os(iOS)
+    @EnvironmentObject var probeManager: ProbeBLEManager
+    #endif
     @StateObject private var timerStates: TimerStatesManager
     @State private var showSettings = false
     @State private var showDebugPanel = false
     @State private var showPremiumUpgrade = false
+    #if os(iOS)
+    @State private var showAttachSheet = false
+    #endif
     @State private var preheatPressPulse = false
     @Environment(\.scenePhase) private var scenePhase
     @State private var watchSyncTimer: Timer? = nil
@@ -549,6 +555,21 @@ struct ContentView: View {
         .sheet(isPresented: $showSettings) {
             NewSettingsView(settings: settings)
         }
+        #if os(iOS)
+        .sheet(isPresented: $showAttachSheet) {
+            if #available(iOS 16, *) {
+                ProbeAttachSheet(
+                    cooks: settings.allTimers.map { CookItem(id: $0.id, name: $0.name) },
+                    probeManager: probeManager
+                )
+            }
+        }
+        .onChange(of: probeManager.connectionState) { newState in
+            if case .connected = newState, probeManager.attachedCookID == nil {
+                showAttachSheet = true
+            }
+        }
+        #endif
         .buttonStyle(HapticButtonStyle())
         .onAppear {
             debugLog("[📱iOS] 🚀 ContentView.onAppear - scenePhase: \(scenePhase)")
