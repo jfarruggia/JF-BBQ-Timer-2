@@ -235,6 +235,31 @@ struct ContentView: View {
         }
     }
 
+    #if os(iOS)
+    /// Returns non-nil CardProbeInfo only when the probe is connected (or
+    /// reconnecting) AND attached to this specific cook. All callers pass the
+    /// result straight into the card content view; no probe logic runs in the
+    /// card views themselves.
+    private func probeInfo(for timer: BBQTimer) -> CardProbeInfo? {
+        guard probeManager.attachedCookID == timer.id else { return nil }
+        switch probeManager.connectionState {
+        case .connected, .reconnecting:
+            break
+        default:
+            return nil
+        }
+        let reading = probeManager.latestReading
+        let coreText: String
+        if let r = reading, r.coreTempC > -19.99 {
+            coreText = "\(Int(r.coreTempC.rounded()))°"
+        } else {
+            coreText = "—"
+        }
+        let readyDate = reading?.prediction.predictedReadyDate(from: Date())
+        return CardProbeInfo(coreText: coreText, readyDate: readyDate)
+    }
+    #endif
+
     @ViewBuilder
     private func additionalTimerView(for timer: BBQTimer, state: TimerState) -> some View {
         if settings.compactMode {
@@ -251,7 +276,8 @@ struct ContentView: View {
                 timer: timer,
                 state: state,
                 settings: settings,
-                alertState: alertState
+                alertState: alertState,
+                probeInfo: probeInfo(for: timer)
             )
             .timerContainerAppearance(
                 timerState: state,
@@ -272,7 +298,8 @@ struct ContentView: View {
                     preset2: TimeInterval(timer.preset2),
                     state: state,
                     settings: settings,
-                    alertState: alertState
+                    alertState: alertState,
+                    probeInfo: probeInfo(for: timer)
                 )
             }
             .padding(8)
@@ -296,7 +323,8 @@ struct ContentView: View {
                 timer: timer,
                 state: state,
                 settings: settings,
-                alertState: alertState
+                alertState: alertState,
+                probeInfo: probeInfo(for: timer)
             )
             .timerContainerAppearance(
                 timerState: state,
@@ -357,6 +385,39 @@ struct ContentView: View {
                     alertState: alertState
                 )
                 .padding(.bottom, 4)
+
+                if let info = probeInfo(for: timer) {
+                    Divider()
+                        .padding(.horizontal, 4)
+
+                    HStack(spacing: 6) {
+                        Image(systemName: "thermometer.medium")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(Color("TimerAccent"))
+                        Text("Core")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(.secondary)
+                        Text(info.coreText)
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundColor(Color("TimerAccent"))
+                        Spacer()
+                        Text("ready")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.secondary)
+                        if #available(iOS 16, *), let readyDate = info.readyDate {
+                            Text(timerInterval: Date()...readyDate, countsDown: true)
+                                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                .monospacedDigit()
+                        } else {
+                            Text(info.readyDate != nil ? "~" : "—")
+                                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(.horizontal, 4)
+                    .padding(.bottom, 4)
+                }
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)

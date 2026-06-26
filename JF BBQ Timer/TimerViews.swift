@@ -1,6 +1,20 @@
 import SwiftUI
 import UIKit
 
+// MARK: - CardProbeInfo
+
+#if os(iOS)
+/// Computed probe data passed into a timer card. Non-nil only when the probe is
+/// connected (or reconnecting) AND attached to the card's cook. All expensive
+/// logic lives in ContentView.probeInfo(for:) — these views stay dumb.
+struct CardProbeInfo: Equatable {
+    /// Formatted core temperature string, e.g. "63°" or "—" when no valid reading.
+    var coreText: String
+    /// Non-nil only when the probe is actively predicting a ready time.
+    var readyDate: Date?
+}
+#endif
+
 struct ButtonPreview: View {
     let preset: PresetInterval
 
@@ -250,6 +264,9 @@ struct CompactTimerView: View {
     @ObservedObject var state: TimerState
     var settings: Settings
     var alertState: AlertState
+    #if os(iOS)
+    var probeInfo: CardProbeInfo? = nil
+    #endif
 
     var body: some View {
         VStack(spacing: 4) {
@@ -379,6 +396,41 @@ struct CompactTimerView: View {
                 .frame(minWidth: buttonsMinWidth)
                 .padding(.trailing, 8)
             }
+
+            #if os(iOS)
+            if let info = probeInfo {
+                Divider()
+                    .padding(.horizontal, 4)
+
+                HStack(spacing: 6) {
+                    Image(systemName: "thermometer.medium")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(Color("TimerAccent"))
+                    Text("Core")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
+                    Text(info.coreText)
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundColor(Color("TimerAccent"))
+                    Spacer()
+                    Text("ready")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.secondary)
+                    if #available(iOS 16, *), let readyDate = info.readyDate {
+                        Text(timerInterval: Date()...readyDate, countsDown: true)
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                    } else {
+                        Text(info.readyDate != nil ? "~" : "—")
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(.horizontal, 4)
+                .padding(.bottom, 2)
+            }
+            #endif
         }
     }
 }
@@ -428,6 +480,9 @@ struct GlassLargeTimerContent: View {
     @ObservedObject var state: TimerState
     let settings: Settings
     @ObservedObject var alertState: AlertState
+    #if os(iOS)
+    var probeInfo: CardProbeInfo? = nil
+    #endif
 
     private func startWithPreset(_ preset: TimeInterval) {
         state.stop()
@@ -529,6 +584,40 @@ struct GlassLargeTimerContent: View {
                 Spacer()
             }
             .buttonStyle(.plain)
+
+            #if os(iOS)
+            if let info = probeInfo {
+                Divider()
+                    .overlay(Color.white.opacity(0.25))
+
+                HStack(spacing: 8) {
+                    Image(systemName: "thermometer.medium")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(Color("TimerAccent"))
+                    Text("Core")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.7))
+                    Text(info.coreText)
+                        .font(.system(size: 18, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(Color("TimerAccent"))
+                    Spacer()
+                    Text("ready")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.6))
+                    if let readyDate = info.readyDate {
+                        Text(timerInterval: Date()...readyDate, countsDown: true)
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(.white)
+                    } else {
+                        Text("—")
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.5))
+                    }
+                }
+            }
+            #endif
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 18)
@@ -585,6 +674,9 @@ struct GlassCompactTimerContent: View {
     @ObservedObject var state: TimerState
     let settings: Settings
     @ObservedObject var alertState: AlertState
+    #if os(iOS)
+    var probeInfo: CardProbeInfo? = nil
+    #endif
 
     private func startWithPreset(_ preset: TimeInterval) {
         state.stop()
@@ -689,6 +781,43 @@ struct GlassCompactTimerContent: View {
                 Spacer(minLength: 12)
             }
             .frame(maxWidth: .infinity)
+
+            #if os(iOS)
+            if let info = probeInfo {
+                Divider()
+                    .overlay(Color.white.opacity(0.25))
+                    .padding(.horizontal, 16)
+
+                HStack(spacing: 6) {
+                    Image(systemName: "thermometer.medium")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Color("TimerAccent"))
+                    Text("Core")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.65))
+                    Text(info.coreText)
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(Color("TimerAccent"))
+                    Spacer()
+                    Text("ready")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.55))
+                    if let readyDate = info.readyDate {
+                        Text(timerInterval: Date()...readyDate, countsDown: true)
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(.white)
+                    } else {
+                        Text("—")
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.white.opacity(0.45))
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 4)
+            }
+            #endif
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 14)
