@@ -597,11 +597,9 @@ struct ContentView: View {
                                         .accessibilityIdentifier("Timer_\(timer.id)")
                                 }
                             }
-                            preheatButtonView()
-                                .padding(.bottom, 30)
-                                .accessibilityIdentifier("PreheatButton")
                         }
                         .padding(.horizontal)
+                        .padding(.bottom, 16)
                     }
                     .onChange(of: lastCompletedTimerId) { completedId in
                         guard let completedId = completedId else { return }
@@ -612,6 +610,12 @@ struct ContentView: View {
                         }
                     }
                 }
+
+                // Fixed bottom bar — always visible below the scrolling timer list
+                preheatButtonView()
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .accessibilityIdentifier("PreheatButton")
             }
 
             if alertState.isPresented, let timer1 = settings.legacyTimersAsBBQTimers.first, let timer1State = timerStates.state(for: timer1.id) {
