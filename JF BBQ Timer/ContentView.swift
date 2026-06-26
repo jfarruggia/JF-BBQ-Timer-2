@@ -36,15 +36,51 @@ struct ContentView: View {
     @ViewBuilder
     private var backgroundLayer: some View {
         if #available(iOS 26, *) {
-            LinearGradient(
-                colors: [
-                    Color(red: 0.77, green: 0.27, blue: 0.21),
-                    Color(red: 0.88, green: 0.38, blue: 0.17),
-                    Color(red: 0.72, green: 0.20, blue: 0.20),
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+            // Ember-glow: deep warm base with soft radial pools that bleed through
+            // the translucent glass cards. Static — no animation for now.
+            ZStack {
+                // Deep warm charcoal base
+                Color(red: 0.17, green: 0.04, blue: 0.02)
+
+                // Top-leading orange pool — the primary hot-spot
+                GeometryReader { geo in
+                    RadialGradient(
+                        colors: [
+                            Color(red: 0.85, green: 0.35, blue: 0.05).opacity(0.50),
+                            Color.clear
+                        ],
+                        center: .topLeading,
+                        startRadius: 0,
+                        endRadius: geo.size.width * 0.75
+                    )
+                }
+
+                // Mid-trailing red/amber pool — secondary warmth
+                GeometryReader { geo in
+                    RadialGradient(
+                        colors: [
+                            Color(red: 0.75, green: 0.18, blue: 0.06).opacity(0.40),
+                            Color.clear
+                        ],
+                        center: UnitPoint(x: 0.85, y: 0.50),
+                        startRadius: 0,
+                        endRadius: geo.size.width * 0.60
+                    )
+                }
+
+                // Bottom-center orange glow — warms the lower content area
+                GeometryReader { geo in
+                    RadialGradient(
+                        colors: [
+                            Color(red: 0.80, green: 0.28, blue: 0.04).opacity(0.35),
+                            Color.clear
+                        ],
+                        center: UnitPoint(x: 0.50, y: 1.05),
+                        startRadius: 0,
+                        endRadius: geo.size.width * 0.65
+                    )
+                }
+            }
             .ignoresSafeArea()
         } else {
             Color("PrimaryBackground").ignoresSafeArea()

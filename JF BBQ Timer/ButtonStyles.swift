@@ -5,7 +5,7 @@ extension Color {
     /// Shared warm tint applied to Liquid Glass surfaces on iOS 26 (cards,
     /// header, preheat button) so white text keeps contrast against the bright
     /// background and every glass surface reads as the same material.
-    static let grillGlassTint = Color(red: 0.40, green: 0.10, blue: 0.05).opacity(0.55)
+    static let grillGlassTint = Color(red: 0.40, green: 0.10, blue: 0.05).opacity(0.42)
 }
 
 struct BouncyButtonStyle: ButtonStyle {
