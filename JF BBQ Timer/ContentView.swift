@@ -17,6 +17,7 @@ struct ContentView: View {
     @State private var showPremiumUpgrade = false
     #if os(iOS)
     @State private var showAttachSheet = false
+    @State private var showProbeConnect = false
     #endif
     @State private var preheatPressPulse = false
     @Environment(\.scenePhase) private var scenePhase
@@ -53,13 +54,18 @@ struct ContentView: View {
     @ViewBuilder
     private var appHeader: some View {
         if #available(iOS 26, *) {
-            HStack {
-                Spacer()
+            HStack(spacing: 8) {
+                Image(systemName: "flame.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(Color("TimerAccent"))
                 Text("GrillTime Pro")
-                    .font(.headline)
+                    .font(.system(size: 17, weight: .semibold))
                     .foregroundColor(.white)
                     .accessibilityIdentifier("AppTitle")
                 Spacer()
+                #if os(iOS)
+                probeConnectButton
+                #endif
                 Button(action: { showSettings = true }) {
                     Image(systemName: "gear")
                         .font(.system(size: 20))
@@ -72,13 +78,18 @@ struct ContentView: View {
             .glassEffect(.regular.tint(.grillGlassTint))
             .padding(.horizontal, 16)
         } else {
-            HStack {
-                Spacer()
+            HStack(spacing: 8) {
+                Image(systemName: "flame.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(Color("TimerAccent"))
                 Text("GrillTime Pro")
-                    .font(.headline)
+                    .font(.system(size: 17, weight: .semibold))
                     .foregroundColor(.white)
                     .accessibilityIdentifier("AppTitle")
                 Spacer()
+                #if os(iOS)
+                probeConnectButton
+                #endif
                 Button(action: { showSettings = true }) {
                     Image(systemName: "gear")
                         .font(.system(size: 20))
@@ -91,6 +102,27 @@ struct ContentView: View {
             .background(Color("PrimaryBackground"))
         }
     }
+
+    #if os(iOS)
+    private var probeIsActive: Bool {
+        switch probeManager.connectionState {
+        case .connected, .reconnecting:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private var probeConnectButton: some View {
+        Button(action: { showProbeConnect = true }) {
+            Image(systemName: "sensor.tag.radiowave.forward")
+                .font(.system(size: 20))
+                .foregroundColor(probeIsActive ? Color("TimerAccent") : .white)
+        }
+        .accessibilityLabel("Connect Probe")
+        .accessibilityIdentifier("ProbeConnectButton")
+    }
+    #endif
 
     private func timeString(from timeInterval: TimeInterval) -> String {
         let totalSeconds = Int(timeInterval)
@@ -617,6 +649,9 @@ struct ContentView: View {
             NewSettingsView(settings: settings)
         }
         #if os(iOS)
+        .sheet(isPresented: $showProbeConnect) {
+            ProbePickerView(probeManager: probeManager)
+        }
         .sheet(isPresented: $showAttachSheet) {
             if #available(iOS 16, *) {
                 ProbeAttachSheet(
