@@ -191,27 +191,53 @@ struct TimerContainerAppearance: ViewModifier {
     @ViewBuilder
     private func styledCard(_ content: Content) -> some View {
         if #available(iOS 26, *) {
+            // "Pronounced" depth treatment: clear glass so the ember-glow background
+            // reads through, a top-edge specular rim, and a deep drop shadow for lift.
+            // Header and preheat bar keep .regular + the shared grillGlassTint; only
+            // the card uses .clear here, with a card-local warm tint overlay.
+            let shape = RoundedRectangle(cornerRadius: 15)
             if isLargeTimer {
-                // Warm dark tint deepens the glass (closer to the approved mockup)
-                // and gives white text real contrast against the bright background.
                 content
                     .padding(.vertical, 8)
                     .glassEffect(
-                        .regular.tint(.grillGlassTint),
-                        in: RoundedRectangle(cornerRadius: 15)
+                        .clear.tint(.grillGlassTint),
+                        in: shape
                     )
+                    .overlay(
+                        shape.stroke(
+                            LinearGradient(
+                                colors: [Color.white.opacity(0.45), Color.white.opacity(0.05)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            ),
+                            lineWidth: 1.5
+                        )
+                    )
+                    .shadow(color: .black.opacity(0.5), radius: 16, x: 0, y: 10)
             } else {
                 content
                     .glassEffect(
-                        .regular.tint(.grillGlassTint),
-                        in: RoundedRectangle(cornerRadius: 15)
+                        .clear.tint(.grillGlassTint),
+                        in: shape
                     )
+                    .overlay(
+                        shape.stroke(
+                            LinearGradient(
+                                colors: [Color.white.opacity(0.45), Color.white.opacity(0.05)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            ),
+                            lineWidth: 1.5
+                        )
+                    )
+                    .shadow(color: .black.opacity(0.5), radius: 16, x: 0, y: 10)
             }
         } else {
             content
                 .padding(.vertical, isLargeTimer ? 8 : 0)
                 .background(Color("TimerContainerBG"))
                 .cornerRadius(isLargeTimer ? 15 : 0)
+                .shadow(color: .black.opacity(0.25), radius: 8, x: 0, y: 4)
         }
     }
 

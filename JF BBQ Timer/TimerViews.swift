@@ -516,30 +516,33 @@ struct GlassLargeTimerContent: View {
             }
 
             CircularTimerRing(progress: state.progress(at: Date()), lineWidth: 12) {
-                VStack(spacing: 2) {
+                VStack(spacing: 3) {
                     Text("Flip in")
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.system(size: 16, weight: .medium))
                         .foregroundStyle(.white.opacity(0.6))
+                        .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
                     Text(timeLabel(Int(state.intervalTime)))
-                        .font(.system(size: 44, weight: .semibold, design: .rounded))
+                        .font(.system(size: 54, weight: .semibold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(.white)
                         .minimumScaleFactor(0.5)
                         .lineLimit(1)
                         .contentTransition(.numericText())
                         .animation(.easeInOut, value: state.intervalTime)
+                        .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
                     HStack(spacing: 5) {
                         Image(systemName: "flame.fill")
-                            .font(.system(size: 12))
+                            .font(.system(size: 13))
                             .foregroundStyle(Color("TimerAccent"))
                         Text("Lit \(timeLabel(Int(state.elapsedTime)))")
-                            .font(.system(size: 13, weight: .medium))
+                            .font(.system(size: 16, weight: .medium))
                             .monospacedDigit()
                             .foregroundStyle(.white.opacity(0.7))
+                            .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
                     }
                 }
             }
-            .frame(width: 190, height: 190)
+            .frame(width: 155, height: 155)
 
             HStack(spacing: 10) {
                 Button {
@@ -711,30 +714,33 @@ struct GlassCompactTimerContent: View {
                 Spacer(minLength: 12)
                 VStack(spacing: 4) {
                     CircularTimerRing(progress: state.progress(at: Date()), lineWidth: 7) {
-                        VStack(spacing: 0) {
+                        VStack(spacing: 1) {
                             Text("Flip in")
-                                .font(.system(size: 10, weight: .medium))
+                                .font(.system(size: 12, weight: .medium))
                                 .foregroundStyle(.white.opacity(0.55))
+                                .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
                             Text(timeLabel(Int(state.intervalTime)))
-                                .font(.system(size: 21, weight: .semibold, design: .rounded))
+                                .font(.system(size: 25, weight: .semibold, design: .rounded))
                                 .monospacedDigit()
                                 .foregroundStyle(.white)
                                 .minimumScaleFactor(0.4)
                                 .lineLimit(1)
                                 .contentTransition(.numericText())
                                 .animation(.easeInOut, value: state.intervalTime)
+                                .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
                         }
                     }
-                    .frame(width: 94, height: 94)
+                    .frame(width: 84, height: 84)
 
                     HStack(spacing: 4) {
                         Image(systemName: "flame.fill")
-                            .font(.system(size: 10))
+                            .font(.system(size: 11))
                             .foregroundStyle(Color("TimerAccent"))
                         Text("Lit \(timeLabel(Int(state.elapsedTime)))")
-                            .font(.system(size: 11, weight: .medium))
+                            .font(.system(size: 13, weight: .medium))
                             .monospacedDigit()
                             .foregroundStyle(.white.opacity(0.7))
+                            .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
                     }
                 }
 
