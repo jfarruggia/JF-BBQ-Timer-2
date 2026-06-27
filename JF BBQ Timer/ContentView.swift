@@ -88,12 +88,12 @@ struct ContentView: View {
     @ViewBuilder
     private var appHeader: some View {
         if #available(iOS 26, *) {
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
                 Image(systemName: "flame.fill")
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(.system(size: 22, weight: .semibold))
                     .foregroundColor(Color("TimerAccent"))
                 Text("GrillTime Pro")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.system(size: 22, weight: .semibold))
                     .foregroundColor(.white)
                     .accessibilityIdentifier("AppTitle")
                 Spacer()
@@ -102,22 +102,22 @@ struct ContentView: View {
                 #endif
                 Button(action: { showSettings = true }) {
                     Image(systemName: "gear")
-                        .font(.system(size: 20))
+                        .font(.system(size: 22))
                         .foregroundColor(.white)
                 }
                 .accessibilityIdentifier("SettingsButton")
             }
             .padding(.horizontal, 8)
-            .padding(.vertical, 6)
+            .padding(.vertical, 11)
             .glassEffect(.regular.tint(.grillGlassTint))
             .padding(.horizontal, 16)
         } else {
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
                 Image(systemName: "flame.fill")
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(.system(size: 22, weight: .semibold))
                     .foregroundColor(Color("TimerAccent"))
                 Text("GrillTime Pro")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(.system(size: 22, weight: .semibold))
                     .foregroundColor(.white)
                     .accessibilityIdentifier("AppTitle")
                 Spacer()
@@ -126,13 +126,13 @@ struct ContentView: View {
                 #endif
                 Button(action: { showSettings = true }) {
                     Image(systemName: "gear")
-                        .font(.system(size: 20))
+                        .font(.system(size: 22))
                         .foregroundColor(.white)
                 }
                 .accessibilityIdentifier("SettingsButton")
             }
             .padding(.horizontal, 8)
-            .padding(.vertical, 6)
+            .padding(.vertical, 11)
             .background(Color("PrimaryBackground"))
         }
     }
@@ -633,6 +633,7 @@ struct ContentView: View {
                             }
                         }
                         .padding(.horizontal)
+                        .padding(.top, 12)
                         .padding(.bottom, 16)
                     }
                     .onChange(of: lastCompletedTimerId) { completedId in
