@@ -169,9 +169,21 @@ struct ContentView: View {
 
     private var probeConnectButton: some View {
         Button(action: { showProbeConnect = true }) {
-            Image(systemName: "sensor.tag.radiowave.forward")
-                .font(.system(size: 20))
-                .foregroundColor(probeIsActive ? Color("TimerAccent") : .white)
+            HStack(spacing: 5) {
+                Image(systemName: "thermometer.medium")
+                    .font(.system(size: 15, weight: .semibold))
+                Text("Probe")
+                    .font(.system(size: 14, weight: .semibold))
+            }
+            .foregroundColor(probeIsActive ? Color(red: 0.28, green: 0.10, blue: 0.04) : .white)
+            .padding(.horizontal, 11)
+            .padding(.vertical, 6)
+            .background(
+                Capsule().fill(probeIsActive ? Color("TimerAccent") : Color.white.opacity(0.16))
+            )
+            .overlay(
+                Capsule().stroke(Color.white.opacity(0.28), lineWidth: 1)
+            )
         }
         .accessibilityLabel("Connect Probe")
         .accessibilityIdentifier("ProbeConnectButton")
