@@ -153,6 +153,27 @@ struct ElapsedTests {
         #expect(elapsedAfterWait >= 3659 && elapsedAfterWait <= 3661)
         state.reset()
     }
+
+    @Test("Lit time keeps growing after the countdown completes, until reset")
+    func elapsedContinuesAfterCompletion() {
+        let state = TimerState(id: UUID(), interval: 60)
+        state.start { }
+        guard let end = state.endDate else {
+            Issue.record("endDate should be set after start()")
+            return
+        }
+        // Elapsed at the instant the countdown completes (~60s lit)
+        let elapsedAtCompletion = state.elapsed(at: end)
+        state.completeNow()
+        #expect(state.isCompleted)
+        // Five minutes later, lit time must have kept climbing — not frozen at completion.
+        let later = end.addingTimeInterval(300)
+        #expect(state.elapsed(at: later) > elapsedAtCompletion)
+        #expect(abs(state.elapsed(at: later) - (elapsedAtCompletion + 300)) < 1)
+        // Reset is what stops the lit clock and zeroes it.
+        state.reset()
+        #expect(state.elapsed(at: Date()) == 0)
+    }
 }
 
 // MARK: - Pause / resume math

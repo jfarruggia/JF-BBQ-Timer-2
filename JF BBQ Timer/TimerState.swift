@@ -254,7 +254,9 @@ class TimerState: ObservableObject {
         isRunning = false
         isCompleted = true
         intervalTime = 0
-        stopRefreshTimer()
+        // Do NOT stop the refresh timer here: "Lit"/elapsed time must keep counting
+        // up after the flip countdown completes, until the user presses Reset.
+        // (elapsedStartDate stays set; reset() is what stops the clock and zeroes it.)
         cancelPendingNotification()
         objectWillChange.send()
         debugLog("TimerState (\(id)): completed")
@@ -288,7 +290,10 @@ class TimerState: ObservableObject {
                 if refreshTimer == nil { startRefreshTimer() }
             }
         } else if elapsedStartDate != nil {
+            // Countdown is done (or stopped) but lit time is still running —
+            // refresh the value and keep it ticking until the user resets.
             elapsedTime = elapsed(at: now)
+            if refreshTimer == nil { startRefreshTimer() }
         }
         objectWillChange.send()
     }
