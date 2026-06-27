@@ -16,8 +16,8 @@ extension Color {
     /// the top, darker at the bottom, so the card reads as a lit-from-above 3D surface
     /// while staying translucent enough that the ember glow shows through. Raise the
     /// opacities for more body/less transparency; lower them for more glow show-through.
-    static let grillCardBodyTop = Color(red: 0.42, green: 0.18, blue: 0.10).opacity(0.40)
-    static let grillCardBodyBottom = Color(red: 0.16, green: 0.06, blue: 0.03).opacity(0.28)
+    static let grillCardBodyTop = Color(red: 0.50, green: 0.24, blue: 0.14).opacity(0.34)
+    static let grillCardBodyBottom = Color(red: 0.10, green: 0.04, blue: 0.02).opacity(0.46)
 }
 
 struct BouncyButtonStyle: ButtonStyle {
@@ -226,7 +226,7 @@ struct TimerContainerAppearance: ViewModifier {
                     .overlay(
                         shape.stroke(
                             LinearGradient(
-                                colors: [Color.white.opacity(0.5), Color.white.opacity(0.05)],
+                                colors: [Color.white.opacity(0.6), Color.clear, Color.black.opacity(0.30)],
                                 startPoint: .top,
                                 endPoint: .bottom
                             ),
@@ -251,7 +251,7 @@ struct TimerContainerAppearance: ViewModifier {
                     .overlay(
                         shape.stroke(
                             LinearGradient(
-                                colors: [Color.white.opacity(0.5), Color.white.opacity(0.05)],
+                                colors: [Color.white.opacity(0.6), Color.clear, Color.black.opacity(0.30)],
                                 startPoint: .top,
                                 endPoint: .bottom
                             ),

@@ -33,52 +33,50 @@ struct ContentView: View {
     @Namespace private var scrollNamespace
     @State private var lastCompletedTimerId: UUID? = nil
 
+    /// Scattered glowing-coal positions for the ember-bed background (iOS 26).
+    /// Each entry: (x, y) center as unit points, r = radius as a fraction of the
+    /// screen width, plus a warm color + opacity. Many small spots read as a bed
+    /// of charcoal rather than a few big washes. Tune count/size/opacity here.
+    private var emberSpots: [(x: CGFloat, y: CGFloat, r: CGFloat, color: Color, opacity: Double)] {
+        let orange = Color(red: 0.96, green: 0.46, blue: 0.10)
+        let redOrange = Color(red: 0.86, green: 0.26, blue: 0.06)
+        let red = Color(red: 0.74, green: 0.14, blue: 0.05)
+        let amber = Color(red: 1.00, green: 0.56, blue: 0.14)
+        return [
+            (0.16, 0.07, 0.20, orange,    0.55),
+            (0.44, 0.04, 0.15, amber,     0.42),
+            (0.82, 0.10, 0.22, redOrange, 0.52),
+            (0.94, 0.33, 0.17, red,       0.44),
+            (0.62, 0.28, 0.15, orange,    0.36),
+            (0.08, 0.40, 0.20, redOrange, 0.44),
+            (0.34, 0.58, 0.22, orange,    0.46),
+            (0.79, 0.64, 0.18, red,       0.42),
+            (0.52, 0.88, 0.24, orange,    0.48),
+            (0.07, 0.80, 0.16, amber,     0.40),
+            (0.91, 0.86, 0.18, redOrange, 0.44)
+        ]
+    }
+
     @ViewBuilder
     private var backgroundLayer: some View {
         if #available(iOS 26, *) {
-            // Ember-glow: deep warm base with soft radial pools that bleed through
-            // the translucent glass cards. Static — no animation for now.
+            // Ember bed: deep charcoal base with many small glowing coals that
+            // bleed through the translucent glass cards. Static — no animation.
             ZStack {
-                // Deep warm charcoal base
-                Color(red: 0.17, green: 0.04, blue: 0.02)
+                Color(red: 0.15, green: 0.035, blue: 0.02)
 
-                // Top-leading orange pool — the primary hot-spot
                 GeometryReader { geo in
-                    RadialGradient(
-                        colors: [
-                            Color(red: 0.85, green: 0.35, blue: 0.05).opacity(0.50),
-                            Color.clear
-                        ],
-                        center: .topLeading,
-                        startRadius: 0,
-                        endRadius: geo.size.width * 0.75
-                    )
-                }
-
-                // Mid-trailing red/amber pool — secondary warmth
-                GeometryReader { geo in
-                    RadialGradient(
-                        colors: [
-                            Color(red: 0.75, green: 0.18, blue: 0.06).opacity(0.40),
-                            Color.clear
-                        ],
-                        center: UnitPoint(x: 0.85, y: 0.50),
-                        startRadius: 0,
-                        endRadius: geo.size.width * 0.60
-                    )
-                }
-
-                // Bottom-center orange glow — warms the lower content area
-                GeometryReader { geo in
-                    RadialGradient(
-                        colors: [
-                            Color(red: 0.80, green: 0.28, blue: 0.04).opacity(0.35),
-                            Color.clear
-                        ],
-                        center: UnitPoint(x: 0.50, y: 1.05),
-                        startRadius: 0,
-                        endRadius: geo.size.width * 0.65
-                    )
+                    ZStack {
+                        ForEach(emberSpots.indices, id: \.self) { i in
+                            let e = emberSpots[i]
+                            RadialGradient(
+                                colors: [e.color.opacity(e.opacity), Color.clear],
+                                center: UnitPoint(x: e.x, y: e.y),
+                                startRadius: 0,
+                                endRadius: geo.size.width * e.r
+                            )
+                        }
+                    }
                 }
             }
             .ignoresSafeArea()
