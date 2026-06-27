@@ -6,55 +6,42 @@ actually shipped — this file is just the running plan.
 
 ## Working V2 order (adjustable)
 All items below are **Version 2**. Planned sequence:
-1. DEBUG-only free⇄paid toggle (unblocks premium testing)
-2. **Combustion probe** — the headliner / only user-requested feature
-3. Main-screen layout pass — beefier header + reposition preheat + **ember-glow
-   background** + slot in the probe's temp/prediction display, as one redesign
-   (done after the probe so the screen is laid out once)
-4. Design-consistency sweep (Settings, paywall, alerts, custom sounds, watch UI)
-5. Onboarding review
-6. Reconcile branch → ship (App Store)
+1. [x] DEBUG-only free⇄paid toggle (`4ec2ca8`)
+2. [x] **Combustion probe** — BLE foundation 2A–2D done + on-device connect/stream verified
+3. [x] **Main-screen layout pass** — header + preheat + ember-glow + probe UI + glass redesign
+4. [ ] Design-consistency sweep (Settings, paywall, alerts, custom sounds, watch UI)
+5. [ ] Onboarding review
+6. [ ] Reconcile branch → ship (App Store)
 
 Isolated quick wins (voice announcements, preheat→`endDate`, the two bugs) slot in anytime.
 
-## Up next — Main-screen layout pass (V2 step 3), design AGREED (2026-06-24)
-Design decided with Jim (mockups reviewed). Build in focused, one-concern steps:
-- **Probe attaches to a cook**, not a global readout. Pick which cook/timer when
-  connecting. The flip-interval timer and the probe's doneness prediction stay separate
-  mechanisms (per spec) but are **co-located on that cook's card**.
-- **Cook card shows three labeled time facets:** `lit` elapsed (demoted line up top —
-  KEEP THIS on every card, Jim explicitly wants it), the `flip in` countdown ring (hero),
-  and a `ready` probe strip (core temp + predicted-ready) shown only when a probe is attached.
-- **Header:** beefier (flame mark + title + a connect-probe/Bluetooth button + gear). No
-  global probe status line. No-reading sensors render `—` (not −20 °C).
-- **Preheat:** fixed bottom bar, always visible (flips to live countdown + stop while running).
-- **Ember-glow background:** deep warm base + soft orange/red radial pools, iOS 26-gated;
-  dial `grillGlassTint` DOWN so it shows through the glass.
-- Multi-probe is out of V2 scope (single probe; design extends to a primary+list later).
-- **Compact mode:** same header / ember-glow / bottom Preheat bar; only the cards densify
-  to a single row (small ring + name + `flip in · lit` line + compact buttons). `lit` stays
-  on every compact card; the probe card adds ONE slim line (`Core · ready`), others stay tight.
-  (Both large + compact card layouts need the probe strip — build step 3 covers both.)
+## Main-screen layout + glass redesign — DONE & refined on device (2026-06-25/27)
+Built as steps 1–6, then refined live with Jim from device screenshots. All on `Apple-Watch-Suport`:
+- Steps: app-wide probe manager (`19bba7c`); probe↔cook attach + pick-on-connect (`129c71e`);
+  probe strip on the cook card, large+compact (`ab87de0`); beefier header + connect button
+  (`03a30e2`); fixed bottom Preheat bar (`69aad43`); ember-glow background (`8a0eee2`).
+- **Cook card model:** probe attaches to a chosen cook (not a global readout); card shows
+  three labeled facets — `lit` elapsed (kept on every card), the `flip in` ring (hero), and a
+  `ready` probe strip (core temp + predicted-ready) when a probe is attached. `—` for no-reading.
+- **Unified glass treatment (cards + header + preheat):** `.clear` glass + `grillCardBody`
+  top→bottom gradient + beveled rim (white top / black bottom) + deep shadow, over a
+  **charcoal-bed background** (many small `emberSpots`). New ButtonStyles tokens:
+  `grillCardTint` (0.12), `grillCardBodyTop/Bottom`. (`589e13e`,`6421597`,`8845646`,`945bb81`,`c643f5f`)
+- **Header:** ~1/3 taller, 22pt title, 12pt gap above the first card (`99018fd`).
+- **Probe entry point:** a visible **"Probe" chip** in the header (thermometer + label, orange
+  when connected) opens the picker — replaced the invisible bad-SF-symbol button (`91170e1`).
 
-Build order — ALL SIX BUILT (committed, build+test verified; **visual review on device pending**):
-1. [x] App-wide probe manager (`19bba7c`).
-2. [x] Probe↔cook attachment model + "pick a cook on connect" (`129c71e`).
-3. [x] Probe strip on the cook card — large + compact, iOS 26 + pre-26 (`ab87de0`).
-4. [x] Header beef-up + connect button (`03a30e2`).
-5. [x] Fixed bottom Preheat bar (`69aad43`).
-6. [x] Ember-glow background + dial `grillGlassTint` 0.55→0.42 (`8a0eee2`).
+**Still pending on the probe (device-only; code is done & test-verified):**
+- On-**watch** probe section visual + a real **long-cook** on-device pass.
+- Tidy-up: remove the now-redundant DEBUG "Connect Probe (debug)" Settings entry (header chip
+  supersedes it); decide **°F vs °C** for probe temps (currently °C).
+- Fine-tune knobs if desired: ember intensity (`emberSpots` opacities), card body opacity
+  (`grillCardBodyTop/Bottom`), bevel/shadow strength.
 
-**Pending = Jim's visual pass** (none of the UI was eyeballed, only compiled/tested):
-- Tuning knobs flagged by the build: ember-glow intensity (pool opacities ~0.35–0.50) and
-  `grillGlassTint` opacity (now 0.42 — nudge toward 0.48–0.50 if white card text feels thin).
-- Confirm header / probe strip / preheat bar read well on real devices + small screens.
-- Still-deferred probe device checks: on-watch probe section visual + a real long-cook pass.
-- Tidy-up later: remove the now-redundant DEBUG "Connect Probe (debug)" Settings entry
-  (header button supersedes it); decide °F vs °C for probe temps (currently °C).
-
-_Ember-glow note (lands in step 3):_ deep warm base + soft orange/red radial
-pools, iOS 26-gated; when it's in, dial `Color.grillGlassTint` back down so the
-background shows through the glass.
+## Up next
+- [ ] **Design-consistency sweep (V2 step 4)** — extend the glass language to Settings,
+      paywall/premium, custom sounds, the alert overlays, and the watch UI (details below).
+- Quick wins anytime: voice announcements, preheat→`endDate`, the two device bugs.
 
 ## Features
 - **Combustion Bluetooth probe support** — see `combustion-probe-ble-spec.md`.
@@ -83,7 +70,9 @@ background shows through the glass.
         auto-reconnect on unexpected disconnect (intent in manager, mechanism in central);
         `.reconnecting` state in the picker. 4 reconnect tests; iOS+watch builds green.
         **Deferred (with 2C):** on-device verification during a real long cook.
-  - [ ] **2E — on-screen probe UI** (folds into the main-screen layout pass, step 3).
+  - [x] **2E — on-screen probe UI** — done in the layout pass: probe strip on the attached
+        cook's card + a header "Probe" chip entry point (`ab87de0`, `91170e1`). Watch display
+        done in 2C (on-watch visual check still pending).
   - [ ] **2F (later) — UART commands** (alarms, set-prediction): separate spec, out of scope.
 - [x] **Dev-only free⇄paid toggle** for testing premium gating — shipped `4ec2ca8`.
       `#if DEBUG`-only "Debug" section at the bottom of Settings: "Override Premium"
@@ -92,8 +81,8 @@ background shows through the glass.
       entitlement. Release build verified to strip it. Never calls purchase/restore.
 
 ## UX / layout
-- [ ] **Reposition the Preheat grill button** — bottom placement is easy to miss.
-- [ ] **Beef up the "GrillTime Pro" header** (title + gear) — make it more substantial.
+- [x] **Reposition the Preheat grill button** → now a fixed bottom bar (`69aad43`).
+- [x] **Beef up the "GrillTime Pro" header** → taller + 22pt title + glass treatment (`99018fd`, `c643f5f`).
 - [ ] **Detailed onboarding review** — simplify the flow and improve the look
       (`CarouselOnboardingView` / `OnboardingView`).
 
@@ -115,6 +104,9 @@ background shows through the glass.
       keep-alive). Carefully verify — touches the working alert path.
 
 ## Bugs / verify on device
+- [x] **Lit time froze when the flip countdown completed** — fixed: `handleCompletion()`
+      no longer stops the refresh timer, so "Lit" keeps counting until Reset; resync restarts
+      it after backgrounding. Regression test added. (`ce907cb`)
 - [ ] Does **compact mode persist** across a cold relaunch? The Settings toggle
       binds straight to the published property; no save-on-change was spotted.
 - [ ] **Watch long-preset formatting:** watch `format(seconds:)` shows e.g. `90:00`
@@ -130,6 +122,9 @@ background shows through the glass.
       build-verified + pushed). Brought in main's app-icon restructure; our `1.3.0`
       kept over main's `1.2.2`. Xcode 26.5's merge dialog bugged out, so finished via
       terminal whole-file `--ours/--theirs` (see branch-reconciliation memory).
+- [x] **Command allowlist** added to `.claude/settings.json` (`b33b04a`) so the build
+      chain runs without approval prompts (git/xcodebuild/pgrep/caffeinate/etc.); destructive
+      git stays denied. Fixed the overnight runs stalling on permission dialogs.
 - [ ] **Final ship merge `Apple-Watch-Suport` → `main`** once V2 is done — then tag +
       release. (Optional pre-merge tidy: drop now-unreferenced `Icon-60@2x/3x.png`.)
 - [ ] App Store submission once the watch features are ready.
