@@ -547,6 +547,7 @@ struct ContentView: View {
         let timeText = preheatTimeRemaining > 0
             ? timeString(from: preheatTimeRemaining)
             : timeString(from: TimeInterval(settings.preheatDuration))
+        let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
 
         if #available(iOS 26, *) {
             HStack(spacing: 10) {
@@ -565,7 +566,26 @@ struct ContentView: View {
             .padding(.horizontal, 24)
             .padding(.vertical, 16)
             .frame(maxWidth: .infinity)
-            .glassEffect(.regular.tint(.grillGlassTint), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .glassEffect(.clear.tint(.grillCardTint), in: shape)
+            .background(
+                LinearGradient(
+                    colors: [Color.grillCardBodyTop, Color.grillCardBodyBottom],
+                    startPoint: .top,
+                    endPoint: .bottom
+                ),
+                in: shape
+            )
+            .overlay(
+                shape.stroke(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.6), Color.clear, Color.black.opacity(0.30)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 2
+                )
+            )
+            .shadow(color: .black.opacity(0.55), radius: 18, x: 0, y: 10)
             .scaleEffect(preheatPressPulse ? 0.97 : 1.0)
             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: preheatPressPulse)
             .modifier(PreheatCompleteModifier(isPreheatComplete: isPreheatComplete))
