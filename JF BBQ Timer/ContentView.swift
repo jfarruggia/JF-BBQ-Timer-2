@@ -109,7 +109,27 @@ struct ContentView: View {
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 11)
-            .glassEffect(.regular.tint(.grillGlassTint))
+            .glassEffect(.clear.tint(.grillCardTint), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .background(
+                LinearGradient(
+                    colors: [Color.grillCardBodyTop, Color.grillCardBodyBottom],
+                    startPoint: .top,
+                    endPoint: .bottom
+                ),
+                in: RoundedRectangle(cornerRadius: 20, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.6), Color.clear, Color.black.opacity(0.30)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: 2
+                    )
+            )
+            .shadow(color: .black.opacity(0.55), radius: 18, x: 0, y: 10)
             .padding(.horizontal, 16)
         } else {
             HStack(spacing: 10) {
