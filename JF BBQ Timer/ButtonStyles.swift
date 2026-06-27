@@ -7,10 +7,17 @@ extension Color {
     /// background and every glass surface reads as the same material.
     static let grillGlassTint = Color(red: 0.40, green: 0.10, blue: 0.05).opacity(0.42)
 
-    /// Lighter, card-specific tint. Timer cards use frosted `.regular` glass (so they
-    /// read as a real translucent pane with depth, not just an outline) but at a lower
-    /// tint than the header/preheat so the ember glow shows through. Tune opacity here.
-    static let grillCardTint = Color(red: 0.40, green: 0.10, blue: 0.05).opacity(0.24)
+    /// Subtle warm tint on the cards' clear glass. The card "body" comes mostly from
+    /// `grillCardBodyTop`/`grillCardBodyBottom` (a gradient behind the glass); this just
+    /// adds a touch of warmth. Tune card transparency via the two body colors below.
+    static let grillCardTint = Color(red: 0.40, green: 0.10, blue: 0.05).opacity(0.12)
+
+    /// Card body gradient — a translucent warm pane behind the clear glass. Lighter at
+    /// the top, darker at the bottom, so the card reads as a lit-from-above 3D surface
+    /// while staying translucent enough that the ember glow shows through. Raise the
+    /// opacities for more body/less transparency; lower them for more glow show-through.
+    static let grillCardBodyTop = Color(red: 0.42, green: 0.18, blue: 0.10).opacity(0.40)
+    static let grillCardBodyBottom = Color(red: 0.16, green: 0.06, blue: 0.03).opacity(0.28)
 }
 
 struct BouncyButtonStyle: ButtonStyle {
@@ -205,37 +212,53 @@ struct TimerContainerAppearance: ViewModifier {
                 content
                     .padding(.vertical, 8)
                     .glassEffect(
-                        .regular.tint(.grillCardTint),
+                        .clear.tint(.grillCardTint),
+                        in: shape
+                    )
+                    .background(
+                        LinearGradient(
+                            colors: [Color.grillCardBodyTop, Color.grillCardBodyBottom],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
                         in: shape
                     )
                     .overlay(
                         shape.stroke(
                             LinearGradient(
-                                colors: [Color.white.opacity(0.45), Color.white.opacity(0.05)],
+                                colors: [Color.white.opacity(0.5), Color.white.opacity(0.05)],
                                 startPoint: .top,
                                 endPoint: .bottom
                             ),
-                            lineWidth: 1.5
+                            lineWidth: 2
                         )
                     )
-                    .shadow(color: .black.opacity(0.5), radius: 16, x: 0, y: 10)
+                    .shadow(color: .black.opacity(0.55), radius: 18, x: 0, y: 10)
             } else {
                 content
                     .glassEffect(
-                        .regular.tint(.grillCardTint),
+                        .clear.tint(.grillCardTint),
+                        in: shape
+                    )
+                    .background(
+                        LinearGradient(
+                            colors: [Color.grillCardBodyTop, Color.grillCardBodyBottom],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
                         in: shape
                     )
                     .overlay(
                         shape.stroke(
                             LinearGradient(
-                                colors: [Color.white.opacity(0.45), Color.white.opacity(0.05)],
+                                colors: [Color.white.opacity(0.5), Color.white.opacity(0.05)],
                                 startPoint: .top,
                                 endPoint: .bottom
                             ),
-                            lineWidth: 1.5
+                            lineWidth: 2
                         )
                     )
-                    .shadow(color: .black.opacity(0.5), radius: 16, x: 0, y: 10)
+                    .shadow(color: .black.opacity(0.55), radius: 18, x: 0, y: 10)
             }
         } else {
             content
