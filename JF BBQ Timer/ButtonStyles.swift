@@ -6,6 +6,11 @@ extension Color {
     /// header, preheat button) so white text keeps contrast against the bright
     /// background and every glass surface reads as the same material.
     static let grillGlassTint = Color(red: 0.40, green: 0.10, blue: 0.05).opacity(0.42)
+
+    /// Lighter, card-specific tint. Timer cards use frosted `.regular` glass (so they
+    /// read as a real translucent pane with depth, not just an outline) but at a lower
+    /// tint than the header/preheat so the ember glow shows through. Tune opacity here.
+    static let grillCardTint = Color(red: 0.40, green: 0.10, blue: 0.05).opacity(0.24)
 }
 
 struct BouncyButtonStyle: ButtonStyle {
@@ -200,7 +205,7 @@ struct TimerContainerAppearance: ViewModifier {
                 content
                     .padding(.vertical, 8)
                     .glassEffect(
-                        .clear.tint(.grillGlassTint),
+                        .regular.tint(.grillCardTint),
                         in: shape
                     )
                     .overlay(
@@ -217,7 +222,7 @@ struct TimerContainerAppearance: ViewModifier {
             } else {
                 content
                     .glassEffect(
-                        .clear.tint(.grillGlassTint),
+                        .regular.tint(.grillCardTint),
                         in: shape
                     )
                     .overlay(
