@@ -33,56 +33,9 @@ struct ContentView: View {
     @Namespace private var scrollNamespace
     @State private var lastCompletedTimerId: UUID? = nil
 
-    /// Scattered glowing-coal positions for the ember-bed background (iOS 26).
-    /// Each entry: (x, y) center as unit points, r = radius as a fraction of the
-    /// screen width, plus a warm color + opacity. Many small spots read as a bed
-    /// of charcoal rather than a few big washes. Tune count/size/opacity here.
-    private var emberSpots: [(x: CGFloat, y: CGFloat, r: CGFloat, color: Color, opacity: Double)] {
-        let orange = Color(red: 0.96, green: 0.46, blue: 0.10)
-        let redOrange = Color(red: 0.86, green: 0.26, blue: 0.06)
-        let red = Color(red: 0.74, green: 0.14, blue: 0.05)
-        let amber = Color(red: 1.00, green: 0.56, blue: 0.14)
-        return [
-            (0.16, 0.07, 0.20, orange,    0.55),
-            (0.44, 0.04, 0.15, amber,     0.42),
-            (0.82, 0.10, 0.22, redOrange, 0.52),
-            (0.94, 0.33, 0.17, red,       0.44),
-            (0.62, 0.28, 0.15, orange,    0.36),
-            (0.08, 0.40, 0.20, redOrange, 0.44),
-            (0.34, 0.58, 0.22, orange,    0.46),
-            (0.79, 0.64, 0.18, red,       0.42),
-            (0.52, 0.88, 0.24, orange,    0.48),
-            (0.07, 0.80, 0.16, amber,     0.40),
-            (0.91, 0.86, 0.18, redOrange, 0.44)
-        ]
-    }
-
-    @ViewBuilder
+    /// Shared ember-bed background (charcoal + glowing coals); see `EmberBackground`.
     private var backgroundLayer: some View {
-        if #available(iOS 26, *) {
-            // Ember bed: deep charcoal base with many small glowing coals that
-            // bleed through the translucent glass cards. Static — no animation.
-            ZStack {
-                Color(red: 0.15, green: 0.035, blue: 0.02)
-
-                GeometryReader { geo in
-                    ZStack {
-                        ForEach(emberSpots.indices, id: \.self) { i in
-                            let e = emberSpots[i]
-                            RadialGradient(
-                                colors: [e.color.opacity(e.opacity), Color.clear],
-                                center: UnitPoint(x: e.x, y: e.y),
-                                startRadius: 0,
-                                endRadius: geo.size.width * e.r
-                            )
-                        }
-                    }
-                }
-            }
-            .ignoresSafeArea()
-        } else {
-            Color("PrimaryBackground").ignoresSafeArea()
-        }
+        EmberBackground()
     }
 
     @ViewBuilder

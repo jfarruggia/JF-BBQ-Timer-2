@@ -20,6 +20,169 @@ extension Color {
     static let grillCardBodyBottom = Color(red: 0.10, green: 0.04, blue: 0.02).opacity(0.46)
 }
 
+// MARK: - Shared immersive glass theme
+//
+// The main screen established an "ember-glow charcoal background + frosted glass
+// panes" look. These helpers package that language so the rest of the app
+// (Settings, paywall, custom sounds, alerts) can reuse it verbatim instead of
+// re-rolling effects. `EmberBackground` is the charcoal+coals bed; `grillGlassPane`
+// is the card/header/preheat pane treatment (clear glass + body gradient + beveled
+// rim + deep shadow), gated behind iOS 26 with a sensible pre-26 fallback.
+
+/// Deep-charcoal background seeded with many small radial "coals" — the same bed
+/// the main timer screen uses, so every full-screen surface reads as the same room.
+struct EmberBackground: View {
+    /// (x, y) are unit positions; r is a fraction of width for the glow radius.
+    private var emberSpots: [(x: CGFloat, y: CGFloat, r: CGFloat, color: Color, opacity: Double)] {
+        let orange = Color(red: 0.96, green: 0.46, blue: 0.10)
+        let redOrange = Color(red: 0.86, green: 0.26, blue: 0.06)
+        let red = Color(red: 0.74, green: 0.14, blue: 0.05)
+        let amber = Color(red: 1.00, green: 0.56, blue: 0.14)
+        return [
+            (0.16, 0.07, 0.20, orange,    0.55),
+            (0.44, 0.04, 0.15, amber,     0.42),
+            (0.82, 0.10, 0.22, redOrange, 0.52),
+            (0.94, 0.33, 0.17, red,       0.44),
+            (0.62, 0.28, 0.15, orange,    0.36),
+            (0.08, 0.40, 0.20, redOrange, 0.44),
+            (0.34, 0.58, 0.22, orange,    0.46),
+            (0.79, 0.64, 0.18, red,       0.42),
+            (0.52, 0.88, 0.24, orange,    0.48),
+            (0.07, 0.80, 0.16, amber,     0.40),
+            (0.91, 0.86, 0.18, redOrange, 0.44)
+        ]
+    }
+
+    var body: some View {
+        if #available(iOS 26, *) {
+            ZStack {
+                Color(red: 0.15, green: 0.035, blue: 0.02)
+                GeometryReader { geo in
+                    ZStack {
+                        ForEach(emberSpots.indices, id: \.self) { i in
+                            let e = emberSpots[i]
+                            RadialGradient(
+                                colors: [e.color.opacity(e.opacity), Color.clear],
+                                center: UnitPoint(x: e.x, y: e.y),
+                                startRadius: 0,
+                                endRadius: geo.size.width * e.r
+                            )
+                        }
+                    }
+                }
+            }
+            .ignoresSafeArea()
+        } else {
+            Color("PrimaryBackground").ignoresSafeArea()
+        }
+    }
+}
+
+/// Frosted "grill glass" pane — the unified card/header/preheat treatment:
+/// `.clear` glass tinted warm, a top→bottom body gradient, a beveled rim
+/// (white top / black bottom), and a deep drop shadow. Use on grouped content
+/// blocks (section cards, banners, buttons) so they match the timer cards.
+struct GrillGlassPane: ViewModifier {
+    var cornerRadius: CGFloat = 20
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        if #available(iOS 26, *) {
+            content
+                .glassEffect(.clear.tint(.grillCardTint), in: shape)
+                .background(
+                    LinearGradient(
+                        colors: [Color.grillCardBodyTop, Color.grillCardBodyBottom],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    in: shape
+                )
+                .overlay(
+                    shape.stroke(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.6), Color.clear, Color.black.opacity(0.30)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: 2
+                    )
+                )
+                .shadow(color: .black.opacity(0.55), radius: 18, x: 0, y: 10)
+        } else {
+            content
+                .background(Color("TimerContainerBG"), in: shape)
+                .shadow(color: .black.opacity(0.25), radius: 8, x: 0, y: 4)
+        }
+    }
+}
+
+extension View {
+    /// Apply the shared frosted "grill glass" pane treatment (see `GrillGlassPane`).
+    func grillGlassPane(cornerRadius: CGFloat = 20) -> some View {
+        modifier(GrillGlassPane(cornerRadius: cornerRadius))
+    }
+}
+
+/// Turns a stock grouped `List` into the immersive ember+frosted-glass look on
+/// iOS 26: hides the system list background, drops the `EmberBackground` behind it,
+/// frosts every section row, and forces a dark scheme so system text/controls read
+/// as light. Pre-26 falls through to the stock system list unchanged.
+struct ImmersiveGlassList: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content
+                .scrollContentBackground(.hidden)
+                .background(EmberBackground())
+                .listRowBackground(GrillGlassSectionFill())
+                .preferredColorScheme(.dark)
+        } else {
+            content
+        }
+    }
+}
+
+extension View {
+    /// Apply the immersive ember + frosted-glass list treatment (see `ImmersiveGlassList`).
+    func immersiveGlassList() -> some View {
+        modifier(ImmersiveGlassList())
+    }
+}
+
+/// Drops the `EmberBackground` behind a non-list screen (custom `VStack`/`ScrollView`
+/// layouts: pickers, paywall, sounds, alerts) and forces a dark scheme so text reads
+/// as light. Pre-26 leaves the view unchanged. Pair with `grillGlassPane` on the
+/// content blocks. For `List`/`Form` screens use `immersiveGlassList` instead.
+struct ImmersiveGlassBackground: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content
+                .background(EmberBackground())
+                .preferredColorScheme(.dark)
+        } else {
+            content
+        }
+    }
+}
+
+extension View {
+    /// Apply the immersive ember background + dark scheme (see `ImmersiveGlassBackground`).
+    func immersiveGlassBackground() -> some View {
+        modifier(ImmersiveGlassBackground())
+    }
+}
+
+/// Frosted fill for `List` section rows in immersive screens. Pairs with
+/// `ImmersiveGlassList`. A *flat* warm tint over thin material (not a vertical
+/// gradient) so stacked rows don't band.
+struct GrillGlassSectionFill: View {
+    var body: some View {
+        Rectangle()
+            .fill(.ultraThinMaterial)
+            .overlay(Color(red: 0.40, green: 0.10, blue: 0.05).opacity(0.22))
+    }
+}
+
 struct BouncyButtonStyle: ButtonStyle {
     let buttonID: UUID
     @Binding var pressedButtonId: UUID?

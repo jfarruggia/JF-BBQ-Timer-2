@@ -310,6 +310,7 @@ struct NewSettingsView: View {
                 #endif
             }
             .listStyle(InsetGroupedListStyle())
+            .immersiveGlassList()
             .navigationTitle("Settings")
             .navigationBarItems(trailing: Button("Done") {
                 settings.save()
@@ -364,6 +365,7 @@ struct NewSettingsView: View {
                 .zIndex(2)
             }
         }
+        .tint(Color("TimerAccent"))
         .onAppear {
             checkPremiumStatus()
             fetchPremiumPrice()
@@ -529,6 +531,7 @@ struct TimerManagementView: View {
                     }
                 }
             }
+            .immersiveGlassList()
             .navigationTitle("Manage Timers")
             .sheet(isPresented: $showingAddTimerSheet) {
                 addTimerSheet
@@ -815,6 +818,7 @@ struct TimerManagementView: View {
                     .padding(.horizontal, 4)
                 }
             }
+            .immersiveGlassList()
             .navigationTitle(getEditTitle())
             .navigationBarItems(
                 leading: Button("Cancel") {
@@ -965,6 +969,7 @@ struct TimerPickerSheet: View {
             .padding(.bottom, 40)
             Spacer()
         }
+        .immersiveGlassBackground()
     }
 }
 
@@ -1225,6 +1230,7 @@ struct AlertSoundsView: View {
                 }
             }
             .listStyle(InsetGroupedListStyle())
+            .immersiveGlassList()
             .navigationTitle("Alert Sounds")
             .onDisappear {
                 audioPlayer?.stop()
@@ -1493,6 +1499,7 @@ struct VoiceAnnouncementSettingsView: View {
                     .foregroundColor(.secondary)
             }
         }
+        .immersiveGlassList()
         .navigationTitle("Voice Announcements")
         .onDisappear {
             // Save any changes when view disappears
