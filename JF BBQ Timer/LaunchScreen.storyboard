@@ -24,7 +24,7 @@
                                         <rect key="frame" x="0.0" y="0.0" width="250" height="250"/>
                                     </imageView>
                                 </subviews>
-                                <color key="backgroundColor" white="1" alpha="0.2" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+                                <color key="backgroundColor" white="1" alpha="0.0" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                 <constraints>
                                     <constraint firstAttribute="width" constant="250" id="eHf-Tw-agT"/>
                                     <constraint firstAttribute="height" constant="250" id="fdt-ZH-fkr"/>
@@ -47,7 +47,7 @@
                             </label>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="Bcu-3y-fUS"/>
-                        <color key="backgroundColor" red="0.88235294117647056" green="0.54509803921568623" blue="0.50980392156862742" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <color key="backgroundColor" red="0.15" green="0.035" blue="0.02" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
                             <constraint firstItem="gCT-Q7-drx" firstAttribute="top" secondItem="ygD-oA-h7d" secondAttribute="bottom" constant="8" id="LY1-dn-hvz"/>
                             <constraint firstItem="ygD-oA-h7d" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" constant="-25" id="U7B-Kc-gfI"/>
