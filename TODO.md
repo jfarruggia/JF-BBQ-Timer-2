@@ -31,10 +31,16 @@ Built as steps 1–6, then refined live with Jim from device screenshots. All on
 - **Probe entry point:** a visible **"Probe" chip** in the header (thermometer + label, orange
   when connected) opens the picker — replaced the invisible bad-SF-symbol button (`91170e1`).
 
-**Still pending on the probe (device-only; code is done & test-verified):**
+**Probe UI polished (`ac25316`):** ProbePickerView + ProbeAttachSheet themed (immersive
+glass + accent), added a "Done" button to the picker sheet, renamed discovered probes
+"Combustion Probe" (was "Unknown Probe"), removed the redundant DEBUG "Connect Probe" entry.
+
+**Still pending on the probe:**
 - On-**watch** probe section visual + a real **long-cook** on-device pass.
-- Tidy-up: remove the now-redundant DEBUG "Connect Probe (debug)" Settings entry (header chip
-  supersedes it); decide **°F vs °C** for probe temps (currently °C).
+- Decide **°F vs °C** for probe temps (currently °C).
+- Optional: show a real per-probe **serial** in the picker by parsing advertising
+  manufacturer data (vendor `0x09C7`) — needs an on-probe check to confirm the byte layout
+  (no captured advertising fixture yet).
 - Fine-tune knobs if desired: ember intensity (`emberSpots` opacities), card body opacity
   (`grillCardBodyTop/Bottom`), bevel/shadow strength.
 
