@@ -39,8 +39,8 @@ Built as steps 1–6, then refined live with Jim from device screenshots. All on
   (`grillCardBodyTop/Bottom`), bevel/shadow strength.
 
 ## Up next
-- [ ] **Design-consistency sweep (V2 step 4)** — extend the glass language to Settings,
-      paywall/premium, custom sounds, the alert overlays, and the watch UI (details below).
+- [~] **Design-consistency sweep (V2 step 4)** — iPhone side DONE (Settings stack, paywall,
+      custom sounds, alert overlays). **Remaining: watch UI refresh** (details below).
 - Quick wins anytime: voice announcements, preheat→`endDate`, the two device bugs.
 
 ## Features
@@ -91,10 +91,18 @@ Built as steps 1–6, then refined live with Jim from device screenshots. All on
       (`AnnouncementRepeater` / voice settings in `SettingsExtension.swift`).
 
 ## Design consistency (extend the glass language to the rest of the app)
-- [ ] Settings, paywall/premium (`CustomPaywallView` / `PremiumUpgradeView`),
-      custom sounds (`CustomSoundsView`) screens.
-- [ ] Completion alert overlays (`AlertView` / `PreheatAlertView`).
-- [ ] Watch app UI refresh (only the iPhone has been redesigned).
+Shared helpers added in `ButtonStyles.swift` (reuse, don't re-roll): `EmberBackground`,
+`.grillGlassPane`, `.immersiveGlassList` (List/Form), `.immersiveGlassBackground` (non-list).
+All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an iOS 26.5 sim.
+- [x] Settings stack — main Settings + Manage Timers + Add/Edit Timer + Alert Sounds +
+      Voice Announcements + preset picker (`7ea85f4`).
+- [x] Paywall/premium — `CustomPaywallView` (ember on 26 / salmon pre-26, adaptive text)
+      + `PremiumUpgradeView` glass card (`75472f5`).
+- [x] Custom sounds (`CustomSoundsView`) (`5574345`).
+- [x] Completion alert overlays — `AlertView` frosted-red glass + pulsing rim/glow;
+      `PreheatAlertView` matched, blue→accent Dismiss (`265a4cd`).
+- [ ] **Watch app UI refresh** (only the iPhone has been redesigned) — pending; separate
+      target + design language (small screen / AOD / watchOS materials, not the ember bed).
 
 ## Mechanics / consistency
 - [ ] **Preheat timer → `endDate` model** — currently a decrement counter
