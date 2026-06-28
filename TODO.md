@@ -38,9 +38,9 @@ glass + accent), added a "Done" button to the picker sheet, renamed discovered p
 **Still pending on the probe:**
 - On-**watch** probe section visual + a real **long-cook** on-device pass.
 - Decide **°F vs °C** for probe temps (currently °C).
-- Optional: show a real per-probe **serial** in the picker by parsing advertising
-  manufacturer data (vendor `0x09C7`) — needs an on-probe check to confirm the byte layout
-  (no captured advertising fixture yet).
+- [x] Real per-probe **serial** in the picker — parses advertising manufacturer data
+  (vendor `0x09C7`, serial UInt32 LE); shows "Combustion Probe / Serial 1000FADE" and uses
+  it in the status line. Pinned to 4 real packets in `AdvertisingSerialTests` (`8f1e81f`).
 - Fine-tune knobs if desired: ember intensity (`emberSpots` opacities), card body opacity
   (`grillCardBodyTop/Bottom`), bevel/shadow strength.
 
