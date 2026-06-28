@@ -717,6 +717,8 @@ struct ContentView: View {
             initializeTimerStates()
             settings.initializeVoiceSettings()
             alertState.hapticsEnabled = settings.hapticsEnabled
+            Haptics.isEnabled = settings.hapticsEnabled
+            Haptics.prepare()
             requestNotificationPermission()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 debugLog("[📱iOS] 🕐 Delayed sync timer start - scenePhase: \(scenePhase)")
@@ -800,6 +802,10 @@ struct ContentView: View {
         .onChange(of: settings.soundEnabled) { _ in
             debugLog("Sound enabled changed to \(settings.soundEnabled), updating timer states")
             timerStates.updateSettings(settings)
+        }
+        .onChange(of: settings.hapticsEnabled) { enabled in
+            Haptics.isEnabled = enabled
+            if enabled { Haptics.prepare() }
         }
         .onChange(of: alertState.isPresented) { isShown in
             let phase = isShown ? "start" : "stop"

@@ -1,6 +1,32 @@
 import SwiftUI
 import UIKit
 
+// MARK: - Haptics
+
+/// Shared, *prepared* tap haptic for buttons. Creating a `UIImpactFeedbackGenerator`
+/// inline and firing it without `prepare()` (as the old button style did) makes iOS
+/// silently drop the buzz when the Taptic Engine is idle — which is why button taps
+/// often felt dead. Keeping one generator alive and re-priming it after each use makes
+/// the feedback reliable. `isEnabled` mirrors the in-app "Haptic Feedback" setting so
+/// the toggle actually governs button feedback too.
+enum Haptics {
+    static var isEnabled = true
+    private static let light = UIImpactFeedbackGenerator(style: .light)
+
+    /// Warm the Taptic Engine so the next tap fires instantly (call on appear / before a press).
+    static func prepare() {
+        guard isEnabled else { return }
+        light.prepare()
+    }
+
+    /// Fire a light tap (when enabled) and immediately re-prime for the next one.
+    static func tap() {
+        guard isEnabled else { return }
+        light.impactOccurred()
+        light.prepare()
+    }
+}
+
 extension Color {
     /// Shared warm tint applied to Liquid Glass surfaces on iOS 26 (cards,
     /// header, preheat button) so white text keeps contrast against the bright
@@ -194,6 +220,7 @@ struct BouncyButtonStyle: ButtonStyle {
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
             .onChange(of: configuration.isPressed) { isPressed in
                 if isPressed {
+                    Haptics.tap()
                     pressedButtonId = buttonID
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                         if pressedButtonId == buttonID {
@@ -236,12 +263,15 @@ struct PulsatingButtonStyle: ButtonStyle {
 struct HapticButtonStyle: ButtonStyle {
     func makeBody(configuration: ButtonStyleConfiguration) -> some View {
         configuration.label
+            // Instant visual press feedback so taps feel responsive even before the
+            // action runs (the old style gave no visual cue at all).
+            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
+            .opacity(configuration.isPressed ? 0.85 : 1.0)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
             .onChange(of: configuration.isPressed) { isPressed in
-                if isPressed {
-                    let generator = UIImpactFeedbackGenerator(style: .light)
-                    generator.impactOccurred()
-                }
+                if isPressed { Haptics.tap() }
             }
+            .onAppear { Haptics.prepare() }
     }
 }
 
@@ -278,6 +308,9 @@ struct ElevatedButtonStyle: SwiftUI.ButtonStyle {
                     x: 0, y: configuration.isPressed ? 1 : 3)
             .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
+            .onChange(of: configuration.isPressed) { isPressed in
+                if isPressed { Haptics.tap() }
+            }
     }
 }
 
