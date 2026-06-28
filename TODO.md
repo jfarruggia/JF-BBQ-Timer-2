@@ -9,7 +9,7 @@ All items below are **Version 2**. Planned sequence:
 1. [x] DEBUG-only free⇄paid toggle (`4ec2ca8`)
 2. [x] **Combustion probe** — BLE foundation 2A–2D done + on-device connect/stream verified
 3. [x] **Main-screen layout pass** — header + preheat + ember-glow + probe UI + glass redesign
-4. [ ] Design-consistency sweep (Settings, paywall, alerts, custom sounds, watch UI)
+4. [x] Design-consistency sweep (Settings, paywall, alerts, custom sounds, watch UI)
 5. [ ] Onboarding review
 6. [ ] Reconcile branch → ship (App Store)
 
@@ -39,8 +39,9 @@ Built as steps 1–6, then refined live with Jim from device screenshots. All on
   (`grillCardBodyTop/Bottom`), bevel/shadow strength.
 
 ## Up next
-- [~] **Design-consistency sweep (V2 step 4)** — iPhone side DONE (Settings stack, paywall,
-      custom sounds, alert overlays). **Remaining: watch UI refresh** (details below).
+- [x] **Design-consistency sweep (V2 step 4)** — DONE: Settings stack, paywall, custom
+      sounds, alert overlays (iPhone), + watchOS-native light touch. Watch on-device check
+      pending. **Next: onboarding review (step 5)**, then ship-merge (step 6).
 - Quick wins anytime: voice announcements, preheat→`endDate`, the two device bugs.
 
 ## Features
@@ -101,8 +102,9 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
 - [x] Custom sounds (`CustomSoundsView`) (`5574345`).
 - [x] Completion alert overlays — `AlertView` frosted-red glass + pulsing rim/glow;
       `PreheatAlertView` matched, blue→accent Dismiss (`265a4cd`).
-- [ ] **Watch app UI refresh** (only the iPhone has been redesigned) — pending; separate
-      target + design language (small screen / AOD / watchOS materials, not the ember bed).
+- [x] **Watch app UI refresh** — watchOS-native light touch (no ember bed): warm-tinted
+      probe card, rounded/monospaced timer typography, long-preset format fix (`935e84c`).
+      Build-verified; on-device visual check still pending (needs paired-iPhone sync).
 
 ## Mechanics / consistency
 - [ ] **Preheat timer → `endDate` model** — currently a decrement counter
@@ -117,8 +119,8 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       it after backgrounding. Regression test added. (`ce907cb`)
 - [ ] Does **compact mode persist** across a cold relaunch? The Settings toggle
       binds straight to the published property; no save-on-change was spotted.
-- [ ] **Watch long-preset formatting:** watch `format(seconds:)` shows e.g. `90:00`
-      instead of `1:30:00` (iPhone already handles this via `timeLabel`).
+- [x] **Watch long-preset formatting:** fixed — watch `format(seconds:)` now shows hours
+      (`1:30:00`), matching the iPhone (`935e84c`).
 
 ## Parked
 - [x] **Cloud sync — parked** (no user demand, low value for a single-device grill
