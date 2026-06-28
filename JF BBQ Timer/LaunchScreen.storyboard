@@ -17,6 +17,9 @@
                         <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
+                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFill" image="EmberLaunch" translatesAutoresizingMaskIntoConstraints="NO" id="emb-er-001">
+                                <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
+                            </imageView>
                             <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="ygD-oA-h7d">
                                 <rect key="frame" x="71.666666666666686" y="276" width="250" height="250"/>
                                 <subviews>
@@ -26,8 +29,8 @@
                                 </subviews>
                                 <color key="backgroundColor" white="1" alpha="0.0" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                 <constraints>
-                                    <constraint firstAttribute="width" constant="250" id="eHf-Tw-agT"/>
-                                    <constraint firstAttribute="height" constant="250" id="fdt-ZH-fkr"/>
+                                    <constraint firstAttribute="width" constant="300" id="eHf-Tw-agT"/>
+                                    <constraint firstAttribute="height" constant="300" id="fdt-ZH-fkr"/>
                                     <constraint firstItem="HwS-rA-Jh3" firstAttribute="leading" secondItem="ygD-oA-h7d" secondAttribute="leading" id="kXh-fX-MfT"/>
                                     <constraint firstAttribute="trailing" secondItem="HwS-rA-Jh3" secondAttribute="trailing" id="mFk-5L-yhl"/>
                                     <constraint firstItem="HwS-rA-Jh3" firstAttribute="top" secondItem="ygD-oA-h7d" secondAttribute="top" id="rDL-Sd-Hfh"/>
@@ -49,6 +52,10 @@
                         <viewLayoutGuide key="safeArea" id="Bcu-3y-fUS"/>
                         <color key="backgroundColor" red="0.15" green="0.035" blue="0.02" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
+                            <constraint firstItem="emb-er-001" firstAttribute="leading" secondItem="Ze5-6b-2t3" secondAttribute="leading" id="emb-c1"/>
+                            <constraint firstAttribute="trailing" secondItem="emb-er-001" secondAttribute="trailing" id="emb-c2"/>
+                            <constraint firstItem="emb-er-001" firstAttribute="top" secondItem="Ze5-6b-2t3" secondAttribute="top" id="emb-c3"/>
+                            <constraint firstAttribute="bottom" secondItem="emb-er-001" secondAttribute="bottom" id="emb-c4"/>
                             <constraint firstItem="gCT-Q7-drx" firstAttribute="top" secondItem="ygD-oA-h7d" secondAttribute="bottom" constant="8" id="LY1-dn-hvz"/>
                             <constraint firstItem="ygD-oA-h7d" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" constant="-25" id="U7B-Kc-gfI"/>
                             <constraint firstItem="ygD-oA-h7d" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="e5L-9k-9cO"/>
@@ -63,6 +70,7 @@
     </scenes>
     <resources>
         <image name="BBQLogo" width="1024" height="1024"/>
+        <image name="EmberLaunch" width="1320" height="2868"/>
         <systemColor name="systemOrangeColor">
             <color red="1" green="0.58399999999999996" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
         </systemColor>
