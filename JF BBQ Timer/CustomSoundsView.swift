@@ -69,6 +69,7 @@ struct CustomSoundsView: View {
                 .padding(.vertical, 5)
             }
         }
+        .immersiveGlassList()
         .navigationTitle("Custom Sounds")
         .onDisappear {
             // Stop any playing audio when leaving
