@@ -52,6 +52,8 @@ struct ProbeAttachSheet: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .immersiveGlassList()
+            .tint(Color("TimerAccent"))
             .navigationTitle("Attach probe to…")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

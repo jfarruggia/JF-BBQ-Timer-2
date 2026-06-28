@@ -66,12 +66,7 @@ struct NewSettingsView: View {
     @State private var showSettingsSaved = false
     @State private var showTestPlayed = false
     @State private var premiumPrice: String = "$3.99" // Default/fallback price
-    #if os(iOS)
-    /// Injected from the app-level environment so the probe connection persists
-    /// regardless of which screen is visible (not just while Settings is open).
-    @EnvironmentObject var probeManager: ProbeBLEManager
-    #endif
-    
+
     private func checkPremiumStatus() {
         debugLog("🔍 Checking premium status in settings...")
         settings.updatePremiumStatus()
@@ -306,11 +301,8 @@ struct NewSettingsView: View {
                         }
                         .pickerStyle(.segmented)
                     }
-                    #if os(iOS)
-                    NavigationLink("Connect Probe (debug)") {
-                        ProbePickerView(probeManager: probeManager)
-                    }
-                    #endif
+                    // Probe connection now lives behind the header "Probe" chip on the
+                    // main screen; the old DEBUG entry here was redundant and removed.
                 }
                 #endif
             }

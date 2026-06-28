@@ -32,8 +32,26 @@ private struct ProbeReadingRow: View {
 struct ProbePickerView: View {
 
     @ObservedObject var probeManager: ProbeBLEManager
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
+        NavigationView {
+            pickerList
+                .listStyle(.insetGrouped)
+                .immersiveGlassList()
+                .tint(Color("TimerAccent"))
+                .navigationTitle("Connect Probe")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { dismiss() }
+                    }
+                }
+        }
+        .navigationViewStyle(.stack)
+    }
+
+    private var pickerList: some View {
         List {
             // MARK: Connection state banner
             Section(header: Text("Status")) {
@@ -65,7 +83,7 @@ struct ProbePickerView: View {
                         } label: {
                             HStack {
                                 VStack(alignment: .leading) {
-                                    Text(probe.name ?? "Unknown Probe")
+                                    Text(probe.name ?? "Combustion Probe")
                                         .fontWeight(.medium)
                                     Text(probe.id.uuidString)
                                         .font(.caption2)
@@ -105,8 +123,6 @@ struct ProbePickerView: View {
             if case .connected   = probeManager.connectionState { disconnectSection }
             if case .reconnecting = probeManager.connectionState { disconnectSection }
         }
-        .listStyle(.insetGrouped)
-        .navigationTitle("Connect Probe")
     }
 
     // MARK: - Helpers
