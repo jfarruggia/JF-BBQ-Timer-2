@@ -118,7 +118,7 @@ struct ProbeBLEManagerTests {
         let (mgr, _) = makeManager()
         // Seed some state
         mgr.handleCentralStateChange(poweredOn: true)
-        mgr.handleDiscovered(id: UUID(), name: "Probe A", rssi: -55)
+        mgr.handleDiscovered(id: UUID(), name: "Probe A", serial: nil, rssi: -55)
         mgr.handleStatusNotification(makeValidPayload())
 
         mgr.handleCentralStateChange(poweredOn: false)
@@ -132,7 +132,7 @@ struct ProbeBLEManagerTests {
     func discoverNewProbe() {
         let (mgr, _) = makeManager()
         let id = UUID()
-        mgr.handleDiscovered(id: id, name: "Probe A", rssi: -60)
+        mgr.handleDiscovered(id: id, name: "Probe A", serial: nil, rssi: -60)
         #expect(mgr.discoveredProbes.count == 1)
         #expect(mgr.discoveredProbes[0].id == id)
         #expect(mgr.discoveredProbes[0].name == "Probe A")
@@ -143,8 +143,8 @@ struct ProbeBLEManagerTests {
     func discoverSameProbeUpdates() {
         let (mgr, _) = makeManager()
         let id = UUID()
-        mgr.handleDiscovered(id: id, name: "Probe A", rssi: -60)
-        mgr.handleDiscovered(id: id, name: "Probe A v2", rssi: -45)
+        mgr.handleDiscovered(id: id, name: "Probe A", serial: nil, rssi: -60)
+        mgr.handleDiscovered(id: id, name: "Probe A v2", serial: nil, rssi: -45)
         #expect(mgr.discoveredProbes.count == 1)
         #expect(mgr.discoveredProbes[0].name == "Probe A v2")
         #expect(mgr.discoveredProbes[0].rssi == -45)
@@ -153,8 +153,8 @@ struct ProbeBLEManagerTests {
     @Test("handleDiscovered with two different IDs produces two entries")
     func discoverTwoDifferentProbes() {
         let (mgr, _) = makeManager()
-        mgr.handleDiscovered(id: UUID(), name: "Probe A", rssi: -60)
-        mgr.handleDiscovered(id: UUID(), name: "Probe B", rssi: -70)
+        mgr.handleDiscovered(id: UUID(), name: "Probe A", serial: nil, rssi: -60)
+        mgr.handleDiscovered(id: UUID(), name: "Probe B", serial: nil, rssi: -70)
         #expect(mgr.discoveredProbes.count == 2)
     }
 

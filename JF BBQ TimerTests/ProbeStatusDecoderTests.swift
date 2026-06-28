@@ -8,6 +8,43 @@ import Testing
 import Foundation
 @testable import JF_BBQ_Timer
 
+// MARK: - Advertising serial parsing
+//
+// Pinned to four real advertising packets captured from probe 1000FADE. The serial
+// bytes are constant across packets while the temperature bytes change, confirming
+// the [vendor 0x09C7][type][serial UInt32 LE] layout.
+
+@Suite("Advertising serial parsing")
+struct AdvertisingSerialTests {
+
+    private func data(_ hex: String) -> Data {
+        Data(hex.split(separator: " ").map { UInt8($0, radix: 16)! })
+    }
+
+    @Test("Real probe packets all decode to serial 1000FADE")
+    func realPackets() {
+        let packets = [
+            "C7 09 01 DE FA 00 10 79 03 6F DC 0D BB 91 37 F4 06 DE B0 1B 00 E0 00 00",
+            "C7 09 01 DE FA 00 10 7A 23 6F DC 0D BB 91 37 F2 C6 DD D0 1B 00 C0 00 00",
+            "C7 09 01 DE FA 00 10 7B 43 6F DC 0D BB 81 37 F2 86 DD A8 1B 00 C0 00 00",
+            "C7 09 01 DE FA 00 10 7B 23 6F E0 8D BB 91 37 F6 06 DE B8 1B 00 C0 00 00",
+        ]
+        for p in packets {
+            #expect(ProbeAdvertising.serialHex(fromManufacturerData: data(p)) == "1000FADE")
+        }
+    }
+
+    @Test("Non-Combustion vendor id returns nil")
+    func wrongVendor() {
+        #expect(ProbeAdvertising.serialHex(fromManufacturerData: data("4C 00 01 DE FA 00 10")) == nil)
+    }
+
+    @Test("Too-short data returns nil")
+    func tooShort() {
+        #expect(ProbeAdvertising.serialHex(fromManufacturerData: data("C7 09 01")) == nil)
+    }
+}
+
 // MARK: - Temperature conversion formula
 
 @Suite("Temperature raw-to-°C conversion")

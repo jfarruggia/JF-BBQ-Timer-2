@@ -44,6 +44,8 @@ protocol ProbeCentral: AnyObject {
 struct DiscoveredProbe: Identifiable, Equatable {
     let id: UUID
     var name: String?
+    /// Combustion serial as 8-digit hex (e.g. "1000FADE"), parsed from advertising data.
+    var serial: String?
     var rssi: Int
 }
 
@@ -177,14 +179,20 @@ final class ProbeBLEManager: ObservableObject {
 
     /// Called when a peripheral is discovered during a scan.
     /// Upserts into `discoveredProbes` (same id → update rssi/name; new id → append).
-    func handleDiscovered(id: UUID, name: String?, rssi: Int) {
+    func handleDiscovered(id: UUID, name: String?, serial: String?, rssi: Int) {
+        if let serial { serialsByID[id] = serial }
         if let index = discoveredProbes.firstIndex(where: { $0.id == id }) {
             discoveredProbes[index].name = name
             discoveredProbes[index].rssi = rssi
+            if let serial { discoveredProbes[index].serial = serial }
         } else {
-            discoveredProbes.append(DiscoveredProbe(id: id, name: name, rssi: rssi))
+            discoveredProbes.append(DiscoveredProbe(id: id, name: name, serial: serial, rssi: rssi))
         }
     }
+
+    /// Serial numbers seen per peripheral id, so the connected-status line can show the
+    /// serial even after the discovered list is cleared.
+    private(set) var serialsByID: [UUID: String] = [:]
 
     /// Called when the central successfully connected to a peripheral.
     func handleConnected(id: UUID) {
@@ -323,20 +331,15 @@ extension CoreBluetoothProbeCentral: CBCentralManagerDelegate {
     ) {
         // Retain the peripheral so we can connect to it reliably when the user taps it.
         discoveredPeripherals[peripheral.identifier] = peripheral
-        #if DEBUG
-        // TEMP capture: dump the raw advertising manufacturer-data bytes so we can pin
-        // the Combustion serial-number byte layout. Remove once the serial parser exists.
-        if let mfg = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data {
-            let hex = mfg.map { String(format: "%02X", $0) }.joined(separator: " ")
-            debugLog("[ProbeAdv] name=\(peripheral.name ?? "nil") id=\(peripheral.identifier.uuidString) mfgData=[\(hex)]")
-        } else {
-            debugLog("[ProbeAdv] name=\(peripheral.name ?? "nil") id=\(peripheral.identifier.uuidString) mfgData=none keys=\(advertisementData.keys)")
-        }
-        #endif
+        // Parse the Combustion serial from the advertising manufacturer data so the
+        // picker can label the probe by serial instead of "Unknown Probe".
+        let serial = (advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data)
+            .flatMap { ProbeAdvertising.serialHex(fromManufacturerData: $0) }
         Task { @MainActor in
             manager?.handleDiscovered(
                 id: peripheral.identifier,
                 name: peripheral.name,
+                serial: serial,
                 rssi: RSSI.intValue
             )
         }

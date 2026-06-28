@@ -85,7 +85,7 @@ struct ProbePickerView: View {
                                 VStack(alignment: .leading) {
                                     Text(probe.name ?? "Combustion Probe")
                                         .fontWeight(.medium)
-                                    Text(probe.id.uuidString)
+                                    Text(probe.serial.map { "Serial \($0)" } ?? probe.id.uuidString)
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
                                 }
@@ -146,14 +146,20 @@ struct ProbePickerView: View {
         case .scanning:
             return "Scanning…"
         case .connecting(let id):
-            return "Connecting to \(id.uuidString.prefix(8))…"
+            return "Connecting to \(label(for: id))…"
         case .connected(let id):
-            return "Connected to \(id.uuidString.prefix(8))"
+            return "Connected to \(label(for: id))"
         case .reconnecting(let id):
-            return "Reconnecting to \(id.uuidString.prefix(8))…"
+            return "Reconnecting to \(label(for: id))…"
         case .disconnected:
             return "Disconnected"
         }
+    }
+
+    /// Prefer the probe's serial (e.g. "1000FADE") for status text; fall back to the
+    /// short peripheral-id prefix if we never captured the serial (e.g. auto-reconnect).
+    private func label(for id: UUID) -> String {
+        probeManager.serialsByID[id] ?? String(id.uuidString.prefix(8))
     }
 
     private func predictionStateDescription(_ state: PredictionState) -> String {

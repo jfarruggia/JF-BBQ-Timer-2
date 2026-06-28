@@ -254,3 +254,39 @@ struct ProbeReading {
     // Prediction
     let prediction: ProbePrediction
 }
+
+// MARK: - Advertising data
+
+/// Pure parsing of a Combustion probe's BLE *advertising* manufacturer data — the
+/// little packet the probe broadcasts before any connection. We use it to label
+/// discovered probes by their real serial number instead of "Unknown Probe".
+///
+/// Layout (bytes, as delivered by `CBAdvertisementDataManufacturerDataKey`):
+///   [0..1] company ID, little-endian — Combustion is `0x09C7`
+///   [2]    product type (1 = probe)
+///   [3..6] serial number, little-endian `UInt32`
+///   [7...] packed temperatures / mode / battery (ignored here)
+///
+/// Pinned to real probe packets in ProbeStatusDecoderTests.
+enum ProbeAdvertising {
+    static let combustionCompanyID: UInt16 = 0x09C7
+
+    /// The serial as an 8-digit uppercase hex string (e.g. "1000FADE"), or nil if the
+    /// data isn't a Combustion advertisement / is too short.
+    static func serialHex(fromManufacturerData data: Data) -> String? {
+        guard let serial = serialNumber(fromManufacturerData: data) else { return nil }
+        return String(format: "%08X", serial)
+    }
+
+    /// The raw serial number, or nil if the data isn't a Combustion advertisement.
+    static func serialNumber(fromManufacturerData data: Data) -> UInt32? {
+        let bytes = [UInt8](data)
+        guard bytes.count >= 7 else { return nil }
+        let company = UInt16(bytes[0]) | (UInt16(bytes[1]) << 8)
+        guard company == combustionCompanyID else { return nil }
+        return UInt32(bytes[3])
+            | (UInt32(bytes[4]) << 8)
+            | (UInt32(bytes[5]) << 16)
+            | (UInt32(bytes[6]) << 24)
+    }
+}
