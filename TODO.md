@@ -10,7 +10,7 @@ All items below are **Version 2**. Planned sequence:
 2. [x] **Combustion probe** — BLE foundation 2A–2D done + on-device connect/stream verified
 3. [x] **Main-screen layout pass** — header + preheat + ember-glow + probe UI + glass redesign
 4. [x] Design-consistency sweep (Settings, paywall, alerts, custom sounds, watch UI)
-5. [ ] Onboarding review
+5. [x] Onboarding review (`6df536a`) — redesigned to ember/glass, slimmed setup, replay-from-Settings
 6. [ ] Reconcile branch → ship (App Store)
 
 Isolated quick wins (voice announcements, preheat→`endDate`, the two bugs) slot in anytime.
@@ -84,8 +84,13 @@ Built as steps 1–6, then refined live with Jim from device screenshots. All on
 ## UX / layout
 - [x] **Reposition the Preheat grill button** → now a fixed bottom bar (`69aad43`).
 - [x] **Beef up the "GrillTime Pro" header** → taller + 22pt title + glass treatment (`99018fd`, `c643f5f`).
-- [ ] **Detailed onboarding review** — simplify the flow and improve the look
-      (`CarouselOnboardingView` / `OnboardingView`).
+- [x] **Detailed onboarding review** (`6df536a`) — ember/glass theme, rewritten/trimmed
+      copy, slimmed setup (defaults summary + optional "Customize timers"), fixed the
+      title/Skip overlap, "Replay Welcome Tour" in Settings, removed dead onboarding code.
+- [ ] **Cleanup (needs Xcode):** `OnboardingView.swift` is now fully dead (the active flow is
+      `OnboardingFlowView` in `CarouselOnboardingView.swift`; `OnboardingView` is referenced
+      only by its own `#Preview`). Delete the file via Xcode (right-click ▸ Delete) — Claude
+      can't remove it without hand-editing `project.pbxproj`.
 
 ## Audio
 - [ ] **Voice announcements sound bad** — investigate + improve quality
