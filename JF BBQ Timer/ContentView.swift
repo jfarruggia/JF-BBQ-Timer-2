@@ -689,14 +689,14 @@ struct ContentView: View {
                 .accessibilityIdentifier("DebugPanel")
             }
         }
-        .sheet(isPresented: $showSettings) {
+        .fullScreenCover(isPresented: $showSettings) {
             NewSettingsView(settings: settings)
         }
         #if os(iOS)
-        .sheet(isPresented: $showProbeConnect) {
+        .fullScreenCover(isPresented: $showProbeConnect) {
             ProbePickerView(probeManager: probeManager)
         }
-        .sheet(isPresented: $showAttachSheet) {
+        .fullScreenCover(isPresented: $showAttachSheet) {
             if #available(iOS 16, *) {
                 ProbeAttachSheet(
                     cooks: settings.allTimers.map { CookItem(id: $0.id, name: $0.name) },
