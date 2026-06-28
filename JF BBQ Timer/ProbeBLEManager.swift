@@ -323,6 +323,16 @@ extension CoreBluetoothProbeCentral: CBCentralManagerDelegate {
     ) {
         // Retain the peripheral so we can connect to it reliably when the user taps it.
         discoveredPeripherals[peripheral.identifier] = peripheral
+        #if DEBUG
+        // TEMP capture: dump the raw advertising manufacturer-data bytes so we can pin
+        // the Combustion serial-number byte layout. Remove once the serial parser exists.
+        if let mfg = advertisementData[CBAdvertisementDataManufacturerDataKey] as? Data {
+            let hex = mfg.map { String(format: "%02X", $0) }.joined(separator: " ")
+            debugLog("[ProbeAdv] name=\(peripheral.name ?? "nil") id=\(peripheral.identifier.uuidString) mfgData=[\(hex)]")
+        } else {
+            debugLog("[ProbeAdv] name=\(peripheral.name ?? "nil") id=\(peripheral.identifier.uuidString) mfgData=none keys=\(advertisementData.keys)")
+        }
+        #endif
         Task { @MainActor in
             manager?.handleDiscovered(
                 id: peripheral.identifier,
