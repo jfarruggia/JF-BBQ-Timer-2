@@ -87,16 +87,21 @@ class Settings: ObservableObject {
     @Published var selectedVoiceIdentifier: String
     @Published var announceOnlyWithHeadphones: Bool
 
+    // True only for the separate ".dev" identity (the dev/TestFlight build) —
+    // never the production App Store app, which has a different bundle id. Used to
+    // expose testing-only affordances (e.g. the premium override below) in Release
+    // dev builds while keeping them impossible to trigger in production.
+    static let isDevBuild = Bundle.main.bundleIdentifier == "com.jamesfarruggia.jfbbqtimer.dev"
+
     // Premium features flag - one-time purchase
-    #if DEBUG
-    // DEBUG-only: when true, RevenueCat sync is ignored so isPremiumUser can be
-    // set manually for testing. Never compiled into release builds.
+    // When debugPremiumOverrideEnabled is true, RevenueCat sync is ignored so
+    // isPremiumUser can be set manually for testing. The override only has any
+    // effect when isDevBuild is true, so it can never affect the production app.
     @Published var debugPremiumOverrideEnabled: Bool {
         didSet {
             UserDefaults.standard.set(debugPremiumOverrideEnabled, forKey: "debugPremiumOverrideEnabled")
         }
     }
-    #endif
 
     @Published var isPremiumUser: Bool {
         didSet {
@@ -124,12 +129,10 @@ class Settings: ObservableObject {
             debugLog("🔑 Entitlements: \(String(describing: customerInfo?.entitlements))")
 
             DispatchQueue.main.async {
-                #if DEBUG
-                if self?.debugPremiumOverrideEnabled == true {
-                    debugLog("🧪 Debug premium override active — ignoring RevenueCat sync")
+                if Settings.isDevBuild && self?.debugPremiumOverrideEnabled == true {
+                    debugLog("🧪 Premium override active (dev build) — ignoring RevenueCat sync")
                     return
                 }
-                #endif
                 if self?.isPremiumUser != isPremium {
                     debugLog("⚠️ Local premium status doesn't match RevenueCat - updating...")
                     self?.isPremiumUser = isPremium
@@ -171,9 +174,7 @@ class Settings: ObservableObject {
         }
 
         self.isPremiumUser = UserDefaults.standard.bool(forKey: "isPremiumUser")
-        #if DEBUG
         self.debugPremiumOverrideEnabled = UserDefaults.standard.bool(forKey: "debugPremiumOverrideEnabled")
-        #endif
         debugLog("📱 Initialized premium status from UserDefaults: \(self.isPremiumUser)")
 
         if UserDefaults.standard.object(forKey: "soundEnabled") == nil {

@@ -285,26 +285,24 @@ struct NewSettingsView: View {
                         .accessibilityIdentifier("SupportLink")
                 }
 
-                #if DEBUG
-                Section(header: Text("Debug"),
-                        footer: Text("DEBUG builds only. Overrides premium status for testing — never affects real purchases.")) {
-                    Toggle("Override Premium", isOn: $settings.debugPremiumOverrideEnabled)
-                        .onChange(of: settings.debugPremiumOverrideEnabled) { isOn in
-                            // When turning the override OFF, immediately re-sync the real status
-                            // from RevenueCat so we don't linger on a forced value.
-                            if !isOn { settings.updatePremiumStatus() }
+                if Settings.isDevBuild {
+                    Section(header: Text("Debug"),
+                            footer: Text("Dev/TestFlight build only. Overrides premium status for testing — never appears in or affects the production App Store app.")) {
+                        Toggle("Override Premium", isOn: $settings.debugPremiumOverrideEnabled)
+                            .onChange(of: settings.debugPremiumOverrideEnabled) { isOn in
+                                // When turning the override OFF, immediately re-sync the real status
+                                // from RevenueCat so we don't linger on a forced value.
+                                if !isOn { settings.updatePremiumStatus() }
+                            }
+                        if settings.debugPremiumOverrideEnabled {
+                            Picker("Status", selection: $settings.isPremiumUser) {
+                                Text("Free").tag(false)
+                                Text("Paid").tag(true)
+                            }
+                            .pickerStyle(.segmented)
                         }
-                    if settings.debugPremiumOverrideEnabled {
-                        Picker("Status", selection: $settings.isPremiumUser) {
-                            Text("Free").tag(false)
-                            Text("Paid").tag(true)
-                        }
-                        .pickerStyle(.segmented)
                     }
-                    // Probe connection now lives behind the header "Probe" chip on the
-                    // main screen; the old DEBUG entry here was redundant and removed.
                 }
-                #endif
             }
             .listStyle(InsetGroupedListStyle())
             .immersiveGlassList()
