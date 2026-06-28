@@ -18,8 +18,11 @@ extension Color {
 
 // MARK: - Main Onboarding Flow
 struct OnboardingFlowView: View {
+    /// When set (e.g. replaying the tour from Settings), completing the flow calls
+    /// this to dismiss instead of flipping `hasOnboarded`. Nil = first-run behavior.
+    var onFinish: (() -> Void)? = nil
+
     @State private var selection = 0
-    @State private var showMain = false
     @AppStorage("hasOnboarded") private var hasOnboarded: Bool = false
     @StateObject private var settings = Settings()
     // Timer 1
@@ -34,35 +37,17 @@ struct OnboardingFlowView: View {
     @AppStorage("preheatDuration") private var preheatDuration: Int = 600
     
     var body: some View {
-        Group {
-            if #available(iOS 16.0, *) {
-                NavigationStack {
-                    onboardingContent
-                        .navigationDestination(isPresented: $showMain) {
-                            MainView()
-                        }
-                }
-            } else {
-                NavigationView {
-                    onboardingContent
-                        .background(
-                            NavigationLink(destination: MainView(), isActive: $showMain) {
-                                EmptyView()
-                            }
-                            .hidden()
-                        )
-                }
-                .navigationViewStyle(StackNavigationViewStyle())
-            }
-        }
-    }
-    
-    // Extracted common content
-    private var onboardingContent: some View {
+        // No NavigationStack needed: completing onboarding flips `hasOnboarded`,
+        // which swaps the app's root to ContentView (see JF_BBQ_TimerApp).
         ZStack(alignment: .topTrailing) {
-            Color.onboardingBackground.ignoresSafeArea()
+            // Background: shared ember bed on iOS 26 (added by immersiveGlassBackground
+            // below); original salmon backdrop pre-26.
+            if #unavailable(iOS 26) {
+                Color.onboardingBackground.ignoresSafeArea()
+            }
+
             TabView(selection: $selection) {
-                WelcomeOnboardingScreen(skipAction: completeOnboarding)
+                WelcomeOnboardingScreen()
                     .tag(0)
                 CombinedTimerPreheatSetupScreen(
                     timer1Name: $timer1Name,
@@ -74,7 +59,7 @@ struct OnboardingFlowView: View {
                     preheatDuration: $preheatDuration
                 )
                     .tag(1)
-                // Third onboarding page: Custom Paywall
+                // Third onboarding page: Custom Paywall (already themed)
                 CustomPaywallView(dismissAction: completeOnboarding, settings: settings)
                     .tag(2)
             }
@@ -83,33 +68,28 @@ struct OnboardingFlowView: View {
             // Ensure defaults are visible the first time this screen appears, even if
             // prior runs left zero or empty values in UserDefaults.
             .onAppear { ensureOnboardingDefaults() }
-            
-            // Skip button (top right)
+
+            // Skip button (top right) — hidden on the paywall page
             if selection < 2 {
-                VStack {
-                    HStack {
-                        Spacer()
-                        Button("Skip for now") {
-                            completeOnboarding()
-                        }
-                        .font(.subheadline)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(Color.black.opacity(0.6))
-                        .cornerRadius(12)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .padding(.top, 5)
-                    .padding(.trailing, 24)
-                }
+                Button("Skip") { completeOnboarding() }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(Capsule().fill(Color.black.opacity(0.45)))
+                    .padding(.top, 8)
+                    .padding(.trailing, 16)
             }
         }
+        .immersiveGlassBackground()
     }
-    
+
     private func completeOnboarding() {
-        hasOnboarded = true
-        showMain = true
+        if let onFinish {
+            onFinish() // review mode: just dismiss
+        } else {
+            hasOnboarded = true
+        }
     }
 
     // Initialize defaults if missing or zero so page 2 shows expected values
@@ -126,120 +106,82 @@ struct OnboardingFlowView: View {
 
 // MARK: - Modular Onboarding Screens
 struct WelcomeOnboardingScreen: View {
-    let skipAction: () -> Void
     @State private var animateIcon = false
+
+    private struct Feature: Identifiable {
+        let id = UUID()
+        let icon: String
+        let text: String
+    }
+    private let features: [Feature] = [
+        .init(icon: "timer", text: "Time several foods at once, each on its own timer"),
+        .init(icon: "hand.tap.fill", text: "Flip and extend cook times with a single tap"),
+        .init(icon: "bell.badge.fill", text: "Loud alerts so you never miss a flip")
+    ]
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
-                Spacer()
+            VStack(spacing: 22) {
+                Spacer(minLength: 28)
+
                 Image("BBQLogo")
                     .resizable()
                     .scaledToFit()
-                    .frame(width:175, height: 175)
-                    .clipShape(RoundedRectangle(cornerRadius: 35, style: .continuous))
+                    .frame(width: 150, height: 150)
+                    .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 35, style: .continuous)
-                            .stroke(Color.white.opacity(0.2), lineWidth: 2)
+                        RoundedRectangle(cornerRadius: 32, style: .continuous)
+                            .stroke(Color.white.opacity(0.25), lineWidth: 2)
                     )
+                    .shadow(color: .black.opacity(0.4), radius: 12, x: 0, y: 6)
                     .scaleEffect(animateIcon ? 1.0 : 0.9)
                     .animation(.easeOut(duration: 0.4), value: animateIcon)
-                    .onAppear {
-                        animateIcon = true
-                    }
-                Text("Welcome to GrillTime Pro")
-                    .font(.title).bold()
-                    .foregroundColor(.black)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                    .padding(.top, 4)
-                    .padding(.bottom, 4)
-                Text("GrillTime Pro – Free Features")
-                    .font(.title2).bold().italic()
-                    .foregroundColor(Color("TimerAccent"))
-                    .multilineTextAlignment(.center)
-                    .padding(.vertical, 10)
-                    .padding(.horizontal, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color(red: 49/255, green: 45/255, blue: 45/255).opacity(0.75)) // #312d2d at 75%
-                    )
-                    .padding(.top, 8)
+                    .onAppear { animateIcon = true }
 
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(alignment: .top, spacing: 8) {
-                        Text("✓")
-                            .foregroundColor(Color(red: 87/255, green: 108/255, blue: 219/255))
-                        Text("Set up to 2 customizable timers for different foods")
-                    }
-                    HStack(alignment: .top, spacing: 8) {
-                        Text("✓")
-                            .foregroundColor(Color(red: 87/255, green: 108/255, blue: 219/255))
-                        Text("Name your timers for easy tracking")
-                    }
-                    HStack(alignment: .top, spacing: 8) {
-                        Text("✓")
-                            .foregroundColor(Color(red: 87/255, green: 108/255, blue: 219/255))
-                        Text("Adjust flip & extend cook times to match your grilling style")
-                    }
-                    HStack(alignment: .top, spacing: 8) {
-                        Text("✓")
-                            .foregroundColor(Color(red: 87/255, green: 108/255, blue: 219/255))
-                        Text("Get sound alerts so you never miss a beat")
-                    }
-                    HStack(alignment: .top, spacing: 8) {
-                        Text("✓")
-                            .foregroundColor(Color(red: 87/255, green: 108/255, blue: 219/255))
-                        Text("Compact & Large Timer Views—perfect for every grill master, including those with vision needs")
+                VStack(spacing: 6) {
+                    Text("Welcome to GrillTime Pro")
+                        .font(.system(.title, design: .rounded)).bold()
+                        .foregroundColor(.primary)
+                        .multilineTextAlignment(.center)
+                        .minimumScaleFactor(0.7)
+                    Text("Perfect timing, every cook.")
+                        .font(.headline)
+                        .foregroundColor(Color("TimerAccent"))
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.horizontal)
+
+                VStack(alignment: .leading, spacing: 16) {
+                    ForEach(features) { feature in
+                        HStack(alignment: .center, spacing: 14) {
+                            Image(systemName: feature.icon)
+                                .font(.title3)
+                                .foregroundColor(Color("TimerAccent"))
+                                .frame(width: 28)
+                            Text(feature.text)
+                                .font(.callout)
+                                .foregroundColor(.white)
+                            Spacer(minLength: 0)
+                        }
                     }
                 }
-                .font(.body)
-                .foregroundColor(.black)
-                .padding()
+                .padding(18)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .grillGlassPane(cornerRadius: 20)
+                .padding(.horizontal, 20)
 
-                Text("Start grilling smarter today—upgrade anytime for even more power!")
-                    .font(.body)
-                    .foregroundColor(Color("TimerAccent"))
-                    .multilineTextAlignment(.center)
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.black.opacity(0.6))
-                    )
-                    .padding(.top, 8)
-                // Minimal swipe instruction with icon
                 HStack(spacing: 6) {
-                    Text("Swipe to set up timers")
-                        .font(.footnote)
-                        .foregroundColor(.white.opacity(0.8))
+                    Text("Swipe to set up your timers")
                     Image(systemName: "arrow.right")
-                        .foregroundColor(.white.opacity(0.8))
                 }
-                .padding(.top, 4)
-                Spacer()
+                .font(.footnote)
+                .foregroundColor(.primary.opacity(0.7))
+
+                Spacer(minLength: 28)
             }
             .padding()
+            .frame(maxWidth: .infinity)
         }
-    }
-}
-
-// MARK: - MainView Placeholder
-struct MainView: View {
-    var body: some View {
-        VStack {
-            Spacer()
-            Image(systemName: "flame.fill")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 80, height: 80)
-                .foregroundColor(.orange)
-            Text("Ready to Grill.")
-                .font(.largeTitle).bold()
-                .padding(.top, 16)
-            Spacer()
-        }
-        .padding()
     }
 }
 
@@ -257,7 +199,10 @@ struct CombinedTimerPreheatSetupScreen: View {
     // State for showing modals and tracking which value is being edited
     @State private var showingPicker: PickerType? = nil
     @State private var tempTime: Int = 0
-    
+    // Detailed timer customization is collapsed by default — defaults are pre-filled,
+    // so users can dive straight in and tweak later (here or in Settings).
+    @State private var showCustomize = false
+
     // Enum to identify which value is being edited
     enum PickerType: Identifiable {
         case timer1Preset1, timer1Preset2, timer2Preset1, timer2Preset2, preheat
@@ -274,225 +219,61 @@ struct CombinedTimerPreheatSetupScreen: View {
     
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
-                Spacer(minLength: 20)
-                Text("Set Up Your Grill Timers")
-                    .font(.title).bold()
-                    .foregroundColor(.black)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                    .padding(.top, 4)
-                    .padding(.bottom, 4)
-                HStack(alignment: .center, spacing: 8) {
-                    Text("Personalize your timers with custom names and times—or dive right in with our handy defaults!")
-                        .font(.title3).bold()
-                        .foregroundColor(Color("TimerAccent"))
+            VStack(spacing: 20) {
+                Spacer(minLength: 44) // clear the Skip button up top
+
+                VStack(spacing: 8) {
+                    Text("You're ready to grill")
+                        .font(.system(.title, design: .rounded)).bold()
+                        .foregroundColor(.primary)
                         .multilineTextAlignment(.center)
-                        .shadow(color: .black.opacity(0.25), radius: 2, x: 1, y: 1)
+                        .minimumScaleFactor(0.7)
+                    Text("Two timers are set with sensible defaults. Start now, or fine-tune them — you can change everything later in Settings.")
+                        .font(.subheadline)
+                        .foregroundColor(.primary.opacity(0.8))
+                        .multilineTextAlignment(.center)
                 }
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 24)
-                        .fill(Color(red: 49/255, green: 45/255, blue: 45/255).opacity(0.75)) // #312d2d at 75%
-                )
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal)
-                .padding(.bottom, 4)
-                
-                // Timer 1 Container
-                VStack(alignment: .leading, spacing: 12) {
-                    Label("Timer 1", systemImage: "clock.fill")
-                        .font(.headline)
-                        .foregroundColor(Color("TimerAccent"))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color(red: 49/255, green: 45/255, blue: 45/255).opacity(0.75)) // #312d2d at 75%
-                        .cornerRadius(8)
-                    
-                    VStack(alignment: .leading, spacing: 10) {
-                        TextField("Timer 1 Name", text: $timer1Name)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                        HStack {
-                            Text("Flip Time:")
-                                .foregroundColor(Color("TimerAccent"))
-                            Spacer()
-                            Button(action: {
-                                tempTime = timer1Preset1
-                                showingPicker = .timer1Preset1
-                            }) {
-                                Text(timeString(from: timer1Preset1))
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(Color("TimerAccent"))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color(red: 49/255, green: 45/255, blue: 45/255).opacity(0.75))
-                                    .cornerRadius(8)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color.white.opacity(0.4), lineWidth: 1)
-                                    )
-                            }
-                        }
-                        HStack {
-                            Text("Extend cook time by:")
-                                .foregroundColor(Color("TimerAccent"))
-                            Spacer()
-                            Button(action: {
-                                tempTime = timer1Preset2
-                                showingPicker = .timer1Preset2
-                            }) {
-                                Text(timeString(from: timer1Preset2))
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(Color("TimerAccent"))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color(red: 49/255, green: 45/255, blue: 45/255).opacity(0.75))
-                                    .cornerRadius(8)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color.white.opacity(0.4), lineWidth: 1)
-                                    )
-                            }
-                        }
+                .padding(.horizontal, 24)
+
+                summaryCard
+                    .padding(.horizontal, 20)
+
+                Button {
+                    withAnimation(.easeInOut) { showCustomize.toggle() }
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: showCustomize ? "chevron.up" : "slider.horizontal.3")
+                        Text(showCustomize ? "Hide customization" : "Customize timers")
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(Color(red: 49/255, green: 45/255, blue: 45/255).opacity(0.75))
-                    .cornerRadius(12)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(Color("TimerAccent"))
                 }
-                .padding(16)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color("TimerContainerBG"))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.black, lineWidth: 1)
-                        )
-                )
-                .padding(.horizontal, 16)
-                
-                // Timer 2 Container
-                VStack(alignment: .leading, spacing: 12) {
-                    Label("Timer 2", systemImage: "clock.fill")
-                        .font(.headline)
-                        .foregroundColor(Color("TimerAccent"))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color(red: 49/255, green: 45/255, blue: 45/255).opacity(0.75))
-                        .cornerRadius(8)
-                    
-                    VStack(alignment: .leading, spacing: 10) {
-                        TextField("Timer 2 Name", text: $timer2Name)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                        HStack {
-                            Text("Flip Time:")
-                                .foregroundColor(Color("TimerAccent"))
-                            Spacer()
-                            Button(action: {
-                                tempTime = timer2Preset1
-                                showingPicker = .timer2Preset1
-                            }) {
-                                Text(timeString(from: timer2Preset1))
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(Color("TimerAccent"))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color(red: 49/255, green: 45/255, blue: 45/255).opacity(0.75))
-                                    .cornerRadius(8)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color.white.opacity(0.4), lineWidth: 1)
-                                    )
-                            }
-                        }
-                        HStack {
-                            Text("Extend cook time by:")
-                                .foregroundColor(Color("TimerAccent"))
-                            Spacer()
-                            Button(action: {
-                                tempTime = timer2Preset2
-                                showingPicker = .timer2Preset2
-                            }) {
-                                Text(timeString(from: timer2Preset2))
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundColor(Color("TimerAccent"))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color(red: 49/255, green: 45/255, blue: 45/255).opacity(0.75))
-                                    .cornerRadius(8)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color.white.opacity(0.4), lineWidth: 1)
-                                    )
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(Color(red: 49/255, green: 45/255, blue: 45/255).opacity(0.75))
-                    .cornerRadius(12)
+
+                if showCustomize {
+                    timerEditorCard(title: "Timer 1", name: $timer1Name,
+                                    flip: timer1Preset1, extend: timer1Preset2,
+                                    flipPicker: .timer1Preset1, extendPicker: .timer1Preset2)
+                        .padding(.horizontal, 20)
+                    timerEditorCard(title: "Timer 2", name: $timer2Name,
+                                    flip: timer2Preset1, extend: timer2Preset2,
+                                    flipPicker: .timer2Preset1, extendPicker: .timer2Preset2)
+                        .padding(.horizontal, 20)
+                    preheatEditorCard
+                        .padding(.horizontal, 20)
                 }
-                .padding(16)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color("TimerContainerBG"))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.black, lineWidth: 1)
-                        )
-                )
-                .padding(.horizontal, 16)
-                
-                // Preheat Duration Container
-                VStack(alignment: .leading, spacing: 12) {
-                    Label("Preheat Duration", systemImage: "flame.fill")
-                        .font(.headline)
-                        .foregroundColor(Color("TimerAccent"))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color(red: 49/255, green: 45/255, blue: 45/255).opacity(0.75))
-                        .cornerRadius(8)
-                    
-                    HStack {
-                        Text("Preheat:")
-                            .foregroundColor(Color("TimerAccent"))
-                        Spacer()
-                        Button(action: {
-                            tempTime = preheatDuration
-                            showingPicker = .preheat
-                        }) {
-                            Text(timeString(from: preheatDuration))
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundColor(Color("TimerAccent"))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color(red: 49/255, green: 45/255, blue: 45/255).opacity(0.75))
-                                .cornerRadius(8)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color.white.opacity(0.4), lineWidth: 1)
-                                )
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(Color(red: 49/255, green: 45/255, blue: 45/255).opacity(0.75))
-                    .cornerRadius(12)
+
+                HStack(spacing: 6) {
+                    Text("Swipe to continue")
+                    Image(systemName: "arrow.right")
                 }
-                .padding(16)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color("TimerContainerBG"))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.black, lineWidth: 1)
-                        )
-                )
-                .padding(.horizontal, 16)
-                Spacer(minLength: 20)
+                .font(.footnote)
+                .foregroundColor(.primary.opacity(0.7))
+                .padding(.top, 4)
+
+                Spacer(minLength: 28)
             }
-            .padding()
+            .padding(.vertical)
+            .frame(maxWidth: .infinity)
         }
         .onAppear {
             // Guarantee visible defaults when values are zero/empty
@@ -509,7 +290,6 @@ struct CombinedTimerPreheatSetupScreen: View {
             TimePickerModal(
                 totalSeconds: $tempTime,
                 onDone: {
-                    // Save the selected time to the correct property
                     switch pickerType {
                     case .timer1Preset1: timer1Preset1 = tempTime
                     case .timer1Preset2: timer1Preset2 = tempTime
@@ -519,18 +299,111 @@ struct CombinedTimerPreheatSetupScreen: View {
                     }
                     showingPicker = nil
                 },
-                onCancel: {
-                    showingPicker = nil
-                }
+                onCancel: { showingPicker = nil }
             )
         }
     }
-    // Helper to format seconds as HH:MM:SS
+
+    // MARK: - Summary + editor helpers
+
+    private var summaryCard: some View {
+        VStack(spacing: 14) {
+            summaryRow(name: timer1Name, flip: timer1Preset1, extend: timer1Preset2)
+            Divider().overlay(Color.white.opacity(0.15))
+            summaryRow(name: timer2Name, flip: timer2Preset1, extend: timer2Preset2)
+            Divider().overlay(Color.white.opacity(0.15))
+            HStack(spacing: 12) {
+                Image(systemName: "flame.fill")
+                    .foregroundColor(Color("TimerAccent"))
+                    .frame(width: 22)
+                Text("Preheat")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                Spacer()
+                Text(timeString(from: preheatDuration))
+                    .font(.subheadline).monospacedDigit()
+                    .foregroundColor(.white.opacity(0.85))
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity)
+        .grillGlassPane(cornerRadius: 20)
+    }
+
+    private func summaryRow(name: String, flip: Int, extend: Int) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "clock.fill")
+                .foregroundColor(Color("TimerAccent"))
+                .frame(width: 22)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name.isEmpty ? "Timer" : name)
+                    .font(.headline)
+                    .foregroundColor(.white)
+                Text("Flip \(timeString(from: flip))  ·  Extend +\(timeString(from: extend))")
+                    .font(.caption).monospacedDigit()
+                    .foregroundColor(.white.opacity(0.7))
+            }
+            Spacer()
+        }
+    }
+
+    @ViewBuilder
+    private func timerEditorCard(title: String, name: Binding<String>,
+                                 flip: Int, extend: Int,
+                                 flipPicker: PickerType, extendPicker: PickerType) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label(title, systemImage: "clock.fill")
+                .font(.headline)
+                .foregroundColor(Color("TimerAccent"))
+            TextField("\(title) name", text: name)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+            editRow(label: "Flip time", seconds: flip, picker: flipPicker)
+            editRow(label: "Extend by", seconds: extend, picker: extendPicker)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .grillGlassPane(cornerRadius: 16)
+    }
+
+    private var preheatEditorCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Preheat", systemImage: "flame.fill")
+                .font(.headline)
+                .foregroundColor(Color("TimerAccent"))
+            editRow(label: "Preheat time", seconds: preheatDuration, picker: .preheat)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .grillGlassPane(cornerRadius: 16)
+    }
+
+    private func editRow(label: String, seconds: Int, picker: PickerType) -> some View {
+        HStack {
+            Text(label)
+                .foregroundColor(.white)
+            Spacer()
+            Button {
+                tempTime = seconds
+                showingPicker = picker
+            } label: {
+                Text(timeString(from: seconds))
+                    .font(.system(size: 17, weight: .semibold)).monospacedDigit()
+                    .foregroundColor(Color("TimerAccent"))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(Color.black.opacity(0.35)))
+                    .overlay(Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1))
+            }
+        }
+    }
+
+    // Compact time: M:SS, or H:MM:SS for long durations.
     private func timeString(from seconds: Int) -> String {
         let h = seconds / 3600
         let m = (seconds % 3600) / 60
         let s = seconds % 60
-        return String(format: "%02d:%02d:%02d", h, m, s)
+        if h > 0 { return String(format: "%d:%02d:%02d", h, m, s) }
+        return String(format: "%d:%02d", m, s)
     }
 }
 
@@ -595,37 +468,6 @@ struct TimePickerModal: View {
         let m = min(max(minutes, 0), maxMinutes)
         let s = min(max(seconds, 0), maxSeconds)
         totalSeconds = h * 3600 + m * 60 + s
-    }
-}
-
-// MARK: - Temporary Paywall Onboarding Screen (placeholder for RevenueCat)
-struct PaywallOnboardingScreen: View {
-    let skipAction: () -> Void
-    let upgradeAction: () -> Void
-    let restoreAction: () -> Void
-    var body: some View {
-        VStack(spacing: 24) {
-            Spacer()
-            Image(systemName: "flame.circle.fill")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 120, height: 120)
-                .foregroundColor(.orange)
-            Text("Thank You for Using GrillTime Pro!")
-                .font(.largeTitle).bold()
-                .multilineTextAlignment(.center)
-                .foregroundColor(.white)
-            Text("Premium features will be available soon. Stay tuned for updates!")
-                .font(.title3)
-                .foregroundColor(.white.opacity(0.85))
-                .multilineTextAlignment(.center)
-            Button("Continue") {
-                skipAction()
-            }
-            .buttonStyle(.borderedProminent)
-            Spacer()
-        }
-        .padding()
     }
 }
 

@@ -61,6 +61,7 @@ struct NewSettingsView: View {
     @ObservedObject var settings: Settings
     @Environment(\.dismiss) var dismiss
     @State private var showPremiumUpgrade = false
+    @State private var showOnboardingReview = false
     @State private var showPreheatDurationPicker = false
     @State private var showSettingsSaved = false
     @State private var showTestPlayed = false
@@ -279,6 +280,10 @@ struct NewSettingsView: View {
 
                 // About & Support
                 Section(header: Text("About")) {
+                    Button(action: { showOnboardingReview = true }) {
+                        Label("Replay Welcome Tour", systemImage: "sparkles")
+                    }
+                    .accessibilityIdentifier("ReplayOnboarding")
                     Link("Privacy Policy", destination: URL(string: "https://www.farruggiacreations.com/privacy-policy.html")!)
                         .accessibilityIdentifier("PrivacyPolicyLink")
                     Link("Support", destination: URL(string: "mailto:info@FarruggiaCreations.com?subject=GrillTime%20Pro%20Support")!)
@@ -325,6 +330,10 @@ struct NewSettingsView: View {
             .accessibilityIdentifier("DoneButton"))
             .sheet(isPresented: $showPremiumUpgrade) {
                 CustomPaywallView(dismissAction: { showPremiumUpgrade = false }, settings: settings)
+            }
+            .fullScreenCover(isPresented: $showOnboardingReview) {
+                // Review mode: completing/skipping dismisses instead of re-running first-run.
+                OnboardingFlowView(onFinish: { showOnboardingReview = false })
             }
             if showSettingsSaved {
                 VStack {
