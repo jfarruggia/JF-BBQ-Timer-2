@@ -199,7 +199,16 @@ struct TimersListView: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8))
+            // Warm-tinted frosted card to echo the iPhone's warm glass (watchOS-native
+            // material, no ember bed — keeps it legible on the small screen / AOD).
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(.ultraThinMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color(red: 0.40, green: 0.10, blue: 0.05).opacity(0.18))
+                    )
+            )
             .padding(.horizontal, 4)
         }
     }
@@ -296,8 +305,14 @@ struct TimersListView: View {
     }
 
     private func format(seconds: Int) -> String {
-        let m = seconds / 60
+        let h = seconds / 3600
+        let m = (seconds % 3600) / 60
         let s = seconds % 60
+        // Show hours for long presets/elapsed (e.g. 1:30:00, not 90:00) to match
+        // the iPhone's timeLabel formatting.
+        if h > 0 {
+            return String(format: "%d:%02d:%02d", h, m, s)
+        }
         return String(format: "%02d:%02d", m, s)
     }
 
@@ -356,7 +371,8 @@ struct TimersListView: View {
                 }
                 if let shownElapsed = effectiveElapsed(for: row) {
                     Text("Lit Time \(format(seconds: shownElapsed))")
-                        .font(.headline)
+                        .font(.system(.headline, design: .rounded))
+                        .monospacedDigit()
                         .foregroundColor(.secondary)
                 }
             }
@@ -371,13 +387,14 @@ struct TimersListView: View {
     private func remainingCountdown(for row: WatchTimersModel.Row) -> some View {
         if let end = row.endDate, isRunning(row), end > Date() {
             Text(timerInterval: Date.now...end, countsDown: true)
-                .font(.title2)
+                .font(.system(.title2, design: .rounded))
                 .fontWeight(.bold)
                 .monospacedDigit()
         } else {
             Text(format(seconds: effectiveRemaining(for: row)))
-                .font(.title2)
+                .font(.system(.title2, design: .rounded))
                 .fontWeight(.bold)
+                .monospacedDigit()
         }
     }
 
