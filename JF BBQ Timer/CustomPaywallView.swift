@@ -125,7 +125,14 @@ struct CustomPaywallView: View {
             .padding(.bottom)
         }
         .padding(.vertical, 16)
-        .background(Color(red: 225/255, green: 139/255, blue: 130/255))
+        .background {
+            // Pre-26 keeps the original salmon backdrop; iOS 26 gets the shared
+            // ember bed (added by immersiveGlassBackground below).
+            if #unavailable(iOS 26) {
+                Color(red: 225/255, green: 139/255, blue: 130/255)
+            }
+        }
+        .immersiveGlassBackground()
         .onAppear {
             fetchPrice()  // Load price when view appears
         }
@@ -289,10 +296,10 @@ struct FeatureRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: "checkmark")
-                .foregroundColor(.blue)
+                .foregroundColor(.orange)
             Text(text)
                 .font(.callout.bold())  // Slightly smaller font
-                .foregroundColor(.black)
+                .foregroundColor(.primary)  // adapts: dark on salmon (pre-26), light on ember (iOS 26)
         }
     }
 }

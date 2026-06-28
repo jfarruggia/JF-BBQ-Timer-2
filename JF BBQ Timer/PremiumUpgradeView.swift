@@ -26,6 +26,7 @@ struct PremiumUpgradeView: View {
 
                 Text("Unlock all premium features")
                     .font(.headline)
+                    .foregroundColor(.white)
 
                 VStack(alignment: .leading, spacing: 12) {
                     premiumFeatureRow("Unlimited timers")
@@ -58,9 +59,7 @@ struct PremiumUpgradeView: View {
                 .padding(.bottom)
             }
             .padding()
-            .background(Color.white)
-            .cornerRadius(20)
-            .shadow(radius: 10)
+            .grillGlassPane(cornerRadius: 20)
             .padding(.horizontal, 20)
             .frame(maxWidth: 400)
         }
@@ -72,6 +71,7 @@ struct PremiumUpgradeView: View {
                 .foregroundColor(.green)
             Text(text)
                 .font(.body)
+                .foregroundColor(.white)
             Spacer()
         }
     }
