@@ -8,60 +8,84 @@ struct AlertView: View {
     let settings: Settings
     @ObservedObject var timerState: TimerState
 
-    var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                Color.black.opacity(0)
-                    .edgesIgnoringSafeArea(.all)
-                    .onTapGesture {
-                        debugLog("Background tapped")
-                        audioPlayer?.stop()
-                        settings.stopLoopingAlertSound()
-                        timerState.resetCompletionState()
-                        if isPreheat {
-                            alertState.showPreheatAlert = false
-                        } else {
-                            alertState.isPresented = false
-                        }
-                    }
+    /// Drives the attention-grabbing border/glow pulse. Toggled once on appear with
+    /// a repeating, auto-reversing animation so the rim breathes until dismissed.
+    @State private var pulse = false
 
-                Button(action: {
-                    debugLog("Button tapped")
-                    audioPlayer?.stop()
-                    settings.stopLoopingAlertSound()
-                    timerState.resetCompletionState()
+    private func dismiss() {
+        audioPlayer?.stop()
+        settings.stopLoopingAlertSound()
+        timerState.resetCompletionState()
+        if isPreheat {
+            alertState.showPreheatAlert = false
+        } else {
+            alertState.isPresented = false
+        }
+    }
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.001)
+                .edgesIgnoringSafeArea(.all)
+                .onTapGesture { dismiss() }
+
+            Button(action: dismiss) {
+                VStack(spacing: 10) {
+                    Image(systemName: isPreheat ? "flame.fill" : "checkmark.circle.fill")
+                        .font(.system(size: 46, weight: .bold))
+                        .foregroundColor(.white)
                     if isPreheat {
-                        alertState.showPreheatAlert = false
+                        Text("Preheat")
+                            .font(.system(size: 34, weight: .bold, design: .rounded))
+                        Text("Complete! 🔥")
+                            .font(.system(size: 30, weight: .bold, design: .rounded))
                     } else {
-                        alertState.isPresented = false
+                        Text("Interval\nComplete!")
+                            .font(.system(size: 32, weight: .bold, design: .rounded))
                     }
-                }) {
-                    VStack(spacing: 8) {
-                        if isPreheat {
-                            Text("Preheat")
-                                .font(.system(size: 40, weight: .bold, design: .rounded))
-                            Text("Complete! 🔥")
-                                .font(.system(size: 36, weight: .bold, design: .rounded))
-                        } else {
-                            Text("Interval Complete!")
-                                .font(.system(size: 32, weight: .bold, design: .rounded))
-                        }
-                    }
-                    .foregroundColor(.white)
-                    .multilineTextAlignment(.center)
-                    .frame(width: 220, height: 220)
-                    .background(Color.red)
-                    .cornerRadius(20)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(Color.white, lineWidth: 3)
-                    )
-                    .shadow(radius: 10)
                 }
-                .buttonStyle(PlainButtonStyle())
+                .foregroundColor(.white)
+                .multilineTextAlignment(.center)
+                .frame(width: 240, height: 240)
+                .modifier(AlertGlassCardStyle(pulse: pulse))
             }
+            .buttonStyle(PlainButtonStyle())
         }
         .transition(.opacity)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true)) {
+                pulse = true
+            }
+        }
+    }
+}
+
+/// Frosted-red completion-alert card: warm glass (clear glass tinted red on iOS 26,
+/// solid red fallback pre-26) with a pulsing red rim + glow so it still grabs attention
+/// across the room while reading as part of the app's glass language.
+private struct AlertGlassCardStyle: ViewModifier {
+    let pulse: Bool
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 28, style: .continuous)
+        let filled: AnyView
+        if #available(iOS 26, *) {
+            filled = AnyView(
+                content
+                    .glassEffect(.clear.tint(Color.red.opacity(0.45)), in: shape)
+            )
+        } else {
+            filled = AnyView(
+                content.background(Color.red, in: shape)
+            )
+        }
+        return filled
+            .overlay(
+                shape.stroke(Color.red, lineWidth: pulse ? 9 : 3)
+            )
+            .shadow(color: Color.red.opacity(pulse ? 0.85 : 0.35),
+                    radius: pulse ? 26 : 10)
+            .scaleEffect(pulse ? 1.04 : 1.0)
     }
 }
 
@@ -93,16 +117,17 @@ struct PreheatAlertView: View {
             VStack(spacing: 16) {
                 Text("Preheat Complete! 🔥")
                     .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
                     .multilineTextAlignment(.center)
                 Button("Dismiss") { dismissAlert() }
                     .padding(.horizontal, 24)
                     .padding(.vertical, 12)
-                    .background(Color.blue)
+                    .background(Color("TimerAccent"))
                     .foregroundColor(.white)
                     .cornerRadius(8)
             }
             .padding(24)
-            .glassEffect(in: RoundedRectangle(cornerRadius: 16))
+            .glassEffect(.clear.tint(Color.red.opacity(0.45)), in: RoundedRectangle(cornerRadius: 16))
             .modifier(PulsatingBorderModifier(animating: animationPhase))
             .shadow(radius: 8)
         } else {
@@ -113,7 +138,7 @@ struct PreheatAlertView: View {
                 Button("Dismiss") { dismissAlert() }
                     .padding(.horizontal, 24)
                     .padding(.vertical, 12)
-                    .background(Color.blue)
+                    .background(Color("TimerAccent"))
                     .foregroundColor(.white)
                     .cornerRadius(8)
             }
