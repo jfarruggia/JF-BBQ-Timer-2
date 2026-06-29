@@ -118,8 +118,14 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       Build-verified; on-device visual check still pending (needs paired-iPhone sync).
 
 ## Mechanics / consistency
-- [ ] **Preheat timer → `endDate` model** — currently a decrement counter
-      (`preheatTimeRemaining -= 1`), which can drift; align it with the main timers.
+- [x] **Preheat timer → `endDate` model** — fixed (`b03c2ba`): now derived from an
+      absolute `preheatEndDate` (+ `.common` run-loop + foreground resync), so it no
+      longer runs slow when backgrounded/locked/scrolling. Pure `PreheatCountdown`
+      math, unit-tested. (Found in TestFlight: a 10-min preheat took ~15 min.)
+- [x] **Fahrenheit/Celsius option** — added (`8231485`): `TemperatureUnit` setting in
+      Display & Accessibility, applied on the card, probe picker, and watch; unit rides
+      in the probe wire payload. Probe data stays °C; conversion at display only.
+      **Default is Celsius** — flip to Fahrenheit if Jim prefers (US BBQ audience).
 - [ ] Watch schedules its own local notification at `endDate` so alerts fire even
       when the watch app is asleep (lets it lean less on the extended-runtime
       keep-alive). Carefully verify — touches the working alert path.
@@ -128,6 +134,12 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
 - [x] **Lit time froze when the flip countdown completed** — fixed: `handleCompletion()`
       no longer stops the refresh timer, so "Lit" keeps counting until Reset; resync restarts
       it after backgrounding. Regression test added. (`ce907cb`)
+- [ ] **iPhone↔watch timer out of sync (under investigation)** — seen in TestFlight:
+      started a timer on iPhone, but on the watch it wasn't running; after starting it
+      on the watch, the iPhone's "lit" elapsed time had changed from what it should have
+      been. Jim is reproducing with more detail (was Start tapped? what was tapped on the
+      watch? was elapsed ahead/behind & by how much?). Touches the working sync baseline —
+      diagnose from a repro before changing anything.
 - [ ] Does **compact mode persist** across a cold relaunch? The Settings toggle
       binds straight to the published property; no save-on-change was spotted.
 - [x] **Watch long-preset formatting:** fixed — watch `format(seconds:)` now shows hours
