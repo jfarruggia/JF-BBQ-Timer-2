@@ -298,3 +298,38 @@ struct ProgressTests {
         state.reset()
     }
 }
+
+// MARK: - PreheatCountdown tests
+
+@Suite("PreheatCountdown.remaining")
+struct PreheatCountdownTests {
+
+    @Test("Returns full duration at the moment the countdown starts")
+    func atStart() {
+        let now = Date()
+        let end = now.addingTimeInterval(600) // 10 minutes
+        #expect(PreheatCountdown.remaining(endDate: end, now: now) == 600)
+    }
+
+    @Test("Returns true elapsed-based remaining partway through")
+    func partway() {
+        let start = Date()
+        let end = start.addingTimeInterval(600)
+        // 4 wall-clock minutes later, exactly 6 should remain — regardless of
+        // how many times any UI timer did or didn't fire in between.
+        let now = start.addingTimeInterval(240)
+        #expect(PreheatCountdown.remaining(endDate: end, now: now) == 360)
+    }
+
+    @Test("Clamps to zero once the end date has passed")
+    func pastEnd() {
+        let end = Date()
+        let now = end.addingTimeInterval(300) // 5 min late (e.g. screen was locked)
+        #expect(PreheatCountdown.remaining(endDate: end, now: now) == 0)
+    }
+
+    @Test("Returns zero when no countdown is active")
+    func noCountdown() {
+        #expect(PreheatCountdown.remaining(endDate: nil, now: Date()) == 0)
+    }
+}

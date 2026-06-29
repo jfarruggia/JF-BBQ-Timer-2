@@ -437,6 +437,21 @@ class TimerState: ObservableObject {
     }
 }
 
+// MARK: - Preheat countdown (pure, testable)
+
+/// Pure countdown math for the grill-preheat timer. Like `TimerState`, the
+/// preheat countdown is derived from an absolute end date rather than a
+/// decremented counter, so it stays correct across scrolling, screen-lock, and
+/// backgrounding — all of which pause or drift a plain repeating `Timer`.
+enum PreheatCountdown {
+    /// Seconds remaining until `endDate`, clamped at 0. Returns 0 when no
+    /// countdown is active (`endDate == nil`).
+    static func remaining(endDate: Date?, now: Date) -> TimeInterval {
+        guard let endDate else { return 0 }
+        return max(0, endDate.timeIntervalSince(now))
+    }
+}
+
 // MARK: -
 
 class TimerStatesManager: ObservableObject {

@@ -177,6 +177,9 @@ struct ContentView: View {
 
     @State private var showPreheatAlert = false
     @State private var preheatTimeRemaining: TimeInterval = 0
+    // Absolute instant the preheat countdown completes. Source of truth for the
+    // countdown; preheatTimeRemaining is just the displayed value derived from it.
+    @State private var preheatEndDate: Date? = nil
     @State private var preheatTimer: Timer?
     @State private var isPreheatComplete = false
     @State private var preheatNotificationId: String? = nil
@@ -248,15 +251,22 @@ struct ContentView: View {
         }
 
         preheatTimer?.invalidate()
-        preheatTimeRemaining = TimeInterval(settings.preheatDuration)
+        let duration = TimeInterval(settings.preheatDuration)
+        let end = Date().addingTimeInterval(duration)
+        preheatEndDate = end
+        preheatTimeRemaining = duration
         showPreheatAlert = false
         isPreheatComplete = false
-        schedulePreheatNotification(after: preheatTimeRemaining)
+        schedulePreheatNotification(after: duration)
 
-        preheatTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            if preheatTimeRemaining > 0 {
-                preheatTimeRemaining -= 1
-            } else {
+        // The repeating timer only refreshes the displayed value; correctness
+        // comes from the absolute end date, so the countdown can't drift when
+        // the timer fires late, pauses during scrolling, or stops while the
+        // screen is locked / the app is backgrounded.
+        let timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            let remaining = PreheatCountdown.remaining(endDate: preheatEndDate, now: Date())
+            preheatTimeRemaining = remaining
+            if remaining <= 0 {
                 stopPreheatTimer()
                 if settings.soundEnabled { timer1State?.playSound() }
                 if settings.hapticsEnabled { alertState.triggerNotificationFeedback(type: .success) }
@@ -266,6 +276,9 @@ struct ContentView: View {
                 }
             }
         }
+        // Add to .common so the countdown keeps ticking while the user scrolls.
+        RunLoop.main.add(timer, forMode: .common)
+        preheatTimer = timer
 
         if isUITest {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
@@ -277,6 +290,7 @@ struct ContentView: View {
     private func stopPreheatTimer() {
         preheatTimer?.invalidate()
         preheatTimer = nil
+        preheatEndDate = nil
         showPreheatAlert = true
         cancelPreheatNotification()
         let isUITest = ProcessInfo.processInfo.arguments.contains("-UITEST_MODE")
@@ -613,6 +627,7 @@ struct ContentView: View {
     private func resetPreheatTimer() {
         preheatTimer?.invalidate()
         preheatTimer = nil
+        preheatEndDate = nil
         preheatTimeRemaining = 0
         isPreheatComplete = false
         showPreheatAlert = false
@@ -979,12 +994,18 @@ struct ContentView: View {
     }
 
     private func resyncPreheatAfterForeground() {
-        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
-            let hasPreheatPending = requests.contains { $0.identifier == self.preheatNotificationId }
-            if !hasPreheatPending && self.preheatTimeRemaining > 0 && !self.showPreheatAlert {
-                DispatchQueue.main.async {
-                    self.stopPreheatTimer()
-                }
+        guard let end = preheatEndDate else { return }
+        // Re-derive the displayed value from the absolute end date so a countdown
+        // that drifted (or froze) while backgrounded snaps back to the true time.
+        let remaining = PreheatCountdown.remaining(endDate: end, now: Date())
+        preheatTimeRemaining = remaining
+        if remaining <= 0 && !showPreheatAlert {
+            // Finished while the app was away — the local notification already
+            // alerted the user, so just settle the in-app state to complete.
+            stopPreheatTimer()
+            isPreheatComplete = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+                isPreheatComplete = false
             }
         }
     }
