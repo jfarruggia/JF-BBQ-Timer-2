@@ -151,7 +151,7 @@ struct TimersListView: View {
                         .foregroundColor(.orange)
                     // Core temp — large, prominent
                     if let coreC = probe.coreC {
-                        Text("\(Int(coreC.rounded()))°")
+                        Text(probe.unit.compactString(fromCelsius: coreC))
                             .font(.headline)
                             .fontWeight(.bold)
                             .monospacedDigit()

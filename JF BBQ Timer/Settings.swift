@@ -87,6 +87,14 @@ class Settings: ObservableObject {
     @Published var selectedVoiceIdentifier: String
     @Published var announceOnlyWithHeadphones: Bool
 
+    // Temperature display unit for probe readings. Probe data is always stored
+    // in °C; this only changes how temperatures are shown (phone + watch).
+    @Published var temperatureUnit: TemperatureUnit {
+        didSet {
+            UserDefaults.standard.set(temperatureUnit.rawValue, forKey: "temperatureUnit")
+        }
+    }
+
     // True only for the separate ".dev" identity (the dev/TestFlight build) —
     // never the production App Store app, which has a different bundle id. Used to
     // expose testing-only affordances (e.g. the premium override below) in Release
@@ -158,6 +166,7 @@ class Settings: ObservableObject {
         self.customAnnouncementMessage = UserDefaults.standard.string(forKey: "customAnnouncementMessage") ?? ""
         self.selectedVoiceIdentifier = UserDefaults.standard.string(forKey: "selectedVoiceIdentifier") ?? ""
         self.announceOnlyWithHeadphones = UserDefaults.standard.bool(forKey: "announceOnlyWithHeadphones")
+        self.temperatureUnit = TemperatureUnit(rawValue: UserDefaults.standard.string(forKey: "temperatureUnit") ?? "C") ?? .celsius
 
         if let savedSound = UserDefaults.standard.string(forKey: "selectedAlertSound"),
            let alertSound = AlertSound(rawValue: savedSound) {
@@ -203,6 +212,7 @@ class Settings: ObservableObject {
         UserDefaults.standard.set(customAnnouncementMessage, forKey: "customAnnouncementMessage")
         UserDefaults.standard.set(selectedVoiceIdentifier, forKey: "selectedVoiceIdentifier")
         UserDefaults.standard.set(announceOnlyWithHeadphones, forKey: "announceOnlyWithHeadphones")
+        UserDefaults.standard.set(temperatureUnit.rawValue, forKey: "temperatureUnit")
         UserDefaults.standard.set(selectedAlertSound.rawValue, forKey: "selectedAlertSound")
         if let data = try? JSONEncoder().encode(additionalTimers) {
             UserDefaults.standard.set(data, forKey: "additionalTimers")

@@ -355,6 +355,44 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
 // source of truth for the probe-reading wire format. The iOS-only encoder
 // (`probeReadingWireDict`, which needs `ProbeReading`) lives in ProbeWatchSync.swift.
 
+/// User-selectable temperature unit. Defined here so both the iOS app and the
+/// watch app (which renders forwarded probe temps) share one implementation.
+/// Probe data is always stored and transmitted in °C; conversion to the user's
+/// unit happens only at display time. The raw value ("C"/"F") doubles as the
+/// wire value carried in the probe payload.
+enum TemperatureUnit: String, CaseIterable, Identifiable {
+    case celsius = "C"
+    case fahrenheit = "F"
+
+    var id: String { rawValue }
+
+    /// Degree symbol with unit letter, e.g. "°C" / "°F".
+    var symbol: String { self == .celsius ? "°C" : "°F" }
+
+    /// Human-readable label for the settings picker.
+    var displayName: String { self == .celsius ? "Celsius (°C)" : "Fahrenheit (°F)" }
+
+    /// Convert a canonical Celsius value into this unit.
+    func value(fromCelsius c: Double) -> Double {
+        switch self {
+        case .celsius:    return c
+        case .fahrenheit: return c * 9.0 / 5.0 + 32.0
+        }
+    }
+
+    /// Rounded whole-degree string with a bare degree sign, e.g. "162°".
+    /// Matches the compact timer card and the watch.
+    func compactString(fromCelsius c: Double) -> String {
+        "\(Int(value(fromCelsius: c).rounded()))°"
+    }
+
+    /// One-decimal string with the unit symbol, e.g. "72.0 °C".
+    /// Matches the probe picker's detailed live reading.
+    func preciseString(fromCelsius c: Double) -> String {
+        String(format: "%.1f %@", value(fromCelsius: c), symbol)
+    }
+}
+
 /// Compact, plist-safe representation of a probe reading forwarded iPhone → watch.
 struct WatchProbeReading: Equatable {
     /// True when the iPhone has an active BLE connection to the probe.
@@ -371,6 +409,9 @@ struct WatchProbeReading: Equatable {
     var predictedReadyDate: Date?
     /// True when the probe reports its battery is low.
     var batteryLow: Bool
+    /// The unit the watch should render temperatures in (mirrors the iPhone's
+    /// setting). Defaults to Celsius for older payloads that omit the field.
+    var unit: TemperatureUnit = .celsius
 }
 
 /// Decodes a WatchConnectivity wire dict into a `WatchProbeReading`.
@@ -390,6 +431,8 @@ func decodeWatchProbeReading(from dict: [String: Any]) -> WatchProbeReading? {
     let predictedReadyDate: Date? = (dict["predReadyEpoch"] as? Double)
         .map { Date(timeIntervalSince1970: $0) }
 
+    let unit = TemperatureUnit(rawValue: (dict["unit"] as? String) ?? "C") ?? .celsius
+
     return WatchProbeReading(
         connected: connected,
         coreC: coreC,
@@ -397,7 +440,8 @@ func decodeWatchProbeReading(from dict: [String: Any]) -> WatchProbeReading? {
         ambientC: ambientC,
         predictionStateRaw: predStateRaw,
         predictedReadyDate: predictedReadyDate,
-        batteryLow: batteryLow
+        batteryLow: batteryLow,
+        unit: unit
     )
 }
 

@@ -248,6 +248,15 @@ struct NewSettingsView: View {
                     Text(settings.compactMode ? "Compact mode saves space for more timers" : "Large display mode enabled for better visibility")
                         .font(.footnote)
                         .foregroundColor(.secondary)
+
+                    Picker("Temperature Unit", selection: $settings.temperatureUnit) {
+                        Text("Celsius (°C)").tag(TemperatureUnit.celsius)
+                        Text("Fahrenheit (°F)").tag(TemperatureUnit.fahrenheit)
+                    }
+                    .accessibilityIdentifier("TemperatureUnit")
+                    Text("Unit for probe temperatures on the phone and watch.")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
                 }
 
                 // Timer Customization & Advanced

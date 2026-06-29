@@ -316,7 +316,7 @@ struct ContentView: View {
         let reading = probeManager.latestReading
         let coreText: String
         if let r = reading, r.coreTempC > -19.99 {
-            coreText = "\(Int(r.coreTempC.rounded()))°"
+            coreText = settings.temperatureUnit.compactString(fromCelsius: r.coreTempC)
         } else {
             coreText = "—"
         }
@@ -709,7 +709,7 @@ struct ContentView: View {
         }
         #if os(iOS)
         .fullScreenCover(isPresented: $showProbeConnect) {
-            ProbePickerView(probeManager: probeManager)
+            ProbePickerView(probeManager: probeManager, temperatureUnit: settings.temperatureUnit)
         }
         .fullScreenCover(isPresented: $showAttachSheet) {
             if #available(iOS 16, *) {

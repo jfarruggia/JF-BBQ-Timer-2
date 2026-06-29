@@ -251,3 +251,56 @@ struct ShouldForwardProbeTests {
         #expect(shouldForwardProbe(now: now, lastSent: last, minInterval: minInterval) == false)
     }
 }
+
+// MARK: - TemperatureUnit conversion / formatting
+
+@Suite("TemperatureUnit")
+struct TemperatureUnitTests {
+
+    @Test("Celsius is identity")
+    func celsiusIdentity() {
+        #expect(TemperatureUnit.celsius.value(fromCelsius: 0) == 0)
+        #expect(TemperatureUnit.celsius.value(fromCelsius: 93.3) == 93.3)
+    }
+
+    @Test("Fahrenheit conversion at known points")
+    func fahrenheitPoints() {
+        #expect(TemperatureUnit.fahrenheit.value(fromCelsius: 0) == 32)
+        #expect(TemperatureUnit.fahrenheit.value(fromCelsius: 100) == 212)
+        #expect(abs(TemperatureUnit.fahrenheit.value(fromCelsius: 37) - 98.6) < 0.0001)
+    }
+
+    @Test("compactString rounds and keeps a bare degree sign")
+    func compact() {
+        #expect(TemperatureUnit.celsius.compactString(fromCelsius: 71.6) == "72°")
+        #expect(TemperatureUnit.fahrenheit.compactString(fromCelsius: 100) == "212°")
+    }
+
+    @Test("preciseString includes one decimal and the unit symbol")
+    func precise() {
+        #expect(TemperatureUnit.celsius.preciseString(fromCelsius: 72) == "72.0 °C")
+        #expect(TemperatureUnit.fahrenheit.preciseString(fromCelsius: 0) == "32.0 °F")
+    }
+}
+
+// MARK: - Unit carried in the probe wire payload
+
+@Suite("probe wire dict carries unit")
+struct ProbeWireUnitTests {
+
+    @Test("encodes the supplied unit and round-trips through decode")
+    func roundTrip() {
+        let dict = probeReadingWireDict(connected: true, reading: nil, now: Date(), unit: .fahrenheit)
+        #expect(dict["unit"] as? String == "F")
+        let decoded = decodeWatchProbeReading(from: dict)
+        #expect(decoded?.unit == .fahrenheit)
+    }
+
+    @Test("defaults to Celsius when the unit key is absent")
+    func defaultsCelsius() {
+        var dict = probeReadingWireDict(connected: true, reading: nil, now: Date())
+        dict.removeValue(forKey: "unit")
+        let decoded = decodeWatchProbeReading(from: dict)
+        #expect(decoded?.unit == .celsius)
+    }
+}

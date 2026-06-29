@@ -32,6 +32,8 @@ private struct ProbeReadingRow: View {
 struct ProbePickerView: View {
 
     @ObservedObject var probeManager: ProbeBLEManager
+    /// The user's temperature display unit (probe data is stored in °C).
+    var temperatureUnit: TemperatureUnit = .celsius
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -104,11 +106,11 @@ struct ProbePickerView: View {
             if let reading = probeManager.latestReading {
                 Section(header: Text("Live Reading")) {
                     ProbeReadingRow(label: "Core Temp",
-                                   value: String(format: "%.1f °C", reading.coreTempC))
+                                   value: temperatureUnit.preciseString(fromCelsius: reading.coreTempC))
                     ProbeReadingRow(label: "Surface Temp",
-                                   value: String(format: "%.1f °C", reading.surfaceTempC))
+                                   value: temperatureUnit.preciseString(fromCelsius: reading.surfaceTempC))
                     ProbeReadingRow(label: "Ambient Temp",
-                                   value: String(format: "%.1f °C", reading.ambientTempC))
+                                   value: temperatureUnit.preciseString(fromCelsius: reading.ambientTempC))
                     ProbeReadingRow(label: "Prediction State",
                                    value: predictionStateDescription(reading.prediction.state))
                     if reading.prediction.state.isActivePrediction {

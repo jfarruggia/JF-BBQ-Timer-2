@@ -80,8 +80,11 @@ final class ProbeWatchForwarder {
 
         guard shouldSend else { return }
 
-        // Build the wire dict and attempt to send
-        let dict = probeReadingWireDict(connected: connected, reading: reading, now: now)
+        // Build the wire dict and attempt to send. The display unit (set by the
+        // user in Settings) rides along so the watch renders the same unit as the
+        // phone; read at send time so unit changes propagate immediately.
+        let unit = TemperatureUnit(rawValue: UserDefaults.standard.string(forKey: "temperatureUnit") ?? "C") ?? .celsius
+        let dict = probeReadingWireDict(connected: connected, reading: reading, now: now, unit: unit)
         let sent = WCSessionManager.shared.sendProbeReading(dict)
 
         if sent {
