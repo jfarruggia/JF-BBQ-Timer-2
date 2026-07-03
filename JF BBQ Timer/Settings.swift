@@ -95,6 +95,18 @@ class Settings: ObservableObject {
         }
     }
 
+    // Which probe readings appear on the timer card's probe strip (core temp
+    // always shows). All default ON; toggled in Settings ▸ Temperature Probe.
+    @Published var showProbeSurfaceTemp: Bool {
+        didSet { UserDefaults.standard.set(showProbeSurfaceTemp, forKey: "showProbeSurfaceTemp") }
+    }
+    @Published var showProbeAmbientTemp: Bool {
+        didSet { UserDefaults.standard.set(showProbeAmbientTemp, forKey: "showProbeAmbientTemp") }
+    }
+    @Published var showProbePredictedReady: Bool {
+        didSet { UserDefaults.standard.set(showProbePredictedReady, forKey: "showProbePredictedReady") }
+    }
+
     // True only for the separate ".dev" identity (the dev/TestFlight build) —
     // never the production App Store app, which has a different bundle id. Used to
     // expose testing-only affordances (e.g. the premium override below) in Release
@@ -167,6 +179,14 @@ class Settings: ObservableObject {
         self.selectedVoiceIdentifier = UserDefaults.standard.string(forKey: "selectedVoiceIdentifier") ?? ""
         self.announceOnlyWithHeadphones = UserDefaults.standard.bool(forKey: "announceOnlyWithHeadphones")
         self.temperatureUnit = TemperatureUnit(rawValue: UserDefaults.standard.string(forKey: "temperatureUnit") ?? "C") ?? .celsius
+        // Probe display toggles default ON (bool(forKey:) returns false for
+        // missing keys, so treat "never set" as true — same pattern as soundEnabled).
+        self.showProbeSurfaceTemp = UserDefaults.standard.object(forKey: "showProbeSurfaceTemp") == nil
+            ? true : UserDefaults.standard.bool(forKey: "showProbeSurfaceTemp")
+        self.showProbeAmbientTemp = UserDefaults.standard.object(forKey: "showProbeAmbientTemp") == nil
+            ? true : UserDefaults.standard.bool(forKey: "showProbeAmbientTemp")
+        self.showProbePredictedReady = UserDefaults.standard.object(forKey: "showProbePredictedReady") == nil
+            ? true : UserDefaults.standard.bool(forKey: "showProbePredictedReady")
 
         if let savedSound = UserDefaults.standard.string(forKey: "selectedAlertSound"),
            let alertSound = AlertSound(rawValue: savedSound) {
@@ -213,6 +233,9 @@ class Settings: ObservableObject {
         UserDefaults.standard.set(selectedVoiceIdentifier, forKey: "selectedVoiceIdentifier")
         UserDefaults.standard.set(announceOnlyWithHeadphones, forKey: "announceOnlyWithHeadphones")
         UserDefaults.standard.set(temperatureUnit.rawValue, forKey: "temperatureUnit")
+        UserDefaults.standard.set(showProbeSurfaceTemp, forKey: "showProbeSurfaceTemp")
+        UserDefaults.standard.set(showProbeAmbientTemp, forKey: "showProbeAmbientTemp")
+        UserDefaults.standard.set(showProbePredictedReady, forKey: "showProbePredictedReady")
         UserDefaults.standard.set(selectedAlertSound.rawValue, forKey: "selectedAlertSound")
         if let data = try? JSONEncoder().encode(additionalTimers) {
             UserDefaults.standard.set(data, forKey: "additionalTimers")

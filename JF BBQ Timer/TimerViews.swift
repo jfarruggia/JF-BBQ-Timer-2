@@ -10,8 +10,15 @@ import UIKit
 struct CardProbeInfo: Equatable {
     /// Formatted core temperature string, e.g. "63°" or "—" when no valid reading.
     var coreText: String
+    /// Formatted surface temperature, "—" when no valid reading, nil when the
+    /// user has hidden surface temp in Settings ▸ Temperature Probe.
+    var surfaceText: String? = nil
+    /// Formatted ambient temperature; same rules as `surfaceText`.
+    var ambientText: String? = nil
     /// Non-nil only when the probe is actively predicting a ready time.
     var readyDate: Date?
+    /// False when the user has hidden the predicted-ready slot in Settings.
+    var showReady: Bool = true
 }
 #endif
 
@@ -413,18 +420,32 @@ struct CompactTimerView: View {
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .monospacedDigit()
                         .foregroundColor(Color("TimerAccent"))
-                    Spacer()
-                    Text("ready")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.secondary)
-                    if #available(iOS 16, *), let readyDate = info.readyDate {
-                        Text(timerInterval: Date()...readyDate, countsDown: true)
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    if let surface = info.surfaceText {
+                        Text("Sfc \(surface)")
+                            .font(.system(size: 11, weight: .medium))
                             .monospacedDigit()
-                    } else {
-                        Text(info.readyDate != nil ? "~" : "—")
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
                             .foregroundColor(.secondary)
+                    }
+                    if let ambient = info.ambientText {
+                        Text("Amb \(ambient)")
+                            .font(.system(size: 11, weight: .medium))
+                            .monospacedDigit()
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    if info.showReady {
+                        Text("ready")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.secondary)
+                        if #available(iOS 16, *), let readyDate = info.readyDate {
+                            Text(timerInterval: Date()...readyDate, countsDown: true)
+                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                .monospacedDigit()
+                        } else {
+                            Text(info.readyDate != nil ? "~" : "—")
+                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
                 .padding(.horizontal, 4)
@@ -604,19 +625,33 @@ struct GlassLargeTimerContent: View {
                         .font(.system(size: 18, weight: .semibold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(Color("TimerAccent"))
-                    Spacer()
-                    Text("ready")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.6))
-                    if let readyDate = info.readyDate {
-                        Text(timerInterval: Date()...readyDate, countsDown: true)
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    if let surface = info.surfaceText {
+                        Text("Sfc \(surface)")
+                            .font(.system(size: 13, weight: .medium))
                             .monospacedDigit()
-                            .foregroundStyle(.white)
-                    } else {
-                        Text("—")
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.5))
+                            .foregroundStyle(.white.opacity(0.6))
+                    }
+                    if let ambient = info.ambientText {
+                        Text("Amb \(ambient)")
+                            .font(.system(size: 13, weight: .medium))
+                            .monospacedDigit()
+                            .foregroundStyle(.white.opacity(0.6))
+                    }
+                    Spacer()
+                    if info.showReady {
+                        Text("ready")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.6))
+                        if let readyDate = info.readyDate {
+                            Text(timerInterval: Date()...readyDate, countsDown: true)
+                                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                .monospacedDigit()
+                                .foregroundStyle(.white)
+                        } else {
+                            Text("—")
+                                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.5))
+                        }
                     }
                 }
             }
@@ -808,19 +843,33 @@ struct GlassCompactTimerContent: View {
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(Color("TimerAccent"))
-                    Spacer()
-                    Text("ready")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.55))
-                    if let readyDate = info.readyDate {
-                        Text(timerInterval: Date()...readyDate, countsDown: true)
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    if let surface = info.surfaceText {
+                        Text("Sfc \(surface)")
+                            .font(.system(size: 11, weight: .medium))
                             .monospacedDigit()
-                            .foregroundStyle(.white)
-                    } else {
-                        Text("—")
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.45))
+                            .foregroundStyle(.white.opacity(0.55))
+                    }
+                    if let ambient = info.ambientText {
+                        Text("Amb \(ambient)")
+                            .font(.system(size: 11, weight: .medium))
+                            .monospacedDigit()
+                            .foregroundStyle(.white.opacity(0.55))
+                    }
+                    Spacer()
+                    if info.showReady {
+                        Text("ready")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.55))
+                        if let readyDate = info.readyDate {
+                            Text(timerInterval: Date()...readyDate, countsDown: true)
+                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                .monospacedDigit()
+                                .foregroundStyle(.white)
+                        } else {
+                            Text("—")
+                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.45))
+                        }
                     }
                 }
                 .padding(.horizontal, 16)

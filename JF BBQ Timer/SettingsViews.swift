@@ -248,15 +248,24 @@ struct NewSettingsView: View {
                     Text(settings.compactMode ? "Compact mode saves space for more timers" : "Large display mode enabled for better visibility")
                         .font(.footnote)
                         .foregroundColor(.secondary)
+                }
 
+                Section(header: Text("Temperature Probe"),
+                        footer: Text("Choose what the probe strip on a timer card shows. Core temperature always shows when a probe is attached.")) {
                     Picker("Temperature Unit", selection: $settings.temperatureUnit) {
                         Text("Celsius (°C)").tag(TemperatureUnit.celsius)
                         Text("Fahrenheit (°F)").tag(TemperatureUnit.fahrenheit)
                     }
                     .accessibilityIdentifier("TemperatureUnit")
-                    Text("Unit for probe temperatures on the phone and watch.")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
+                    Toggle("Show Surface Temp", isOn: $settings.showProbeSurfaceTemp)
+                        .tint(.blue)
+                        .accessibilityIdentifier("ShowProbeSurfaceTemp")
+                    Toggle("Show Ambient Temp", isOn: $settings.showProbeAmbientTemp)
+                        .tint(.blue)
+                        .accessibilityIdentifier("ShowProbeAmbientTemp")
+                    Toggle("Show Predicted Ready Time", isOn: $settings.showProbePredictedReady)
+                        .tint(.blue)
+                        .accessibilityIdentifier("ShowProbePredictedReady")
                 }
 
                 // Timer Customization & Advanced

@@ -314,14 +314,20 @@ struct ContentView: View {
             return nil
         }
         let reading = probeManager.latestReading
-        let coreText: String
-        if let r = reading, r.coreTempC > -19.99 {
-            coreText = settings.temperatureUnit.compactString(fromCelsius: r.coreTempC)
-        } else {
-            coreText = "—"
+        // Formats a °C value in the user's unit; "—" at/below the −20 °C sensor
+        // floor (raw 0 = no data).
+        func tempText(_ celsius: Double?) -> String {
+            guard let c = celsius, c > -19.99 else { return "—" }
+            return settings.temperatureUnit.compactString(fromCelsius: c)
         }
         let readyDate = reading?.prediction.predictedReadyDate(from: Date())
-        return CardProbeInfo(coreText: coreText, readyDate: readyDate)
+        return CardProbeInfo(
+            coreText: tempText(reading?.coreTempC),
+            surfaceText: settings.showProbeSurfaceTemp ? tempText(reading?.surfaceTempC) : nil,
+            ambientText: settings.showProbeAmbientTemp ? tempText(reading?.ambientTempC) : nil,
+            readyDate: readyDate,
+            showReady: settings.showProbePredictedReady
+        )
     }
     #endif
 
