@@ -41,11 +41,23 @@ struct TimersListView: View {
                 // Put the timer name in the top-left, aligned with the system clock on the right
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
-                        if let name = selectedTimerName {
-                            Text(name)
-                                // Match the system clock size for visual alignment; nudge higher
-                                .font(.footnote)
-                                .baselineOffset(-3)
+                        HStack(spacing: 6) {
+                            if let name = selectedTimerName {
+                                Text(name)
+                                    // Match the system clock size for visual alignment; nudge higher
+                                    .font(.footnote)
+                                    .baselineOffset(-3)
+                            }
+                            // Glanceable core temp while on a timer page (the
+                            // probe page itself already shows it large).
+                            if selectedTimerId != Self.probePageID,
+                               let probe = probeModel.probe, probe.connected, let core = probe.coreC {
+                                Text(probe.unit.compactString(fromCelsius: core))
+                                    .font(.footnote)
+                                    .monospacedDigit()
+                                    .foregroundColor(.orange)
+                                    .baselineOffset(-3)
+                            }
                         }
                     }
                 }
@@ -110,8 +122,10 @@ struct TimersListView: View {
             }
             
             if let current = selectedTimerId,
-               newValue.contains(where: { $0.id == current }) {
-                // keep current selection
+               current == Self.probePageID || newValue.contains(where: { $0.id == current }) {
+                // keep current selection (incl. staying on the probe page —
+                // snapshots arrive every second while a timer runs, and getting
+                // bounced off the page on every tick would make it unusable)
             } else {
                 selectedTimerId = newValue.first?.id
             }
@@ -124,6 +138,13 @@ struct TimersListView: View {
                 WKInterfaceDevice.current().play(.notification)
             }
         }
+        // If the probe disconnects while its page is showing, the page is removed
+        // from the pager — move the selection back to a timer.
+        .onChange(of: probeConnected) { _, connected in
+            if !connected && selectedTimerId == Self.probePageID {
+                selectedTimerId = model.timers.first?.id
+            }
+        }
     }
 
     // Break the main content into smaller subviews for faster type-checking
@@ -132,73 +153,82 @@ struct TimersListView: View {
         if model.timers.isEmpty {
             emptyState
                 .overlay(alertBanner, alignment: .top)
-                .safeAreaInset(edge: .bottom) { probeSection }
         } else {
             timersPager
                 .overlay(alertBanner, alignment: .top)
-                .safeAreaInset(edge: .bottom) { probeSection }
         }
     }
 
-    // MARK: - Probe section (shown only when iPhone has an active BLE probe connection)
+    // MARK: - Probe page
     //
-    // A single compact line: the watch screen doesn't have room for a multi-row
-    // card — the timer page's fixed-height controls (presets + Start) overflow
-    // underneath the safe-area inset and the strip ends up covering them.
-    // Core temp is always shown; the trailing slot shows the predicted-ready
-    // countdown when the probe is predicting, otherwise Sfc/Amb.
+    // The probe gets its own page at the end of the pager (swiping between pages
+    // is already how you move between timers, so one more page fits the existing
+    // navigation). A bottom strip was tried first and overlapped the timer
+    // controls — the fixed-height presets + Start button don't leave room for a
+    // safe-area inset on smaller watch sizes. While on a timer page, the current
+    // core temp stays glanceable in the top bar next to the timer name.
+
+    /// Pager tag for the probe page. Timer pages use UUID strings, so this
+    /// sentinel can't collide.
+    private static let probePageID = "probe"
+
+    private var probeConnected: Bool {
+        probeModel.probe?.connected == true
+    }
+
     @ViewBuilder
-    private var probeSection: some View {
-        if let probe = probeModel.probe, probe.connected {
-            HStack(spacing: 6) {
-                Image(systemName: "thermometer.medium")
-                    .font(.caption2)
-                    .foregroundColor(.orange)
-                // Core temp — prominent
-                Text(probe.coreC.map { probe.unit.compactString(fromCelsius: $0) } ?? "—")
-                    .font(.headline)
-                    .fontWeight(.bold)
-                    .monospacedDigit()
-                if probe.batteryLow {
-                    Image(systemName: "battery.25")
+    private var probePage: some View {
+        if let probe = probeModel.probe {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Image(systemName: "thermometer.medium")
                         .font(.caption2)
-                        .foregroundColor(.yellow)
-                }
-
-                Spacer(minLength: 4)
-
-                if let readyDate = probe.predictedReadyDate, readyDate > Date() {
-                    // Live countdown to predicted ready time
-                    Image(systemName: "clock.arrow.trianglehead.counterclockwise.rotate.90")
-                        .font(.caption2)
-                        .foregroundColor(.green)
-                    Text(timerInterval: Date.now...readyDate, countsDown: true)
-                        .font(.caption2)
-                        .monospacedDigit()
-                        .foregroundColor(.green)
-                        .lineLimit(1)
-                } else {
-                    Text("Sfc \(shortTemp(probe.surfaceC, unit: probe.unit))  Amb \(shortTemp(probe.ambientC, unit: probe.unit))")
-                        .font(.caption2)
-                        .monospacedDigit()
+                        .foregroundColor(.orange)
+                    Text("Core")
+                        .font(.headline)
                         .foregroundColor(.secondary)
-                        .lineLimit(1)
+                    if probe.batteryLow {
+                        Image(systemName: "battery.25")
+                            .font(.caption2)
+                            .foregroundColor(.yellow)
+                    }
                 }
+
+                // Core temp — the hero
+                Text(shortTemp(probe.coreC, unit: probe.unit))
+                    .font(.system(size: 42, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+
+                HStack(spacing: 10) {
+                    Text("Sfc \(shortTemp(probe.surfaceC, unit: probe.unit))")
+                    Text("Amb \(shortTemp(probe.ambientC, unit: probe.unit))")
+                }
+                .font(.footnote)
+                .monospacedDigit()
+                .foregroundColor(.secondary)
+
+                // Live countdown to predicted ready time
+                if let readyDate = probe.predictedReadyDate, readyDate > Date() {
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock.arrow.trianglehead.counterclockwise.rotate.90")
+                            .font(.caption2)
+                            .foregroundColor(.green)
+                        Text(timerInterval: Date.now...readyDate, countsDown: true)
+                            .font(.footnote)
+                            .monospacedDigit()
+                            .foregroundColor(.green)
+                        Text("ready")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.top, 2)
+                }
+
+                Spacer(minLength: 0)
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            // Warm-tinted frosted card to echo the iPhone's warm glass (watchOS-native
-            // material, no ember bed — keeps it legible on the small screen / AOD).
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color(red: 0.40, green: 0.10, blue: 0.05).opacity(0.18))
-                    )
-            )
-            .padding(.horizontal, 4)
+            .padding(.horizontal)
+            .padding(.top, 12)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
     }
 
@@ -236,6 +266,11 @@ struct TimersListView: View {
             ForEach(model.timers) { row in
                 timerPage(row)
                     .tag(row.id)
+            }
+            // Probe page rides at the end of the pager while connected
+            if probeConnected {
+                probePage
+                    .tag(Self.probePageID)
             }
         }
         .tabViewStyle(.page)
@@ -292,6 +327,7 @@ struct TimersListView: View {
 
     // Returns the name of the currently visible timer (or first timer if none selected)
     private var selectedTimerName: String? {
+        if selectedTimerId == Self.probePageID { return "Probe" }
         if model.timers.isEmpty { return nil }
         if let id = selectedTimerId,
            let row = model.timers.first(where: { $0.id == id }) {
