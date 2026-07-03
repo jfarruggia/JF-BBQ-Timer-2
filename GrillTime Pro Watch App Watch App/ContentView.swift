@@ -141,63 +141,52 @@ struct TimersListView: View {
     }
 
     // MARK: - Probe section (shown only when iPhone has an active BLE probe connection)
+    //
+    // A single compact line: the watch screen doesn't have room for a multi-row
+    // card — the timer page's fixed-height controls (presets + Start) overflow
+    // underneath the safe-area inset and the strip ends up covering them.
+    // Core temp is always shown; the trailing slot shows the predicted-ready
+    // countdown when the probe is predicting, otherwise Sfc/Amb.
     @ViewBuilder
     private var probeSection: some View {
         if let probe = probeModel.probe, probe.connected {
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Image(systemName: "thermometer.medium")
+            HStack(spacing: 6) {
+                Image(systemName: "thermometer.medium")
+                    .font(.caption2)
+                    .foregroundColor(.orange)
+                // Core temp — prominent
+                Text(probe.coreC.map { probe.unit.compactString(fromCelsius: $0) } ?? "—")
+                    .font(.headline)
+                    .fontWeight(.bold)
+                    .monospacedDigit()
+                if probe.batteryLow {
+                    Image(systemName: "battery.25")
                         .font(.caption2)
-                        .foregroundColor(.orange)
-                    // Core temp — large, prominent
-                    if let coreC = probe.coreC {
-                        Text(probe.unit.compactString(fromCelsius: coreC))
-                            .font(.headline)
-                            .fontWeight(.bold)
-                            .monospacedDigit()
-                    } else {
-                        Text("—")
-                            .font(.headline)
-                            .fontWeight(.bold)
-                    }
-                    if probe.batteryLow {
-                        Image(systemName: "battery.25")
-                            .font(.caption2)
-                            .foregroundColor(.yellow)
-                    }
+                        .foregroundColor(.yellow)
                 }
 
-                HStack(spacing: 8) {
-                    // Surface
-                    Group {
-                        Text("Sfc ") + Text(probe.surfaceC.map { "\(Int($0.rounded()))°" } ?? "—")
-                    }
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                Spacer(minLength: 4)
 
-                    // Ambient
-                    Group {
-                        Text("Amb ") + Text(probe.ambientC.map { "\(Int($0.rounded()))°" } ?? "—")
-                    }
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-                }
-
-                // Live countdown to predicted ready time
                 if let readyDate = probe.predictedReadyDate, readyDate > Date() {
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock.arrow.trianglehead.counterclockwise.rotate.90")
-                            .font(.caption2)
-                            .foregroundColor(.green)
-                        Text(timerInterval: Date.now...readyDate, countsDown: true)
-                            .font(.caption2)
-                            .monospacedDigit()
-                            .foregroundColor(.green)
-                    }
+                    // Live countdown to predicted ready time
+                    Image(systemName: "clock.arrow.trianglehead.counterclockwise.rotate.90")
+                        .font(.caption2)
+                        .foregroundColor(.green)
+                    Text(timerInterval: Date.now...readyDate, countsDown: true)
+                        .font(.caption2)
+                        .monospacedDigit()
+                        .foregroundColor(.green)
+                        .lineLimit(1)
+                } else {
+                    Text("Sfc \(shortTemp(probe.surfaceC, unit: probe.unit))  Amb \(shortTemp(probe.ambientC, unit: probe.unit))")
+                        .font(.caption2)
+                        .monospacedDigit()
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
                 }
             }
             .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            .padding(.vertical, 3)
             .frame(maxWidth: .infinity, alignment: .leading)
             // Warm-tinted frosted card to echo the iPhone's warm glass (watchOS-native
             // material, no ember bed — keeps it legible on the small screen / AOD).
@@ -211,6 +200,11 @@ struct TimersListView: View {
             )
             .padding(.horizontal, 4)
         }
+    }
+
+    /// Short whole-degree temperature in the user's unit, or "—" when no reading.
+    private func shortTemp(_ celsius: Double?, unit: TemperatureUnit) -> String {
+        celsius.map { unit.compactString(fromCelsius: $0) } ?? "—"
     }
 
     private var emptyState: some View {
@@ -251,7 +245,9 @@ struct TimersListView: View {
     private func timerPage(_ row: WatchTimersModel.Row) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             header(for: row)
-            Spacer(minLength: 8)
+            // minLength 4 (not 8) so the page can compress rather than overflow
+            // under the bottom probe strip on smaller watch sizes.
+            Spacer(minLength: 4)
             presetButtons(for: row)
             // Centered Start/Pause button below preset buttons with tight spacing
             startStopButton(for: row)
