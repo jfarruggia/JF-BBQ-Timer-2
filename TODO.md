@@ -130,6 +130,17 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       when the watch app is asleep (lets it lean less on the extended-runtime
       keep-alive). Carefully verify — touches the working alert path.
 
+## Probe features
+- [ ] **Target-temp alert** — alert when the probe's core temp reaches a user-set
+      target (e.g. "145°"), separate from the existing *predicted-ready time*.
+      Feasible & fits the architecture: phone owns the BLE connection + has the
+      Bluetooth background mode, so it can detect the crossing and fire a local
+      notification (+ haptic/sound, + signal the watch via the existing alert path)
+      even when backgrounded/locked. Needs: per-cook target field, an edge-triggered
+      fire-once latch (small guard against noisy readings), and pure unit-tested
+      threshold math. Open design Qs: where the target is set (timer card vs probe
+      page) and whether it's per-timer or per-probe. Spec before building.
+
 ## Bugs / verify on device
 - [x] **Lit time froze when the flip countdown completed** — fixed: `handleCompletion()`
       no longer stops the refresh timer, so "Lit" keeps counting until Reset; resync restarts
