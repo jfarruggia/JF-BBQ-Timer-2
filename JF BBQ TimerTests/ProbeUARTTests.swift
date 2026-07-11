@@ -283,4 +283,131 @@ struct ProbeUARTManagerTests {
         #expect(mgr.setPredictionFailed == false)
     }
 }
+
+// MARK: - Target set-point rules (spec 3B)
+
+@Suite("ProbeBLEManager target rules")
+@MainActor
+struct ProbeTargetRuleTests {
+
+    private func makeConnectedManager() -> (ProbeBLEManager, FakeProbeCentral) {
+        let fake = FakeProbeCentral()
+        let mgr  = ProbeBLEManager(central: fake)
+        let id = UUID()
+        mgr.connect(id)
+        mgr.handleConnected(id: id)
+        return (mgr, fake)
+    }
+
+    @Test("setTarget while connected sends removalAndResting with the target")
+    func setTargetSends() {
+        let (mgr, fake) = makeConnectedManager()
+        mgr.setTarget(95.0)
+        #expect(fake.writtenUARTFrames == [frame95C])
+    }
+
+    @Test("setTarget with the same value again does not re-send")
+    func setTargetDeduplicates() {
+        let (mgr, fake) = makeConnectedManager()
+        mgr.setTarget(95.0)
+        mgr.setTarget(95.0)
+        #expect(fake.writtenUARTFrames.count == 1)
+    }
+
+    @Test("setTarget(nil) after a target sends a clear (mode none)")
+    func clearTargetSendsClear() {
+        let (mgr, fake) = makeConnectedManager()
+        mgr.setTarget(95.0)
+        mgr.setTarget(nil)
+        #expect(fake.writtenUARTFrames == [frame95C, frameClear])
+    }
+
+    @Test("setTarget(nil) when no target was ever set sends nothing")
+    func clearWithoutTargetIsNoop() {
+        let (mgr, fake) = makeConnectedManager()
+        mgr.setTarget(nil)
+        #expect(fake.writtenUARTFrames.isEmpty)
+    }
+
+    @Test("setTarget while disconnected stores; handleUARTReady sends it after connect")
+    func targetStoredUntilUARTReady() {
+        let fake = FakeProbeCentral()
+        let mgr  = ProbeBLEManager(central: fake)
+        mgr.setTarget(95.0)
+        #expect(fake.writtenUARTFrames.isEmpty)
+
+        let id = UUID()
+        mgr.connect(id)
+        mgr.handleConnected(id: id)
+        mgr.handleUARTReady()
+        #expect(fake.writtenUARTFrames == [frame95C])
+    }
+
+    @Test("handleUARTReady with no target sends nothing — must not clear a set point configured elsewhere")
+    func uartReadyWithoutTargetIsSilent() {
+        let (mgr, fake) = makeConnectedManager()
+        mgr.handleUARTReady()
+        #expect(fake.writtenUARTFrames.isEmpty)
+    }
+
+    @Test("handleUARTReady re-pushes the target after a reconnect")
+    func uartReadyRepushesAfterReconnect() {
+        let (mgr, fake) = makeConnectedManager()
+        mgr.setTarget(95.0)
+        mgr.handleUARTNotification(responseSuccess)
+
+        // Unexpected drop, then the link comes back and UART is rediscovered
+        guard case .connected(let id) = mgr.connectionState else {
+            Issue.record("Expected connected state")
+            return
+        }
+        mgr.handleDisconnected(id: id)
+        mgr.handleConnected(id: id)
+        mgr.handleUARTReady()
+        #expect(fake.writtenUARTFrames == [frame95C, frame95C])
+    }
+
+    @Test("detach clears the target and sends a clear to the probe")
+    func detachClearsTarget() {
+        let (mgr, fake) = makeConnectedManager()
+        mgr.attach(toCookID: UUID())
+        mgr.setTarget(95.0)
+        mgr.detach()
+        #expect(mgr.attachedCookID == nil)
+        #expect(fake.writtenUARTFrames == [frame95C, frameClear])
+        // A later UART-ready must not resurrect the cleared target
+        mgr.handleUARTReady()
+        #expect(fake.writtenUARTFrames.count == 2)
+    }
+
+    @Test("explicit disconnect drops the target without writing to the dying link")
+    func disconnectDropsTargetSilently() {
+        let (mgr, fake) = makeConnectedManager()
+        mgr.setTarget(95.0)
+        mgr.disconnect()
+        #expect(fake.writtenUARTFrames == [frame95C])   // no clear frame added
+        mgr.handleUARTReady()                            // stale callback → nothing
+        #expect(fake.writtenUARTFrames.count == 1)
+    }
+}
 #endif // os(iOS)
+
+// MARK: - Temperature unit conversion (target entry)
+
+@Suite("TemperatureUnit target conversion")
+struct TemperatureUnitConversionTests {
+
+    @Test("celsius(fromValue:) inverts value(fromCelsius:) in Fahrenheit")
+    func fahrenheitRoundTrip() {
+        let unit = TemperatureUnit.fahrenheit
+        #expect(abs(unit.celsius(fromValue: 203) - 95.0) < 1e-9)
+        #expect(abs(unit.celsius(fromValue: 32)) < 1e-9)
+        let roundTrip = unit.celsius(fromValue: unit.value(fromCelsius: 71.06))
+        #expect(abs(roundTrip - 71.06) < 1e-9)
+    }
+
+    @Test("celsius(fromValue:) is identity in Celsius")
+    func celsiusIdentity() {
+        #expect(TemperatureUnit.celsius.celsius(fromValue: 96.1) == 96.1)
+    }
+}

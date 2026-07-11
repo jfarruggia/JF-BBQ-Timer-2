@@ -138,7 +138,15 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       framing/CRC/SetPrediction encode + response decode (fixtures computed
       independently); `ProbeBLEManager` send→retry→timeout command logic;
       UART service discovery/write/notify in the CB central. 24 new tests.
-      Next: 3B (target field on the cook card + send-on-set/reconnect rules).
+      **3B (target on the cook card) done:** per-cook target stored in
+      `Settings.probeTargetsByCookID` (dict, not on BBQTimer — legacy timers are
+      rebuilt on the fly); probe strip shows "→ 203°" / "Set target" chip, tap
+      opens `ProbeTargetSheet` (quick-pick doneness + custom entry, user's unit,
+      stored °C); manager owns send/re-send (UART-ready hook re-pushes after
+      reconnect; never clears a set point it didn't set); Reset clears the
+      cook's target. 11 new tests. **On-device check pending** (strip tap,
+      sheet, Combustion-app cross-check of the set point).
+      Next: 3C (carryover pull-now/resting/done flow + state-transition alerts).
       Design Qs resolved: target is **per-cook, set on the timer card**; one target
       field drives the probe's prediction set point (first UART write command,
       `0x05`), the removal+resting ("pull now → rest → done") flow, and the

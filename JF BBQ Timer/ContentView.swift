@@ -18,6 +18,8 @@ struct ContentView: View {
     #if os(iOS)
     @State private var showAttachSheet = false
     @State private var showProbeConnect = false
+    /// The cook whose probe target sheet is open (nil = closed).
+    @State private var targetSheetCook: BBQTimer? = nil
     #endif
     @State private var preheatPressPulse = false
     @Environment(\.scenePhase) private var scenePhase
@@ -326,8 +328,18 @@ struct ContentView: View {
             surfaceText: settings.showProbeSurfaceTemp ? tempText(reading?.surfaceTempC) : nil,
             ambientText: settings.showProbeAmbientTemp ? tempText(reading?.ambientTempC) : nil,
             readyDate: readyDate,
-            showReady: settings.showProbePredictedReady
+            showReady: settings.showProbePredictedReady,
+            targetText: settings.probeTarget(forCookID: timer.id)
+                .map { settings.temperatureUnit.compactString(fromCelsius: $0) }
         )
+    }
+
+    /// Push the attached cook's stored target into the probe manager, which
+    /// owns the wire-level send/re-send rules. Called whenever the stored
+    /// targets or the attachment change.
+    private func syncProbeTargetToManager() {
+        guard let cookID = probeManager.attachedCookID else { return }
+        probeManager.setTarget(settings.probeTarget(forCookID: cookID))
     }
     #endif
 
@@ -348,7 +360,8 @@ struct ContentView: View {
                 state: state,
                 settings: settings,
                 alertState: alertState,
-                probeInfo: probeInfo(for: timer)
+                probeInfo: probeInfo(for: timer),
+                onProbeStripTap: { targetSheetCook = timer }
             )
             .timerContainerAppearance(
                 timerState: state,
@@ -370,7 +383,9 @@ struct ContentView: View {
                     state: state,
                     settings: settings,
                     alertState: alertState,
-                    probeInfo: probeInfo(for: timer)
+                    probeInfo: probeInfo(for: timer),
+                    cookID: timer.id,
+                    onProbeStripTap: { targetSheetCook = timer }
                 )
             }
             .padding(8)
@@ -395,7 +410,8 @@ struct ContentView: View {
                 state: state,
                 settings: settings,
                 alertState: alertState,
-                probeInfo: probeInfo(for: timer)
+                probeInfo: probeInfo(for: timer),
+                onProbeStripTap: { targetSheetCook = timer }
             )
             .timerContainerAppearance(
                 timerState: state,
@@ -725,10 +741,31 @@ struct ContentView: View {
                 )
             }
         }
+        .sheet(item: $targetSheetCook) { cook in
+            if #available(iOS 16, *) {
+                ProbeTargetSheet(
+                    cookName: cook.name,
+                    unit: settings.temperatureUnit,
+                    currentTargetCelsius: settings.probeTarget(forCookID: cook.id),
+                    onSave: { celsius in
+                        settings.setProbeTarget(celsius, forCookID: cook.id)
+                    }
+                )
+            }
+        }
         .onChange(of: probeManager.connectionState) { newState in
             if case .connected = newState, probeManager.attachedCookID == nil {
                 showAttachSheet = true
             }
+        }
+        // Any change to stored targets (sheet, Reset) or to which cook the
+        // probe is attached to gets pushed to the manager, which handles the
+        // actual (re)sends to the probe.
+        .onChange(of: settings.probeTargetsByCookID) { _ in
+            syncProbeTargetToManager()
+        }
+        .onChange(of: probeManager.attachedCookID) { _ in
+            syncProbeTargetToManager()
         }
         #endif
         .buttonStyle(HapticButtonStyle())

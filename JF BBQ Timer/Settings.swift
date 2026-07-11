@@ -107,6 +107,12 @@ class Settings: ObservableObject {
         didSet { UserDefaults.standard.set(showProbePredictedReady, forKey: "showProbePredictedReady") }
     }
 
+    /// Probe target temperature per cook, in canonical °C. Keyed by cook id
+    /// rather than stored on `BBQTimer` because the two legacy timers are
+    /// rebuilt on the fly (there is no stored struct to carry the field).
+    /// Drives the probe's prediction set point and the target-crossed alert.
+    @Published var probeTargetsByCookID: [UUID: Double] = [:]
+
     // True only for the separate ".dev" identity (the dev/TestFlight build) —
     // never the production App Store app, which has a different bundle id. Used to
     // expose testing-only affordances (e.g. the premium override below) in Release
@@ -202,6 +208,13 @@ class Settings: ObservableObject {
             self.additionalTimers = []
         }
 
+        if let data = UserDefaults.standard.data(forKey: "probeTargetsByCookID"),
+           let stored = try? JSONDecoder().decode([UUID: Double].self, from: data) {
+            self.probeTargetsByCookID = stored
+        } else {
+            self.probeTargetsByCookID = [:]
+        }
+
         self.isPremiumUser = UserDefaults.standard.bool(forKey: "isPremiumUser")
         self.debugPremiumOverrideEnabled = UserDefaults.standard.bool(forKey: "debugPremiumOverrideEnabled")
         debugLog("📱 Initialized premium status from UserDefaults: \(self.isPremiumUser)")
@@ -239,6 +252,9 @@ class Settings: ObservableObject {
         UserDefaults.standard.set(selectedAlertSound.rawValue, forKey: "selectedAlertSound")
         if let data = try? JSONEncoder().encode(additionalTimers) {
             UserDefaults.standard.set(data, forKey: "additionalTimers")
+        }
+        if let data = try? JSONEncoder().encode(probeTargetsByCookID) {
+            UserDefaults.standard.set(data, forKey: "probeTargetsByCookID")
         }
         UserDefaults.standard.synchronize()
         debugLog("✅ Settings saved successfully")
@@ -287,6 +303,20 @@ class Settings: ObservableObject {
         if let preset1 = preset1 { additionalTimers[index].preset1 = preset1 }
         if let preset2 = preset2 { additionalTimers[index].preset2 = preset2 }
         if let isVisible = isVisible { additionalTimers[index].isVisible = isVisible }
+        save()
+    }
+
+    // MARK: - Probe target temperature
+
+    /// The probe target for a cook (°C), or nil when none is set.
+    func probeTarget(forCookID id: UUID) -> Double? {
+        probeTargetsByCookID[id]
+    }
+
+    /// Set (or clear, with nil) the probe target for a cook and persist.
+    func setProbeTarget(_ celsius: Double?, forCookID id: UUID) {
+        if probeTargetsByCookID[id] == celsius { return }
+        probeTargetsByCookID[id] = celsius
         save()
     }
 

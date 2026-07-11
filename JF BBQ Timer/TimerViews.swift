@@ -19,6 +19,9 @@ struct CardProbeInfo: Equatable {
     var readyDate: Date?
     /// False when the user has hidden the predicted-ready slot in Settings.
     var showReady: Bool = true
+    /// Formatted target temperature (e.g. "96°"); nil when no target is set.
+    /// Rendered next to the core temp as "→ 96°"; tapping the strip edits it.
+    var targetText: String? = nil
 }
 #endif
 
@@ -210,6 +213,8 @@ struct TimerControlButtons: View {
     @ObservedObject var state: TimerState
     let settings: Settings
     @ObservedObject var alertState: AlertState
+    /// When set, Reset also clears this cook's probe target temperature.
+    var cookID: UUID? = nil
 
     var body: some View {
         HStack(spacing: 16) {
@@ -225,6 +230,7 @@ struct TimerControlButtons: View {
             Button(action: {
                 state.reset()
                 settings.stopLoopingAlertSound()
+                if let cookID { settings.setProbeTarget(nil, forCookID: cookID) }
             }) {
                 Label("Reset", systemImage: "arrow.counterclockwise")
             }
@@ -273,6 +279,10 @@ struct CompactTimerView: View {
     var alertState: AlertState
     #if os(iOS)
     var probeInfo: CardProbeInfo? = nil
+    /// Cook identity — lets Reset clear the probe target for this cook.
+    var cookID: UUID? = nil
+    /// Opens the target-temperature sheet; wired by ContentView.
+    var onProbeStripTap: (() -> Void)? = nil
     #endif
 
     var body: some View {
@@ -394,6 +404,9 @@ struct CompactTimerView: View {
                         Button(action: {
                             state.reset()
                             settings.stopLoopingAlertSound()
+                            #if os(iOS)
+                            if let cookID { settings.setProbeTarget(nil, forCookID: cookID) }
+                            #endif
                         }) {
                             Label("Reset", systemImage: "arrow.counterclockwise")
                         }
@@ -420,6 +433,19 @@ struct CompactTimerView: View {
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .monospacedDigit()
                         .foregroundColor(Color("TimerAccent"))
+                    if let target = info.targetText {
+                        Text("→ \(target)")
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundColor(.secondary)
+                    } else if onProbeStripTap != nil {
+                        Text("Set target")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .overlay(Capsule().stroke(Color.secondary.opacity(0.5), lineWidth: 1))
+                    }
                     if let surface = info.surfaceText {
                         Text("Sfc \(surface)")
                             .font(.system(size: 11, weight: .medium))
@@ -450,6 +476,8 @@ struct CompactTimerView: View {
                 }
                 .padding(.horizontal, 4)
                 .padding(.bottom, 2)
+                .contentShape(Rectangle())
+                .onTapGesture { onProbeStripTap?() }
             }
             #endif
         }
@@ -503,6 +531,8 @@ struct GlassLargeTimerContent: View {
     @ObservedObject var alertState: AlertState
     #if os(iOS)
     var probeInfo: CardProbeInfo? = nil
+    /// Opens the target-temperature sheet; wired by ContentView.
+    var onProbeStripTap: (() -> Void)? = nil
     #endif
 
     private func startWithPreset(_ preset: TimeInterval) {
@@ -600,6 +630,9 @@ struct GlassLargeTimerContent: View {
                 Button {
                     state.reset()
                     settings.stopLoopingAlertSound()
+                    #if os(iOS)
+                    settings.setProbeTarget(nil, forCookID: timer.id)
+                    #endif
                 } label: {
                     Label("Reset", systemImage: "arrow.counterclockwise")
                         .font(.system(size: 14, weight: .medium))
@@ -625,6 +658,19 @@ struct GlassLargeTimerContent: View {
                         .font(.system(size: 18, weight: .semibold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(Color("TimerAccent"))
+                    if let target = info.targetText {
+                        Text("→ \(target)")
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(.white.opacity(0.75))
+                    } else if onProbeStripTap != nil {
+                        Text("Set target")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.7))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .overlay(Capsule().stroke(.white.opacity(0.35), lineWidth: 1))
+                    }
                     if let surface = info.surfaceText {
                         Text("Sfc \(surface)")
                             .font(.system(size: 13, weight: .medium))
@@ -654,6 +700,8 @@ struct GlassLargeTimerContent: View {
                         }
                     }
                 }
+                .contentShape(Rectangle())
+                .onTapGesture { onProbeStripTap?() }
             }
             #endif
         }
@@ -717,6 +765,8 @@ struct GlassCompactTimerContent: View {
     @ObservedObject var alertState: AlertState
     #if os(iOS)
     var probeInfo: CardProbeInfo? = nil
+    /// Opens the target-temperature sheet; wired by ContentView.
+    var onProbeStripTap: (() -> Void)? = nil
     #endif
 
     private func startWithPreset(_ preset: TimeInterval) {
@@ -812,6 +862,9 @@ struct GlassCompactTimerContent: View {
                         Button {
                             state.reset()
                             settings.stopLoopingAlertSound()
+                            #if os(iOS)
+                            settings.setProbeTarget(nil, forCookID: timer.id)
+                            #endif
                         } label: {
                             Text("Reset").font(.system(size: 13, weight: .medium))
                         }
@@ -843,6 +896,19 @@ struct GlassCompactTimerContent: View {
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(Color("TimerAccent"))
+                    if let target = info.targetText {
+                        Text("→ \(target)")
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(.white.opacity(0.7))
+                    } else if onProbeStripTap != nil {
+                        Text("Set target")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.65))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .overlay(Capsule().stroke(.white.opacity(0.3), lineWidth: 1))
+                    }
                     if let surface = info.surfaceText {
                         Text("Sfc \(surface)")
                             .font(.system(size: 11, weight: .medium))
@@ -874,6 +940,8 @@ struct GlassCompactTimerContent: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 4)
+                .contentShape(Rectangle())
+                .onTapGesture { onProbeStripTap?() }
             }
             #endif
         }
