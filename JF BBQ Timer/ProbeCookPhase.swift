@@ -45,6 +45,9 @@ enum ProbeCookPhase: Equatable {
 enum ProbeCookEvent: Equatable {
     case pullNow
     case restingDone
+    /// The MEASURED core temp crossed the cook's target (phone-side safety
+    /// net, `TargetCrossingLatch`) with no carryover alert having covered it.
+    case targetReached
 }
 
 // MARK: - Engine
@@ -57,6 +60,10 @@ struct ProbeCookPhaseEngine: Equatable {
     private(set) var phase: ProbeCookPhase = .none
     private var firedPull = false
     private var firedDone = false
+
+    /// Whether a carryover alert has already covered this cook — used by the
+    /// owner to suppress the redundant phone-side target-crossed alert.
+    var hasAlertedCarryover: Bool { firedPull || firedDone }
 
     mutating func reset() {
         self = ProbeCookPhaseEngine()
