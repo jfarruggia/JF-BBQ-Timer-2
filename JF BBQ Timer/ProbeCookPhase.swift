@@ -48,6 +48,10 @@ enum ProbeCookEvent: Equatable {
     /// The MEASURED core temp crossed the cook's target (phone-side safety
     /// net, `TargetCrossingLatch`) with no carryover alert having covered it.
     case targetReached
+    /// Probe health, one-shot per user connection: battery low.
+    case batteryLow
+    /// Probe health, one-shot per user connection: a sensor is overheating.
+    case overheating
 }
 
 // MARK: - Engine

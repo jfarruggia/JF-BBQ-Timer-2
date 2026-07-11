@@ -269,7 +269,11 @@ extension ProbeReading {
             coreSensor: battVS.coreSensor,
             surfaceSensor: battVS.surfaceSensor,
             ambientSensor: battVS.ambientSensor,
-            prediction: prediction
+            prediction: prediction,
+            // Overheating Sensors: byte [48], after Food Safe Data [30..<40]
+            // and Food Safe Status [40..<48]. Optional — older/short payloads
+            // simply don't carry it.
+            overheatingSensors: data.count >= 49 ? data[48] : nil
         )
     }
 }

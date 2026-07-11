@@ -30,7 +30,32 @@ struct CardProbeInfo: Equatable {
     var readySlotText: String? = nil
     /// Accent-colors the ready slot for act-now moments (pull now / done).
     var readySlotEmphasized: Bool = false
+    /// Probe battery is low — strip shows a small warning icon.
+    var batteryLow: Bool = false
+    /// A probe sensor is overheating — strip warning icon (wins over battery).
+    var overheating: Bool = false
 }
+
+/// Small probe-health warning icon shared by the three probe strips.
+/// Overheat wins over low battery; renders nothing when the probe is healthy.
+#if os(iOS)
+struct ProbeHealthIcon: View {
+    let info: CardProbeInfo
+    var size: CGFloat = 12
+
+    var body: some View {
+        if info.overheating {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: size, weight: .bold))
+                .foregroundColor(Color("TimerRed"))
+        } else if info.batteryLow {
+            Image(systemName: "battery.25")
+                .font(.system(size: size, weight: .bold))
+                .foregroundColor(Color("TimerRed"))
+        }
+    }
+}
+#endif
 #endif
 
 struct ButtonPreview: View {
@@ -434,6 +459,7 @@ struct CompactTimerView: View {
                     Image(systemName: "thermometer.medium")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(Color("TimerAccent"))
+                    ProbeHealthIcon(info: info, size: 11)
                     Text("Core")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.secondary)
@@ -659,6 +685,7 @@ struct GlassLargeTimerContent: View {
                     Image(systemName: "thermometer.medium")
                         .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(Color("TimerAccent"))
+                    ProbeHealthIcon(info: info, size: 13)
                     Text("Core")
                         .font(.system(size: 14, weight: .medium))
                         .foregroundStyle(.white.opacity(0.7))
@@ -899,6 +926,7 @@ struct GlassCompactTimerContent: View {
                     Image(systemName: "thermometer.medium")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(Color("TimerAccent"))
+                    ProbeHealthIcon(info: info, size: 11)
                     Text("Core")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.white.opacity(0.65))
