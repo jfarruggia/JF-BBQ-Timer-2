@@ -153,6 +153,7 @@ final class ProbeBLEManager: ObservableObject {
     func disconnect() {
         shouldReconnect = false
         attachedCookID = nil
+        targetCelsius = nil   // association over; don't write to a dying link
         cancelPendingUART()
         central.disconnect()
     }
@@ -166,8 +167,45 @@ final class ProbeBLEManager: ObservableObject {
     }
 
     /// Remove the cook association without disconnecting the probe.
+    /// Also clears the probe's set point — no cook, no target.
     func detach() {
         attachedCookID = nil
+        setTarget(nil)
+    }
+
+    // MARK: - Target temperature (prediction set point)
+
+    /// The target core temp (°C) the probe should be predicting toward, i.e.
+    /// the attached cook's target. The single source for what gets (re)sent to
+    /// the probe; ContentView syncs it from Settings on target/attach changes.
+    private(set) var targetCelsius: Double?
+
+    /// Update the desired target. Sends immediately when connected; a nil
+    /// target sends a "clear prediction" (mode none). No-op if unchanged, so
+    /// repeated syncs don't re-spam the probe.
+    func setTarget(_ celsius: Double?) {
+        guard targetCelsius != celsius else { return }
+        targetCelsius = celsius
+        sendTargetIfConnected()
+    }
+
+    /// Called by the central once the UART RX characteristic is discovered —
+    /// the earliest moment a write can actually reach the probe. Re-pushes the
+    /// target after every (re)connect so the probe's set point survives drops.
+    /// Only pushes when a target exists — a fresh connect with no target must
+    /// NOT clear a set point the user may have configured in Combustion's app.
+    func handleUARTReady() {
+        guard targetCelsius != nil else { return }
+        sendTargetIfConnected()
+    }
+
+    private func sendTargetIfConnected() {
+        guard case .connected = connectionState else { return }
+        if let celsius = targetCelsius {
+            setPrediction(setPointCelsius: celsius, mode: .removalAndResting)
+        } else {
+            setPrediction(setPointCelsius: 0, mode: .none)
+        }
     }
 
     // MARK: - UART commands (host → probe)
@@ -558,6 +596,11 @@ extension CoreBluetoothProbeCentral: CBPeripheralDelegate {
                 peripheral.setNotifyValue(true, for: characteristic)
             case uartRXCharUUID:
                 uartRXCharacteristic = characteristic
+                // Command channel is writable from here on — let the manager
+                // re-push the prediction set point after a (re)connect.
+                Task { @MainActor in
+                    manager?.handleUARTReady()
+                }
             default:
                 break
             }

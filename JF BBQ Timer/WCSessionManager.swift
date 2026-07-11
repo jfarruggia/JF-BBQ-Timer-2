@@ -380,6 +380,15 @@ enum TemperatureUnit: String, CaseIterable, Identifiable {
         }
     }
 
+    /// Convert a value the user typed in this unit back to canonical Celsius —
+    /// the inverse of `value(fromCelsius:)`. Used by target-temperature entry.
+    func celsius(fromValue v: Double) -> Double {
+        switch self {
+        case .celsius:    return v
+        case .fahrenheit: return (v - 32.0) * 5.0 / 9.0
+        }
+    }
+
     /// Rounded whole-degree string with a bare degree sign, e.g. "162°".
     /// Matches the compact timer card and the watch.
     func compactString(fromCelsius c: Double) -> String {
