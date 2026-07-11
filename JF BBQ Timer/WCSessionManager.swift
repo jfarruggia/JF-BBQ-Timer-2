@@ -402,6 +402,26 @@ enum TemperatureUnit: String, CaseIterable, Identifiable {
     }
 }
 
+/// What stage of the guided cook the attached probe is in. Defined here (not
+/// in ProbeCookPhase.swift) because it is part of the phone→watch wire format
+/// and this file is compiled into both targets.
+/// Raw values are wire-stable — never renumber.
+enum ProbeCookPhase: UInt8, Equatable {
+    /// No prediction configured (mode none) — plain temperature display.
+    case none = 0
+    /// Prediction configured but not yet producing a countdown
+    /// (probe not inserted / inserted / warming).
+    case monitoring = 1
+    /// Counting down to the moment the food should come off the heat.
+    case predictingRemoval = 2
+    /// The probe says pull the food off now.
+    case pullNow = 3
+    /// Food is resting; carryover is coasting the core up to the target.
+    case resting = 4
+    /// The cook is finished (resting complete or target reached).
+    case done = 5
+}
+
 /// Compact, plist-safe representation of a probe reading forwarded iPhone → watch.
 struct WatchProbeReading: Equatable {
     /// True when the iPhone has an active BLE connection to the probe.
@@ -421,6 +441,13 @@ struct WatchProbeReading: Equatable {
     /// The unit the watch should render temperatures in (mirrors the iPhone's
     /// setting). Defaults to Celsius for older payloads that omit the field.
     var unit: TemperatureUnit = .celsius
+    /// The attached cook's target temperature (°C); nil when unset.
+    var targetC: Double? = nil
+    /// Raw `ProbeCookPhase` — the guided-cook stage. Defaults to none (0)
+    /// for older payloads that omit the field.
+    var phaseRaw: UInt8 = 0
+    /// True when a probe sensor reports overheating.
+    var overheating: Bool = false
 }
 
 /// Decodes a WatchConnectivity wire dict into a `WatchProbeReading`.
@@ -450,7 +477,10 @@ func decodeWatchProbeReading(from dict: [String: Any]) -> WatchProbeReading? {
         predictionStateRaw: predStateRaw,
         predictedReadyDate: predictedReadyDate,
         batteryLow: batteryLow,
-        unit: unit
+        unit: unit,
+        targetC: dict["targetC"] as? Double,
+        phaseRaw: UInt8((dict["phaseRaw"] as? Int) ?? 0),
+        overheating: dict["overheating"] as? Bool ?? false
     )
 }
 

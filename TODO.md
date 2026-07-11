@@ -163,7 +163,21 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       decoded (nil-safe for short payloads); one-shot batteryLow/overheating
       events per USER connection (auto-reconnect blips stay quiet); warning
       icon on the header Probe chip + all three strips; notifications wired.
-      8 new tests. Next: 3F watch payload + watch UI (last step of round 2).
+      8 new tests.
+      **3F (watch) done — round 2 CODE-COMPLETE:** additive wire keys
+      (`targetC`/`phaseRaw`/`overheating`; old payloads decode to safe
+      defaults; `ProbeCookPhase` moved into WCSessionManager.swift because
+      that's the file both targets compile — new files in the app folder are
+      iOS-only); forwarder sends immediately on phase change; watch probe page
+      shows target ("→ 203°"), phase-aware status line ("Pull now!" / resting /
+      "Ready to serve"), overheat icon. 4 new tests; 186 total green.
+      **Remaining before ship: on-device verification pass** —
+      - [ ] Set target from card → probe picker/Combustion app shows same set point
+      - [ ] Real cook: phase progression + pull-now/done alerts (validate the
+            undocumented resting semantics the engine assumes — see 3C caveat)
+      - [ ] Crossing alert with prediction never converging
+      - [ ] Battery/overheat badges; watch page target/phase line
+      - [ ] Reset clears target; reconnect re-pushes set point
       Design Qs resolved: target is **per-cook, set on the timer card**; one target
       field drives the probe's prediction set point (first UART write command,
       `0x05`), the removal+resting ("pull now → rest → done") flow, and the

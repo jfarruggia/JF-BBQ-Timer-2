@@ -32,6 +32,10 @@ final class ProbeWatchForwarder {
     private var lastSentAt: Date? = nil
     private var lastConnected: Bool? = nil
     private var lastHadValidReading: Bool? = nil
+    private var lastPhase: ProbeCookPhase? = nil
+    /// Read at send time for the target temp (not published; changes always
+    /// coincide with a phase reset, which triggers a forward anyway).
+    private weak var bleManager: ProbeBLEManager?
 
     // MARK: - Init
 
@@ -40,25 +44,27 @@ final class ProbeWatchForwarder {
     ///   - minInterval:  Minimum forwarding interval (default 1.0 s).
     init(bleManager: ProbeBLEManager, minInterval: TimeInterval = 1.0) {
         self.minInterval = minInterval
+        self.bleManager = bleManager
         subscribe(to: bleManager)
     }
 
     // MARK: - Combine subscription
 
     private func subscribe(to ble: ProbeBLEManager) {
-        // Combine both published properties so any change triggers a re-evaluation.
+        // Combine the published properties so any change triggers a re-evaluation.
         ble.$latestReading
-            .combineLatest(ble.$connectionState)
+            .combineLatest(ble.$connectionState, ble.$cookPhase)
             .receive(on: RunLoop.main)
-            .sink { [weak self] reading, state in
-                self?.handle(reading: reading, connectionState: state)
+            .sink { [weak self] reading, state, phase in
+                self?.handle(reading: reading, connectionState: state, phase: phase)
             }
             .store(in: &cancellables)
     }
 
     // MARK: - Forwarding logic
 
-    private func handle(reading: ProbeReading?, connectionState: ProbeConnectionState) {
+    private func handle(reading: ProbeReading?, connectionState: ProbeConnectionState,
+                        phase: ProbeCookPhase) {
         let now = Date()
 
         let connected: Bool
@@ -72,7 +78,8 @@ final class ProbeWatchForwarder {
         // Detect transitions that warrant an immediate forward
         let connectionChanged  = lastConnected != connected
         let validityChanged    = lastHadValidReading != hasValidReading
-        let immediateForward   = connectionChanged || validityChanged
+        let phaseChanged       = lastPhase != phase
+        let immediateForward   = connectionChanged || validityChanged || phaseChanged
 
         // Apply throttle unless this is a forced send
         let shouldSend = immediateForward
@@ -84,7 +91,15 @@ final class ProbeWatchForwarder {
         // user in Settings) rides along so the watch renders the same unit as the
         // phone; read at send time so unit changes propagate immediately.
         let unit = TemperatureUnit(rawValue: UserDefaults.standard.string(forKey: "temperatureUnit") ?? "C") ?? .celsius
-        let dict = probeReadingWireDict(connected: connected, reading: reading, now: now, unit: unit)
+        let dict = probeReadingWireDict(
+            connected: connected,
+            reading: reading,
+            now: now,
+            unit: unit,
+            targetC: bleManager?.targetCelsius,
+            phaseRaw: phase.rawValue,
+            overheating: reading?.isOverheating ?? false
+        )
         let sent = WCSessionManager.shared.sendProbeReading(dict)
 
         if sent {
@@ -94,6 +109,7 @@ final class ProbeWatchForwarder {
         // so we don't spam retries on every tick when the watch is unreachable.
         lastConnected       = connected
         lastHadValidReading = hasValidReading
+        lastPhase           = phase
     }
 }
 
