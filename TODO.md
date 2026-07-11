@@ -146,7 +146,16 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       reconnect; never clears a set point it didn't set); Reset clears the
       cook's target. 11 new tests. **On-device check pending** (strip tap,
       sheet, Combustion-app cross-check of the set point).
-      Next: 3C (carryover pull-now/resting/done flow + state-transition alerts).
+      **3C (carryover flow) done:** pure `ProbeCookPhaseEngine` (monitoring →
+      pull-in countdown → PULL NOW → resting → done) with fire-once alerts;
+      strip's ready slot is phase-driven; immediate local notification + haptic
+      on pull-now/done. **Semantics caveat:** Combustion documents the states
+      but not the removal→resting lifecycle — "done" trusts only probe
+      state 4-while-resting OR our own stored target crossing (never the
+      probe-reported set point). **Validate on a real cook** and adjust the
+      engine if observed behavior differs. 9 new tests.
+      Next: 3D crossing-alert latch (partly covered by the engine's own-target
+      crossing — scope check against spec), then 3E battery/overheat, 3F watch.
       Design Qs resolved: target is **per-cook, set on the timer card**; one target
       field drives the probe's prediction set point (first UART write command,
       `0x05`), the removal+resting ("pull now → rest → done") flow, and the

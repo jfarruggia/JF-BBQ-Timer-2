@@ -22,6 +22,14 @@ struct CardProbeInfo: Equatable {
     /// Formatted target temperature (e.g. "96°"); nil when no target is set.
     /// Rendered next to the core temp as "→ 96°"; tapping the strip edits it.
     var targetText: String? = nil
+    /// Caption for the ready slot — phase-dependent: "ready" / "pull in" /
+    /// "pull" / "rest". Mapped from the manager's cook phase in ContentView.
+    var readySlotLabel: String = "ready"
+    /// Static value for the ready slot when there is no countdown to show
+    /// (e.g. "NOW" during pull-now, "done" when the cook finishes).
+    var readySlotText: String? = nil
+    /// Accent-colors the ready slot for act-now moments (pull now / done).
+    var readySlotEmphasized: Bool = false
 }
 #endif
 
@@ -460,17 +468,17 @@ struct CompactTimerView: View {
                     }
                     Spacer()
                     if info.showReady {
-                        Text("ready")
+                        Text(info.readySlotLabel)
                             .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(info.readySlotEmphasized ? Color("TimerAccent") : .secondary)
                         if #available(iOS 16, *), let readyDate = info.readyDate {
                             Text(timerInterval: Date()...readyDate, countsDown: true)
                                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                                 .monospacedDigit()
                         } else {
-                            Text(info.readyDate != nil ? "~" : "—")
+                            Text(info.readySlotText ?? (info.readyDate != nil ? "~" : "—"))
                                 .font(.system(size: 13, weight: .semibold, design: .rounded))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(info.readySlotEmphasized ? Color("TimerAccent") : .secondary)
                         }
                     }
                 }
@@ -685,18 +693,20 @@ struct GlassLargeTimerContent: View {
                     }
                     Spacer()
                     if info.showReady {
-                        Text("ready")
+                        Text(info.readySlotLabel)
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.6))
+                            .foregroundStyle(info.readySlotEmphasized
+                                             ? Color("TimerAccent") : .white.opacity(0.6))
                         if let readyDate = info.readyDate {
                             Text(timerInterval: Date()...readyDate, countsDown: true)
                                 .font(.system(size: 15, weight: .semibold, design: .rounded))
                                 .monospacedDigit()
                                 .foregroundStyle(.white)
                         } else {
-                            Text("—")
+                            Text(info.readySlotText ?? "—")
                                 .font(.system(size: 15, weight: .semibold, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.5))
+                                .foregroundStyle(info.readySlotEmphasized
+                                                 ? Color("TimerAccent") : .white.opacity(0.5))
                         }
                     }
                 }
@@ -923,18 +933,20 @@ struct GlassCompactTimerContent: View {
                     }
                     Spacer()
                     if info.showReady {
-                        Text("ready")
+                        Text(info.readySlotLabel)
                             .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.55))
+                            .foregroundStyle(info.readySlotEmphasized
+                                             ? Color("TimerAccent") : .white.opacity(0.55))
                         if let readyDate = info.readyDate {
                             Text(timerInterval: Date()...readyDate, countsDown: true)
                                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                                 .monospacedDigit()
                                 .foregroundStyle(.white)
                         } else {
-                            Text("—")
+                            Text(info.readySlotText ?? "—")
                                 .font(.system(size: 13, weight: .semibold, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.45))
+                                .foregroundStyle(info.readySlotEmphasized
+                                                 ? Color("TimerAccent") : .white.opacity(0.45))
                         }
                     }
                 }

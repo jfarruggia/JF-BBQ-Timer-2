@@ -95,6 +95,17 @@ final class ProbeBLEManager: ObservableObject {
     /// crossing alert works regardless, so a failed write degrades gracefully.
     @Published private(set) var setPredictionFailed: Bool = false
 
+    /// Current stage of the guided cook, derived from the prediction stream by
+    /// the pure `ProbeCookPhaseEngine`. Drives the card strip's ready slot.
+    @Published private(set) var cookPhase: ProbeCookPhase = .none
+
+    /// Fires once per cook for each alert-worthy moment (pull now / resting
+    /// done). ContentView wires this to notifications + sound/haptics; the
+    /// manager itself stays UI-free.
+    var onCookEvent: ((ProbeCookEvent) -> Void)?
+
+    private var phaseEngine = ProbeCookPhaseEngine()
+
     // MARK: Private
 
     /// The underlying BLE transport. Injected at init for testability.
@@ -154,6 +165,8 @@ final class ProbeBLEManager: ObservableObject {
         shouldReconnect = false
         attachedCookID = nil
         targetCelsius = nil   // association over; don't write to a dying link
+        phaseEngine.reset()
+        cookPhase = phaseEngine.phase
         cancelPendingUART()
         central.disconnect()
     }
@@ -171,6 +184,8 @@ final class ProbeBLEManager: ObservableObject {
     func detach() {
         attachedCookID = nil
         setTarget(nil)
+        phaseEngine.reset()   // setTarget only resets when a target existed
+        cookPhase = phaseEngine.phase
     }
 
     // MARK: - Target temperature (prediction set point)
@@ -186,6 +201,10 @@ final class ProbeBLEManager: ObservableObject {
     func setTarget(_ celsius: Double?) {
         guard targetCelsius != celsius else { return }
         targetCelsius = celsius
+        // A new target is a new cook goal — re-arm the phase engine so the
+        // pull-now / done alerts can fire again for the new target.
+        phaseEngine.reset()
+        cookPhase = phaseEngine.phase
         sendTargetIfConnected()
     }
 
@@ -372,6 +391,10 @@ final class ProbeBLEManager: ObservableObject {
         #endif
         guard let reading = ProbeReading.decode(data: data) else { return }
         latestReading = reading
+        let events = phaseEngine.update(prediction: reading.prediction,
+                                        targetCelsius: targetCelsius)
+        if phaseEngine.phase != cookPhase { cookPhase = phaseEngine.phase }
+        for event in events { onCookEvent?(event) }
     }
 }
 
