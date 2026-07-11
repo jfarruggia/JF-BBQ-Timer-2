@@ -80,7 +80,9 @@ glass + accent), added a "Done" button to the picker sheet, renamed discovered p
   - [x] **2E — on-screen probe UI** — done in the layout pass: probe strip on the attached
         cook's card + a header "Probe" chip entry point (`ab87de0`, `91170e1`). Watch display
         done in 2C (on-watch visual check still pending).
-  - [ ] **2F (later) — UART commands** (alarms, set-prediction): separate spec, out of scope.
+  - [~] **2F — UART commands (set-prediction):** now spec'd as probe round 2 — see
+        `probe-target-prediction-spec.md` and the "Probe features" section below.
+        Probe-side alarm commands (`0x0B`) deliberately skipped (phone-side alert instead).
 - [x] **Dev-only free⇄paid toggle** for testing premium gating — shipped `4ec2ca8`.
       `#if DEBUG`-only "Debug" section at the bottom of Settings: "Override Premium"
       switch + Free/Paid segmented picker. Overrides `isPremiumUser` locally; both
@@ -131,15 +133,18 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       keep-alive). Carefully verify — touches the working alert path.
 
 ## Probe features
-- [ ] **Target-temp alert** — alert when the probe's core temp reaches a user-set
-      target (e.g. "145°"), separate from the existing *predicted-ready time*.
-      Feasible & fits the architecture: phone owns the BLE connection + has the
-      Bluetooth background mode, so it can detect the crossing and fire a local
-      notification (+ haptic/sound, + signal the watch via the existing alert path)
-      even when backgrounded/locked. Needs: per-cook target field, an edge-triggered
-      fire-once latch (small guard against noisy readings), and pure unit-tested
-      threshold math. Open design Qs: where the target is set (timer card vs probe
-      page) and whether it's per-timer or per-probe. Spec before building.
+- [ ] **Probe round 2: target temp + carryover prediction** — spec drafted
+      (`probe-target-prediction-spec.md`, 2026-07-11), awaiting Jim's approval.
+      Design Qs resolved: target is **per-cook, set on the timer card**; one target
+      field drives the probe's prediction set point (first UART write command,
+      `0x05`), the removal+resting ("pull now → rest → done") flow, and the
+      phone-side crossing alert; plus low-battery/overheat badges. Absorbs the old
+      standalone "target-temp alert" item. Note: probe predictions currently only
+      work if the user also runs Combustion's app to set the target — this round
+      makes them self-sufficient.
+- [x] **SafeCook / Food Safe — parked** (decision 2026-07-11): education-heavy,
+      food-safety-liability-adjacent, and low-and-slow BBQ blows past the thresholds
+      anyway. Revisit only on user demand.
 
 ## Bugs / verify on device
 - [x] **Lit time froze when the flip countdown completed** — fixed: `handleCompletion()`
