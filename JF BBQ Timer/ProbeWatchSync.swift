@@ -35,14 +35,25 @@ func shouldForwardProbe(now: Date, lastSent: Date?, minInterval: TimeInterval) -
 ///   - reading:   The latest decoded probe reading, or `nil` if disconnected / unavailable.
 ///   - now:       Current date, used to compute the predicted ready epoch (inject for tests).
 /// - Returns: A `[String: Any]` dictionary safe for WatchConnectivity `sendMessage`.
-func probeReadingWireDict(connected: Bool, reading: ProbeReading?, now: Date, unit: TemperatureUnit = .celsius) -> [String: Any] {
+func probeReadingWireDict(
+    connected: Bool,
+    reading: ProbeReading?,
+    now: Date,
+    unit: TemperatureUnit = .celsius,
+    targetC: Double? = nil,
+    phaseRaw: UInt8 = 0,
+    overheating: Bool = false
+) -> [String: Any] {
     var dict: [String: Any] = [
         "action":     "probe",
         "connected":  connected,
         "batteryLow": reading.map { $0.batteryStatus == .low } ?? false,
         "predStateRaw": Int(reading?.prediction.state.rawValue ?? 0),
-        "unit":       unit.rawValue
+        "unit":       unit.rawValue,
+        "phaseRaw":   Int(phaseRaw),
+        "overheating": overheating
     ]
+    if let targetC { dict["targetC"] = targetC }
 
     // Temperature values: omit if at or below the −20 °C sensor floor
     let floorC = -19.99

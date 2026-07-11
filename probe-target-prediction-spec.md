@@ -1,6 +1,7 @@
 # Spec: Probe Target Temperature + Carryover Prediction (V2 probe round 2)
 
-**Status:** DRAFT — awaiting Jim's approval
+**Status:** IMPLEMENTED (3A–3F merged 2026-07-11, PRs #6–#11) — on-device
+verification pass pending; see TODO.md for the checklist.
 **Depends on:** the shipped probe foundation (2A–2E in TODO.md)
 **Source of truth:** Combustion Probe BLE spec
 `https://github.com/combustion-inc/combustion-documentation/blob/main/probe_ble_specification.rst`

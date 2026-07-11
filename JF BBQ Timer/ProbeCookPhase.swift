@@ -21,23 +21,10 @@
 import Foundation
 
 // MARK: - Phase
-
-/// What stage of the guided cook the attached probe is in.
-enum ProbeCookPhase: Equatable {
-    /// No prediction configured (mode none) — plain temperature display.
-    case none
-    /// Prediction configured but not yet producing a countdown
-    /// (probe not inserted / inserted / warming).
-    case monitoring
-    /// Counting down to the moment the food should come off the heat.
-    case predictingRemoval
-    /// The probe says pull the food off now.
-    case pullNow
-    /// Food is resting; carryover is coasting the core up to the target.
-    case resting
-    /// The cook is finished (resting complete or target reached).
-    case done
-}
+//
+// NOTE: the `ProbeCookPhase` enum itself lives in WCSessionManager.swift — it
+// is part of the phone→watch wire format, and that file is the one compiled
+// into BOTH targets (the watch target does not include this file).
 
 // MARK: - Events
 

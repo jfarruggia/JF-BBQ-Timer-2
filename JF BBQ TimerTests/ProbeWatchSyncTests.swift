@@ -304,3 +304,52 @@ struct ProbeWireUnitTests {
         #expect(decoded?.unit == .celsius)
     }
 }
+
+// MARK: - Round 2 additions (spec 3F): target / phase / overheating
+
+@Suite("ProbeWatchSync — target, phase, overheating")
+struct ProbeWatchSyncRound2Tests {
+
+    @Test("Round-trip: target, phase, and overheating survive encode → decode")
+    func roundTripNewFields() {
+        let dict = probeReadingWireDict(
+            connected: true, reading: nil, now: Date(),
+            targetC: 95.0,
+            phaseRaw: ProbeCookPhase.resting.rawValue,
+            overheating: true
+        )
+        let decoded = decodeWatchProbeReading(from: dict)
+        #expect(decoded?.targetC == 95.0)
+        #expect(decoded?.phaseRaw == ProbeCookPhase.resting.rawValue)
+        #expect(decoded?.overheating == true)
+    }
+
+    @Test("No target → key omitted; decodes to nil")
+    func noTargetOmitted() {
+        let dict = probeReadingWireDict(connected: true, reading: nil, now: Date())
+        #expect(dict["targetC"] == nil)
+        let decoded = decodeWatchProbeReading(from: dict)
+        #expect(decoded?.targetC == nil)
+    }
+
+    @Test("Old payload without the new keys decodes to safe defaults")
+    func oldPayloadDefaults() {
+        var dict = probeReadingWireDict(connected: true, reading: nil, now: Date())
+        dict.removeValue(forKey: "phaseRaw")
+        dict.removeValue(forKey: "overheating")
+        let decoded = decodeWatchProbeReading(from: dict)
+        #expect(decoded?.phaseRaw == 0)          // ProbeCookPhase.none
+        #expect(decoded?.overheating == false)
+        #expect(decoded?.targetC == nil)
+    }
+
+    @Test("Wire phase raw values are stable (never renumber)")
+    func phaseRawValuesPinned() {
+        #expect(ProbeCookPhase.none.rawValue == 0)
+        #expect(ProbeCookPhase.monitoring.rawValue == 1)
+        #expect(ProbeCookPhase.predictingRemoval.rawValue == 2)
+        #expect(ProbeCookPhase.pullNow.rawValue == 3)
+        #expect(ProbeCookPhase.resting.rawValue == 4)
+        #expect(ProbeCookPhase.done.rawValue == 5)
+    }
+}

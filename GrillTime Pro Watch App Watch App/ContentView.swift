@@ -187,7 +187,17 @@ struct TimersListView: View {
                     Text("Core")
                         .font(.headline)
                         .foregroundColor(.secondary)
-                    if probe.batteryLow {
+                    if let target = probe.targetC {
+                        Text("→ \(probe.unit.compactString(fromCelsius: target))")
+                            .font(.caption)
+                            .monospacedDigit()
+                            .foregroundColor(.secondary)
+                    }
+                    if probe.overheating {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.caption2)
+                            .foregroundColor(.red)
+                    } else if probe.batteryLow {
                         Image(systemName: "battery.25")
                             .font(.caption2)
                             .foregroundColor(.yellow)
@@ -207,22 +217,9 @@ struct TimersListView: View {
                 .monospacedDigit()
                 .foregroundColor(.secondary)
 
-                // Live countdown to predicted ready time
-                if let readyDate = probe.predictedReadyDate, readyDate > Date() {
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock.arrow.trianglehead.counterclockwise.rotate.90")
-                            .font(.caption2)
-                            .foregroundColor(.green)
-                        Text(timerInterval: Date.now...readyDate, countsDown: true)
-                            .font(.footnote)
-                            .monospacedDigit()
-                            .foregroundColor(.green)
-                        Text("ready")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
+                // Guided-cook status line — phase-aware (mirrors the iPhone card)
+                probeStatusLine(for: probe)
                     .padding(.top, 2)
-                }
 
                 Spacer(minLength: 0)
             }
@@ -235,6 +232,46 @@ struct TimersListView: View {
     /// Short whole-degree temperature in the user's unit, or "—" when no reading.
     private func shortTemp(_ celsius: Double?, unit: TemperatureUnit) -> String {
         celsius.map { unit.compactString(fromCelsius: $0) } ?? "—"
+    }
+
+    /// Phase-aware status line for the probe page: countdowns while the probe
+    /// is predicting, and clear act-now text at the pull / done moments.
+    @ViewBuilder
+    private func probeStatusLine(for probe: WatchProbeReading) -> some View {
+        switch ProbeCookPhase(rawValue: probe.phaseRaw) ?? .none {
+        case .pullNow:
+            Label("Pull now!", systemImage: "hand.raised.fill")
+                .font(.footnote.weight(.bold))
+                .foregroundColor(.orange)
+        case .done:
+            Label("Ready to serve", systemImage: "checkmark.circle.fill")
+                .font(.footnote.weight(.bold))
+                .foregroundColor(.green)
+        case .resting:
+            probeCountdownLine(for: probe, caption: "resting")
+        case .predictingRemoval:
+            probeCountdownLine(for: probe, caption: "to pull")
+        case .none, .monitoring:
+            probeCountdownLine(for: probe, caption: "ready")
+        }
+    }
+
+    @ViewBuilder
+    private func probeCountdownLine(for probe: WatchProbeReading, caption: String) -> some View {
+        if let readyDate = probe.predictedReadyDate, readyDate > Date() {
+            HStack(spacing: 4) {
+                Image(systemName: "clock.arrow.trianglehead.counterclockwise.rotate.90")
+                    .font(.caption2)
+                    .foregroundColor(.green)
+                Text(timerInterval: Date.now...readyDate, countsDown: true)
+                    .font(.footnote)
+                    .monospacedDigit()
+                    .foregroundColor(.green)
+                Text(caption)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
     }
 
     private var emptyState: some View {
