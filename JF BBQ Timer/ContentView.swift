@@ -322,7 +322,30 @@ struct ContentView: View {
             guard let c = celsius, c > -19.99 else { return "—" }
             return settings.temperatureUnit.compactString(fromCelsius: c)
         }
-        let readyDate = reading?.prediction.predictedReadyDate(from: Date())
+        var readyDate = reading?.prediction.predictedReadyDate(from: Date())
+
+        // Phase-dependent ready slot (spec 3C): label + static text + emphasis.
+        var readySlotLabel = "ready"
+        var readySlotText: String? = nil
+        var readySlotEmphasized = false
+        switch probeManager.cookPhase {
+        case .none, .monitoring:
+            break
+        case .predictingRemoval:
+            readySlotLabel = "pull in"
+        case .pullNow:
+            readySlotLabel = "pull"
+            readySlotText = "NOW"
+            readySlotEmphasized = true
+            readyDate = nil   // act-now moment — a countdown would contradict it
+        case .resting:
+            readySlotLabel = "rest"
+        case .done:
+            readySlotText = "done"
+            readySlotEmphasized = true
+            readyDate = nil
+        }
+
         return CardProbeInfo(
             coreText: tempText(reading?.coreTempC),
             surfaceText: settings.showProbeSurfaceTemp ? tempText(reading?.surfaceTempC) : nil,
@@ -330,8 +353,41 @@ struct ContentView: View {
             readyDate: readyDate,
             showReady: settings.showProbePredictedReady,
             targetText: settings.probeTarget(forCookID: timer.id)
-                .map { settings.temperatureUnit.compactString(fromCelsius: $0) }
+                .map { settings.temperatureUnit.compactString(fromCelsius: $0) },
+            readySlotLabel: readySlotLabel,
+            readySlotText: readySlotText,
+            readySlotEmphasized: readySlotEmphasized
         )
+    }
+
+    /// Alerts for the guided-cook moments. State-driven (never scheduled from a
+    /// drifting estimate, per the probe spec): an immediate local notification —
+    /// reliable even when backgrounded, since the app holds the BLE background
+    /// mode — plus a haptic when the app is frontmost.
+    private func handleProbeCookEvent(_ event: ProbeCookEvent) {
+        let title: String
+        let body: String
+        switch event {
+        case .pullNow:
+            title = "Time to pull the food"
+            body = "The probe says take it off the heat — resting will carry it to your target."
+        case .restingDone:
+            title = "Food is ready"
+            body = "Resting is complete — your cook reached its target temperature."
+        }
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = body
+        content.sound = .default
+        let request = UNNotificationRequest(
+            identifier: "probe-\(event == .pullNow ? "pull" : "done")-\(UUID().uuidString)",
+            content: content,
+            trigger: nil   // nil trigger = deliver immediately
+        )
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error { debugLog("❌ Probe alert notification failed: \(error)") }
+        }
+        if settings.hapticsEnabled { Haptics.tap() }
     }
 
     /// Push the attached cook's stored target into the probe manager, which
@@ -771,6 +827,11 @@ struct ContentView: View {
         .buttonStyle(HapticButtonStyle())
         .onAppear {
             debugLog("[📱iOS] 🚀 ContentView.onAppear - scenePhase: \(scenePhase)")
+            #if os(iOS)
+            probeManager.onCookEvent = { event in
+                handleProbeCookEvent(event)
+            }
+            #endif
             timerStates.updateSettings(settings)
             initializeTimerStates()
             settings.initializeVoiceSettings()
