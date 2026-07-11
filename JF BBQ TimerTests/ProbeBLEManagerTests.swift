@@ -25,11 +25,15 @@ final class FakeProbeCentral: ProbeCentral {
     // Last arguments
     private(set) var lastConnectID: UUID?
 
+    // Every frame written to the UART RX characteristic, in order.
+    private(set) var writtenUARTFrames: [Data] = []
+
     func startScan()                  { startScanCallCount  += 1 }
     func stopScan()                   { stopScanCallCount   += 1 }
     func connect(identifier: UUID)    { connectCallCount    += 1; lastConnectID = identifier }
     func disconnect()                 { disconnectCallCount += 1 }
     func reconnect()                  { reconnectCallCount  += 1 }
+    func writeUART(_ data: Data)      { writtenUARTFrames.append(data) }
 }
 #endif
 

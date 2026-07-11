@@ -133,8 +133,12 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       keep-alive). Carefully verify — touches the working alert path.
 
 ## Probe features
-- [ ] **Probe round 2: target temp + carryover prediction** — spec drafted
-      (`probe-target-prediction-spec.md`, 2026-07-11), awaiting Jim's approval.
+- [~] **Probe round 2: target temp + carryover prediction** — spec approved 2026-07-11
+      (`probe-target-prediction-spec.md`). **3A (UART plumbing) done:** `ProbeUART`
+      framing/CRC/SetPrediction encode + response decode (fixtures computed
+      independently); `ProbeBLEManager` send→retry→timeout command logic;
+      UART service discovery/write/notify in the CB central. 24 new tests.
+      Next: 3B (target field on the cook card + send-on-set/reconnect rules).
       Design Qs resolved: target is **per-cook, set on the timer card**; one target
       field drives the probe's prediction set point (first UART write command,
       `0x05`), the removal+resting ("pull now → rest → done") flow, and the

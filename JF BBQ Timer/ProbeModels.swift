@@ -133,11 +133,14 @@ enum PredictionState: UInt8 {
 // MARK: - PredictionMode
 
 /// Prediction mode field (bits 4–5 of prediction block byte 0).
+/// Also sent host→probe in the Set Prediction UART command (`ProbeUART`).
 enum PredictionMode: UInt8 {
-    case none        = 0
-    case timeToRemoval = 1
-    case removal     = 2
-    case reserved    = 3
+    case none              = 0
+    case timeToRemoval     = 1
+    /// Predict an early "pull" temperature so resting carryover coasts the core
+    /// up to the set point ("Removal and Resting" in the Combustion spec).
+    case removalAndResting = 2
+    case reserved          = 3
 }
 
 // MARK: - PredictionType

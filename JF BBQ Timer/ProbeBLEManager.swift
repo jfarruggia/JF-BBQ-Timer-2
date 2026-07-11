@@ -20,6 +20,10 @@ import CoreBluetooth
 
 private let probeStatusServiceUUID      = CBUUID(string: "00000100-CAAB-3792-3D44-97AE51C1407A")
 private let probeStatusCharUUID         = CBUUID(string: "00000101-CAAB-3792-3D44-97AE51C1407A")
+// Nordic UART Service — the probe's command channel (host writes RX, probe answers on TX).
+private let uartServiceUUID             = CBUUID(string: "6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
+private let uartRXCharUUID              = CBUUID(string: "6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
+private let uartTXCharUUID              = CBUUID(string: "6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
 // Combustion Bluetooth Vendor ID (0x09C7) will be used for manufacturer-data
 // filtering when advertising-packet parsing is added (Phase 2 nice-to-have).
 
@@ -36,6 +40,9 @@ protocol ProbeCentral: AnyObject {
     /// `connect(identifier:)` call. Called by the manager when an unexpected disconnect
     /// occurs and the user's intent is still "connected". No-op if no peripheral is retained.
     func reconnect()
+    /// Write a framed request to the probe's UART RX characteristic.
+    /// No-op if not connected or the UART characteristics weren't discovered.
+    func writeUART(_ data: Data)
 }
 
 // MARK: - DiscoveredProbe
@@ -81,6 +88,12 @@ final class ProbeBLEManager: ObservableObject {
     /// The id of the cook (BBQTimer) this probe is currently attached to.
     /// nil means the probe is connected but not yet assigned to any cook.
     @Published private(set) var attachedCookID: UUID? = nil
+
+    /// True when the most recent Set Prediction command gave up (failure response
+    /// or no response, after one retry). Cleared on the next send. UI may surface
+    /// this as a non-blocking "couldn't set target on probe" note — the phone-side
+    /// crossing alert works regardless, so a failed write degrades gracefully.
+    @Published private(set) var setPredictionFailed: Bool = false
 
     // MARK: Private
 
@@ -140,6 +153,7 @@ final class ProbeBLEManager: ObservableObject {
     func disconnect() {
         shouldReconnect = false
         attachedCookID = nil
+        cancelPendingUART()
         central.disconnect()
     }
 
@@ -154,6 +168,89 @@ final class ProbeBLEManager: ObservableObject {
     /// Remove the cook association without disconnecting the probe.
     func detach() {
         attachedCookID = nil
+    }
+
+    // MARK: - UART commands (host → probe)
+    //
+    // One command in flight at a time. If the probe answers "failure" or doesn't
+    // answer within `uartTimeoutSeconds`, the frame is retried once, then the
+    // command is abandoned and `setPredictionFailed` is published. Set Prediction
+    // is currently the only command; a newer send supersedes an in-flight one
+    // (last write wins — the probe holds a single set point anyway).
+
+    private struct PendingUARTCommand {
+        /// Fresh per (re)send so a stale timeout can't fire against a newer send.
+        let token: UUID
+        let frame: Data
+        let type: ProbeUARTMessageType
+        let isRetry: Bool
+    }
+
+    private var pendingUART: PendingUARTCommand?
+    private var uartTimeoutTask: Task<Void, Never>?
+
+    /// How long to wait for a UART response before retrying. Internal so tests
+    /// can shorten it; the probe normally answers within one connection interval.
+    var uartTimeoutSeconds: TimeInterval = 2.0
+
+    /// Send the probe its prediction set point (target core temp) and mode.
+    /// Ignored unless connected — (re)send-on-reconnect rules live with the
+    /// target-temperature feature (spec step 3B), not here.
+    func setPrediction(setPointCelsius: Double, mode: PredictionMode) {
+        guard case .connected = connectionState else { return }
+        setPredictionFailed = false
+        let frame = ProbeUART.encodeSetPrediction(setPointCelsius: setPointCelsius, mode: mode)
+        sendUART(PendingUARTCommand(token: UUID(), frame: frame, type: .setPrediction, isRetry: false))
+    }
+
+    /// Called when the UART TX characteristic fires a notification.
+    /// Matches responses against the in-flight command by message type.
+    func handleUARTNotification(_ data: Data) {
+        guard let pending = pendingUART else { return }
+        guard let response = ProbeUART.decodeResponses(data).first(where: { $0.type == pending.type })
+        else { return }
+        uartTimeoutTask?.cancel()
+        if response.success {
+            pendingUART = nil
+        } else {
+            retryOrGiveUp(pending)
+        }
+    }
+
+    private func sendUART(_ command: PendingUARTCommand) {
+        uartTimeoutTask?.cancel()
+        pendingUART = command
+        central.writeUART(command.frame)
+        let token = command.token
+        uartTimeoutTask = Task { [weak self, timeout = uartTimeoutSeconds] in
+            try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            self?.handleUARTTimeout(token: token)
+        }
+    }
+
+    /// Timeout path — only acts if the timed-out send is still the one in flight.
+    private func handleUARTTimeout(token: UUID) {
+        guard let pending = pendingUART, pending.token == token else { return }
+        retryOrGiveUp(pending)
+    }
+
+    private func retryOrGiveUp(_ pending: PendingUARTCommand) {
+        if pending.isRetry {
+            cancelPendingUART()
+            setPredictionFailed = true
+        } else {
+            sendUART(PendingUARTCommand(token: UUID(), frame: pending.frame,
+                                        type: pending.type, isRetry: true))
+        }
+    }
+
+    /// Drop any in-flight command without publishing a failure — used when the
+    /// link goes away (the response is never coming).
+    private func cancelPendingUART() {
+        uartTimeoutTask?.cancel()
+        uartTimeoutTask = nil
+        pendingUART = nil
     }
 
     // MARK: - Event handler methods (called by the CB delegate adapter)
@@ -206,6 +303,7 @@ final class ProbeBLEManager: ObservableObject {
     /// will re-establish the link as soon as the peripheral is in range again.
     func handleDisconnected(id: UUID) {
         latestReading = nil
+        cancelPendingUART()
         if shouldReconnect {
             connectionState = .reconnecting(id)
             central.reconnect()
@@ -253,6 +351,11 @@ final class CoreBluetoothProbeCentral: NSObject, ProbeCentral {
     /// be strongly held for a connection to succeed, and looking it up here is more
     /// reliable than `retrievePeripherals(withIdentifiers:)` right after a scan.
     private var discoveredPeripherals: [UUID: CBPeripheral] = [:]
+
+    /// UART RX characteristic (host → probe writes), captured during discovery.
+    /// Belongs to `connectedPeripheral`; cleared whenever the link drops and
+    /// re-captured on the next service discovery.
+    private var uartRXCharacteristic: CBCharacteristic?
 
     /// Back-reference to the manager; set immediately after init.
     weak var manager: ProbeBLEManager?
@@ -306,10 +409,20 @@ final class CoreBluetoothProbeCentral: NSObject, ProbeCentral {
     }
 
     func disconnect() {
+        uartRXCharacteristic = nil
         if let p = connectedPeripheral {
             centralManager.cancelPeripheralConnection(p)
             connectedPeripheral = nil    // only user-initiated path clears this
         }
+    }
+
+    func writeUART(_ data: Data) {
+        guard let peripheral = connectedPeripheral,
+              let rx = uartRXCharacteristic else { return }
+        // Prefer acknowledged writes when the characteristic supports them.
+        let writeType: CBCharacteristicWriteType =
+            rx.properties.contains(.write) ? .withResponse : .withoutResponse
+        peripheral.writeValue(data, for: rx, type: writeType)
     }
 }
 
@@ -346,8 +459,9 @@ extension CoreBluetoothProbeCentral: CBCentralManagerDelegate {
     }
 
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
-        // Discover only the probe status service (also covers re-subscribe after reconnect)
-        peripheral.discoverServices([probeStatusServiceUUID])
+        // Discover the status service (live data) and the UART service (commands).
+        // Also covers re-subscribe after reconnect.
+        peripheral.discoverServices([probeStatusServiceUUID, uartServiceUUID])
         Task { @MainActor in
             manager?.handleConnected(id: peripheral.identifier)
         }
@@ -360,7 +474,9 @@ extension CoreBluetoothProbeCentral: CBCentralManagerDelegate {
     ) {
         // Do NOT nil connectedPeripheral here — if the manager wants to reconnect it
         // calls `reconnect()` which needs the reference. Only `disconnect()` (user-
-        // initiated) clears `connectedPeripheral`.
+        // initiated) clears `connectedPeripheral`. The UART characteristic IS
+        // invalidated by a disconnect; it is re-captured on the next discovery.
+        uartRXCharacteristic = nil
         Task { @MainActor in
             manager?.handleDisconnected(id: peripheral.identifier)
         }
@@ -403,7 +519,7 @@ extension CoreBluetoothProbeCentral: CBCentralManagerDelegate {
 
         if isConnected {
             // Already connected — re-discover services to re-subscribe to notifications.
-            peripheral.discoverServices([probeStatusServiceUUID])
+            peripheral.discoverServices([probeStatusServiceUUID, uartServiceUUID])
         } else {
             // Not yet connected — issue a new connect; CB will pick it up when BT is ready.
             central.connect(peripheral, options: nil)
@@ -417,10 +533,16 @@ extension CoreBluetoothProbeCentral: CBPeripheralDelegate {
 
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         guard error == nil else { return }
-        guard let service = peripheral.services?.first(where: {
-            $0.uuid == probeStatusServiceUUID
-        }) else { return }
-        peripheral.discoverCharacteristics([probeStatusCharUUID], for: service)
+        for service in peripheral.services ?? [] {
+            switch service.uuid {
+            case probeStatusServiceUUID:
+                peripheral.discoverCharacteristics([probeStatusCharUUID], for: service)
+            case uartServiceUUID:
+                peripheral.discoverCharacteristics([uartRXCharUUID, uartTXCharUUID], for: service)
+            default:
+                break
+            }
+        }
     }
 
     func peripheral(
@@ -429,11 +551,17 @@ extension CoreBluetoothProbeCentral: CBPeripheralDelegate {
         error: Error?
     ) {
         guard error == nil else { return }
-        guard let characteristic = service.characteristics?.first(where: {
-            $0.uuid == probeStatusCharUUID
-        }) else { return }
-        // Subscribe to notifications so we get live temperature updates
-        peripheral.setNotifyValue(true, for: characteristic)
+        for characteristic in service.characteristics ?? [] {
+            switch characteristic.uuid {
+            case probeStatusCharUUID, uartTXCharUUID:
+                // Subscribe: live temperatures (status) and command responses (UART TX)
+                peripheral.setNotifyValue(true, for: characteristic)
+            case uartRXCharUUID:
+                uartRXCharacteristic = characteristic
+            default:
+                break
+            }
+        }
     }
 
     func peripheral(
@@ -441,10 +569,18 @@ extension CoreBluetoothProbeCentral: CBPeripheralDelegate {
         didUpdateValueFor characteristic: CBCharacteristic,
         error: Error?
     ) {
-        guard error == nil, characteristic.uuid == probeStatusCharUUID else { return }
-        guard let data = characteristic.value else { return }
-        Task { @MainActor in
-            manager?.handleStatusNotification(data)
+        guard error == nil, let data = characteristic.value else { return }
+        switch characteristic.uuid {
+        case probeStatusCharUUID:
+            Task { @MainActor in
+                manager?.handleStatusNotification(data)
+            }
+        case uartTXCharUUID:
+            Task { @MainActor in
+                manager?.handleUARTNotification(data)
+            }
+        default:
+            break
         }
     }
 }
