@@ -105,6 +105,7 @@ final class ProbeBLEManager: ObservableObject {
     var onCookEvent: ((ProbeCookEvent) -> Void)?
 
     private var phaseEngine = ProbeCookPhaseEngine()
+    private var crossingLatch = TargetCrossingLatch()
 
     // MARK: Private
 
@@ -166,6 +167,7 @@ final class ProbeBLEManager: ObservableObject {
         attachedCookID = nil
         targetCelsius = nil   // association over; don't write to a dying link
         phaseEngine.reset()
+        crossingLatch.reset()
         cookPhase = phaseEngine.phase
         cancelPendingUART()
         central.disconnect()
@@ -185,6 +187,7 @@ final class ProbeBLEManager: ObservableObject {
         attachedCookID = nil
         setTarget(nil)
         phaseEngine.reset()   // setTarget only resets when a target existed
+        crossingLatch.reset()
         cookPhase = phaseEngine.phase
     }
 
@@ -201,9 +204,10 @@ final class ProbeBLEManager: ObservableObject {
     func setTarget(_ celsius: Double?) {
         guard targetCelsius != celsius else { return }
         targetCelsius = celsius
-        // A new target is a new cook goal — re-arm the phase engine so the
-        // pull-now / done alerts can fire again for the new target.
+        // A new target is a new cook goal — re-arm the phase engine and the
+        // crossing latch so every alert can fire again for the new target.
         phaseEngine.reset()
+        crossingLatch.reset()
         cookPhase = phaseEngine.phase
         sendTargetIfConnected()
     }
@@ -391,8 +395,14 @@ final class ProbeBLEManager: ObservableObject {
         #endif
         guard let reading = ProbeReading.decode(data: data) else { return }
         latestReading = reading
-        let events = phaseEngine.update(prediction: reading.prediction,
+        var events = phaseEngine.update(prediction: reading.prediction,
                                         targetCelsius: targetCelsius)
+        // Phone-side safety net: the MEASURED core crossing the target. Skipped
+        // when a carryover alert already covered this cook (one alert per moment).
+        if crossingLatch.update(coreCelsius: reading.coreTempC, targetCelsius: targetCelsius),
+           !phaseEngine.hasAlertedCarryover {
+            events.append(.targetReached)
+        }
         if phaseEngine.phase != cookPhase { cookPhase = phaseEngine.phase }
         for event in events { onCookEvent?(event) }
     }

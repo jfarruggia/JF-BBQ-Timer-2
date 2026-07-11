@@ -154,8 +154,11 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       state 4-while-resting OR our own stored target crossing (never the
       probe-reported set point). **Validate on a real cook** and adjust the
       engine if observed behavior differs. 9 new tests.
-      Next: 3D crossing-alert latch (partly covered by the engine's own-target
-      crossing — scope check against spec), then 3E battery/overheat, 3F watch.
+      **3D (crossing-alert latch) done:** pure `TargetCrossingLatch` on the
+      MEASURED core (arm-below-first, fire-once, 2 °C re-arm hysteresis, −20 °C
+      no-data floor ignored); new `.targetReached` event suppressed when a
+      carryover alert already covered the cook; resets with the phase engine.
+      8 new tests. Next: 3E battery/overheat badges, then 3F watch payload/UI.
       Design Qs resolved: target is **per-cook, set on the timer card**; one target
       field drives the probe's prediction set point (first UART write command,
       `0x05`), the removal+resting ("pull now → rest → done") flow, and the

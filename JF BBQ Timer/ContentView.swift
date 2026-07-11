@@ -374,13 +374,16 @@ struct ContentView: View {
         case .restingDone:
             title = "Food is ready"
             body = "Resting is complete — your cook reached its target temperature."
+        case .targetReached:
+            title = "Target temperature reached"
+            body = "The probe's core temperature crossed your target."
         }
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
         content.sound = .default
         let request = UNNotificationRequest(
-            identifier: "probe-\(event == .pullNow ? "pull" : "done")-\(UUID().uuidString)",
+            identifier: "probe-alert-\(UUID().uuidString)",
             content: content,
             trigger: nil   // nil trigger = deliver immediately
         )
