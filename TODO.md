@@ -158,7 +158,12 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       MEASURED core (arm-below-first, fire-once, 2 °C re-arm hysteresis, −20 °C
       no-data floor ignored); new `.targetReached` event suppressed when a
       carryover alert already covered the cook; resets with the phase engine.
-      8 new tests. Next: 3E battery/overheat badges, then 3F watch payload/UI.
+      8 new tests.
+      **3E (battery/overheat) done:** Overheating Sensors byte (offset 48)
+      decoded (nil-safe for short payloads); one-shot batteryLow/overheating
+      events per USER connection (auto-reconnect blips stay quiet); warning
+      icon on the header Probe chip + all three strips; notifications wired.
+      8 new tests. Next: 3F watch payload + watch UI (last step of round 2).
       Design Qs resolved: target is **per-cook, set on the timer card**; one target
       field drives the probe's prediction set point (first UART write command,
       `0x05`), the removal+resting ("pull now → rest → done") flow, and the

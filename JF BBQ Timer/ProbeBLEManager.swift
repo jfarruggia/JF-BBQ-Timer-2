@@ -107,6 +107,11 @@ final class ProbeBLEManager: ObservableObject {
     private var phaseEngine = ProbeCookPhaseEngine()
     private var crossingLatch = TargetCrossingLatch()
 
+    // Probe-health one-shots. Reset on user connect()/disconnect() intent, NOT
+    // on auto-reconnect blips — a long cook shouldn't re-nag after every drop.
+    private var notifiedBatteryLow = false
+    private var notifiedOverheating = false
+
     // MARK: Private
 
     /// The underlying BLE transport. Injected at init for testability.
@@ -155,6 +160,8 @@ final class ProbeBLEManager: ObservableObject {
     /// unexpected disconnects until the user explicitly calls `disconnect()`.
     func connect(_ id: UUID) {
         shouldReconnect = true
+        notifiedBatteryLow = false
+        notifiedOverheating = false
         connectionState = .connecting(id)
         central.connect(identifier: id)
     }
@@ -402,6 +409,15 @@ final class ProbeBLEManager: ObservableObject {
         if crossingLatch.update(coreCelsius: reading.coreTempC, targetCelsius: targetCelsius),
            !phaseEngine.hasAlertedCarryover {
             events.append(.targetReached)
+        }
+        // Probe health, once per user connection
+        if reading.batteryStatus == .low, !notifiedBatteryLow {
+            notifiedBatteryLow = true
+            events.append(.batteryLow)
+        }
+        if reading.isOverheating, !notifiedOverheating {
+            notifiedOverheating = true
+            events.append(.overheating)
         }
         if phaseEngine.phase != cookPhase { cookPhase = phaseEngine.phase }
         for event in events { onCookEvent?(event) }

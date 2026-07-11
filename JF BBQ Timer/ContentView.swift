@@ -122,6 +122,18 @@ struct ContentView: View {
         }
     }
 
+    /// Probe-health warning for the header chip: overheat wins over battery.
+    private var probeHealthBadge: (symbol: String, color: Color)? {
+        guard probeIsActive, let reading = probeManager.latestReading else { return nil }
+        if reading.isOverheating {
+            return ("exclamationmark.triangle.fill", Color("TimerRed"))
+        }
+        if reading.batteryStatus == .low {
+            return ("battery.25", Color("TimerRed"))
+        }
+        return nil
+    }
+
     private var probeConnectButton: some View {
         Button(action: { showProbeConnect = true }) {
             HStack(spacing: 5) {
@@ -129,6 +141,11 @@ struct ContentView: View {
                     .font(.system(size: 15, weight: .semibold))
                 Text("Probe")
                     .font(.system(size: 14, weight: .semibold))
+                if let badge = probeHealthBadge {
+                    Image(systemName: badge.symbol)
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(badge.color)
+                }
             }
             .foregroundColor(probeIsActive ? Color(red: 0.28, green: 0.10, blue: 0.04) : .white)
             .padding(.horizontal, 11)
@@ -356,7 +373,9 @@ struct ContentView: View {
                 .map { settings.temperatureUnit.compactString(fromCelsius: $0) },
             readySlotLabel: readySlotLabel,
             readySlotText: readySlotText,
-            readySlotEmphasized: readySlotEmphasized
+            readySlotEmphasized: readySlotEmphasized,
+            batteryLow: reading?.batteryStatus == .low,
+            overheating: reading?.isOverheating ?? false
         )
     }
 
@@ -377,6 +396,12 @@ struct ContentView: View {
         case .targetReached:
             title = "Target temperature reached"
             body = "The probe's core temperature crossed your target."
+        case .batteryLow:
+            title = "Probe battery low"
+            body = "Charge the probe soon — it may not last the rest of the cook."
+        case .overheating:
+            title = "Probe overheating"
+            body = "A probe sensor is over its limit. Move the probe or handle away from direct heat."
         }
         let content = UNMutableNotificationContent()
         content.title = title

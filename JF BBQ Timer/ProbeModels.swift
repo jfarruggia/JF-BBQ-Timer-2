@@ -256,6 +256,14 @@ struct ProbeReading {
 
     // Prediction
     let prediction: ProbePrediction
+
+    /// Overheating Sensors byte (payload offset 48): one bit per thermistor,
+    /// LSB = T1 … MSB = T8, `1` = that sensor exceeds its limit. nil when the
+    /// payload was too short to carry it (defensive; real payloads are 94 bytes).
+    var overheatingSensors: UInt8? = nil
+
+    /// True when any thermistor reports overheating.
+    var isOverheating: Bool { (overheatingSensors ?? 0) != 0 }
 }
 
 // MARK: - Advertising data
