@@ -407,8 +407,11 @@ struct TimerManagementView: View {
     @State private var showDeleteConfirmation = false // Control delete confirmation
     @State private var showTimerSaved = false
     @State private var showTimerDeleted = false
-    // Add state for inline editing
-    @State private var inlineEditingIndex: Int? = nil
+    // Add state for inline editing. Tracked by the timer's UUID, NOT its row
+    // index — legacy rows are passed indices 0/1 and additional timers also
+    // start at 0/1, so an Int here put two rows into edit mode at once (the
+    // "pencil does nothing" rename bug).
+    @State private var inlineEditingID: UUID? = nil
     @State private var inlineEditedName: String = ""
     @State private var inlineEditingIsFirstResponder: Bool = false
     @State private var tempPreheatDuration = 600 // Default 10 minutes
@@ -647,8 +650,9 @@ struct TimerManagementView: View {
     private func timerRow(for timer: BBQTimer, isLegacy: Bool = false, legacyIndex: Int? = nil, at index: Int? = nil) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                // Inline editing for timer name
-                if let idx = index, inlineEditingIndex == idx {
+                // Inline editing for timer name (row identified by timer.id —
+                // legacy timers have stable synthetic UUIDs, so this is unique)
+                if inlineEditingID == timer.id {
                     SelectableTextField(
                         text: $inlineEditedName,
                         placeholder: "Timer Name",
@@ -659,11 +663,11 @@ struct TimerManagementView: View {
                                 } else if legacyIndex == 1 {
                                     settings.timer2Name = inlineEditedName
                                 }
-                            } else {
+                            } else if let idx = index {
                                 settings.updateTimer(at: idx, name: inlineEditedName)
                             }
                             settings.save()
-                            inlineEditingIndex = nil
+                            inlineEditingID = nil
                             inlineEditingIsFirstResponder = false
                         },
                         isFirstResponder: $inlineEditingIsFirstResponder
@@ -677,21 +681,17 @@ struct TimerManagementView: View {
                     Text(timer.name)
                         .font(.headline)
                         .onTapGesture {
-                            if let idx = index {
-                                inlineEditingIndex = idx
-                                inlineEditedName = timer.name
-                            }
-                        }
-                    Button(action: {
-                        if let idx = index {
-                            inlineEditingIndex = idx
+                            inlineEditingID = timer.id
                             inlineEditedName = timer.name
                         }
+                    Button(action: {
+                        inlineEditingID = timer.id
+                        inlineEditedName = timer.name
                     }) {
                         Image(systemName: "pencil")
                             .foregroundColor(.blue)
                     }
-                    .buttonStyle(PlainButtonStyle())
+                    .buttonStyle(BorderlessButtonStyle())
                 }
                 Spacer()
                 // Chevron removed
