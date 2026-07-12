@@ -276,6 +276,11 @@ struct ContentView: View {
         preheatTimeRemaining = duration
         showPreheatAlert = false
         isPreheatComplete = false
+        // Cancel the previous notification BEFORE scheduling a new one —
+        // re-tapping Preheat mid-countdown used to orphan the old request
+        // (each schedule uses a fresh UUID id and only the latest is tracked),
+        // and orphans fired as phantom "Preheat Complete" alerts later.
+        cancelPreheatNotification()
         schedulePreheatNotification(after: duration)
 
         // The repeating timer only refreshes the displayed value; correctness
@@ -867,6 +872,7 @@ struct ContentView: View {
             Haptics.isEnabled = settings.hapticsEnabled
             Haptics.prepare()
             requestNotificationPermission()
+            sweepOrphanedPreheatNotifications()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 debugLog("[📱iOS] 🕐 Delayed sync timer start - scenePhase: \(scenePhase)")
                 startWatchSyncTimer()
@@ -1122,6 +1128,21 @@ struct ContentView: View {
         if let id = preheatNotificationId {
             UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id])
             preheatNotificationId = nil
+        }
+    }
+
+    /// Remove every pending "preheat-…" notification. Called once at launch:
+    /// a preheat never survives a relaunch (its state is not persisted), so any
+    /// pending preheat notification at launch is an orphan from an old session
+    /// — including ones stranded on users' devices by the pre-fix re-tap bug.
+    private func sweepOrphanedPreheatNotifications() {
+        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
+            let orphans = requests.map(\.identifier).filter { $0.hasPrefix("preheat-") }
+            if !orphans.isEmpty {
+                UNUserNotificationCenter.current()
+                    .removePendingNotificationRequests(withIdentifiers: orphans)
+                debugLog("🧹 Removed \(orphans.count) orphaned preheat notification(s)")
+            }
         }
     }
 

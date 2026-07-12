@@ -327,9 +327,16 @@ struct PreheatCompleteModifier: ViewModifier {
                     .opacity(isPreheatComplete ? 1.0 : 0)
             )
             .scaleEffect(isPreheatComplete ? 1.05 : 1.0)
+            // repeatCount(20, …) == 10 s of pulsing, matching the 10 s window
+            // ContentView keeps `isPreheatComplete` true. Deliberately NOT
+            // repeatForever: on iOS 26 the flip-off transition failed to cancel
+            // the repeating animation, leaving the button scale-pulsing forever
+            // with an invisible (clear) border — verified via frame capture on
+            // the 26.5 simulator. A finite repeat self-terminates even if the
+            // flip-off transition is dropped again.
             .animation(isPreheatComplete ?
-                       .easeInOut(duration: 0.5).repeatForever(autoreverses: true) :
-                       .default,
+                       .easeInOut(duration: 0.5).repeatCount(20, autoreverses: true) :
+                       .easeInOut(duration: 0.2),
                        value: isPreheatComplete)
     }
 }

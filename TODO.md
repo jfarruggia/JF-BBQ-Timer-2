@@ -202,11 +202,22 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       once and fighting over one text-field/first-responder state. Fixed: edit state
       keyed by `timer.id` (legacy ids are stable synthetic UUIDs); pencil button
       also moved to `BorderlessButtonStyle` for reliable per-button taps in the row.
-- [x] **Preheat button "always pulsing" — resolved as by-design** (2026-07-12):
-      Jim confirmed no red border, so it's not the 10 s completion pulse — it's
-      iOS 26 Liquid Glass specular motion over the ember background, inherent to
-      the material. Leave as is; if ever unwanted, raise `grillCardBodyTop/Bottom`
-      opacities to mute the show-through.
+- [x] **Preheat button "always pulsing" — REAL BUG, fixed** (2026-07-12; earlier
+      "by-design glass shimmer" conclusion was wrong — Jim's flat-on-desk test
+      disproved it). Root cause: on iOS 26 the flip-off of the completion
+      pulse's `repeatForever` animation fails to cancel it, so after ANY
+      completed preheat the button scale-pulses forever with the red border
+      hidden (clear); the leaked bounce also cross-faded the label 00:10:00 ⇄
+      00:00:00. Reproduced + fix verified by frame-capture on the 26.5 sim
+      (before: churn until app death; after: 100 identical frames post-pulse).
+      Fix: finite `repeatCount(20)` (= the same 10 s), self-terminating.
+- [x] **Phantom "Preheat Complete" notifications — fixed** (2026-07-12): re-tapping
+      Preheat mid-countdown scheduled a new notification without cancelling the
+      old (fresh UUID id each time; only latest tracked) → orphans fired at
+      random later times. Fix: cancel-before-reschedule in `startPreheatTimer`
+      + launch-time sweep of all pending `preheat-…` requests (preheats never
+      survive relaunch, so any pending at launch is an orphan — also cleans
+      orphans already stranded on devices).
 - [ ] Does **compact mode persist** across a cold relaunch? The Settings toggle
       binds straight to the published property; no save-on-change was spotted.
 - [x] **Watch long-preset formatting:** fixed — watch `format(seconds:)` now shows hours
