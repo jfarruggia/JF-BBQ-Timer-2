@@ -193,12 +193,20 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
 - [x] **Lit time froze when the flip countdown completed** — fixed: `handleCompletion()`
       no longer stops the refresh timer, so "Lit" keeps counting until Reset; resync restarts
       it after backgrounding. Regression test added. (`ce907cb`)
-- [ ] **iPhone↔watch timer out of sync (under investigation)** — seen in TestFlight:
-      started a timer on iPhone, but on the watch it wasn't running; after starting it
-      on the watch, the iPhone's "lit" elapsed time had changed from what it should have
-      been. Jim is reproducing with more detail (was Start tapped? what was tapped on the
-      watch? was elapsed ahead/behind & by how much?). Touches the working sync baseline —
-      diagnose from a repro before changing anything.
+- [~] **iPhone↔watch timer out of sync — could not reproduce** (Jim, 2026-07-12).
+      Parked unless it resurfaces; if it does, capture the repro steps before touching
+      the working sync baseline.
+- [x] **Timer rename pencil unresponsive with multiple additional timers** — root
+      cause: `inlineEditingIndex` was an Int, and legacy rows (passed indices 0/1)
+      collided with additional timers (also 0/1), putting two rows into edit mode at
+      once and fighting over one text-field/first-responder state. Fixed: edit state
+      keyed by `timer.id` (legacy ids are stable synthetic UUIDs); pencil button
+      also moved to `BorderlessButtonStyle` for reliable per-button taps in the row.
+- [ ] **Preheat button "always pulsing" (Jim, 2026-07-12)** — awaiting detail: the
+      only coded pulse is the 10 s completion pulse (red border + scale). If Jim sees
+      constant pulsing with NO red border on device, likely iOS 26 Liquid Glass
+      specular motion (tilt shimmer), not an animation bug. Ask: does it pulse from
+      fresh launch, and is there a red border?
 - [ ] Does **compact mode persist** across a cold relaunch? The Settings toggle
       binds straight to the published property; no save-on-change was spotted.
 - [x] **Watch long-preset formatting:** fixed — watch `format(seconds:)` now shows hours
