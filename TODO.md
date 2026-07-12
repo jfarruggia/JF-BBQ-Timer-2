@@ -202,11 +202,11 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       once and fighting over one text-field/first-responder state. Fixed: edit state
       keyed by `timer.id` (legacy ids are stable synthetic UUIDs); pencil button
       also moved to `BorderlessButtonStyle` for reliable per-button taps in the row.
-- [ ] **Preheat button "always pulsing" (Jim, 2026-07-12)** — awaiting detail: the
-      only coded pulse is the 10 s completion pulse (red border + scale). If Jim sees
-      constant pulsing with NO red border on device, likely iOS 26 Liquid Glass
-      specular motion (tilt shimmer), not an animation bug. Ask: does it pulse from
-      fresh launch, and is there a red border?
+- [x] **Preheat button "always pulsing" — resolved as by-design** (2026-07-12):
+      Jim confirmed no red border, so it's not the 10 s completion pulse — it's
+      iOS 26 Liquid Glass specular motion over the ember background, inherent to
+      the material. Leave as is; if ever unwanted, raise `grillCardBodyTop/Bottom`
+      opacities to mute the show-through.
 - [ ] Does **compact mode persist** across a cold relaunch? The Settings toggle
       binds straight to the published property; no save-on-change was spotted.
 - [x] **Watch long-preset formatting:** fixed — watch `format(seconds:)` now shows hours
