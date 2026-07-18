@@ -133,6 +133,12 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       keep-alive). Carefully verify — touches the working alert path.
 
 ## Probe features
+- [x] **Editable "Common targets" presets** (Jim's request 2026-07-12, in build 6):
+      `ProbeTargetPreset` list stored in Settings (seeded from defaults; capped
+      at 20); target sheet's list is now user-editable via Edit → tap-to-edit /
+      swipe-to-delete / Add preset / Restore defaults. Same °C-canonical +
+      display-unit rules as custom entry. 4 tests. On-device check: needs a
+      connected probe (sheet unreachable in sim).
 - [~] **Probe round 2: target temp + carryover prediction** — spec approved 2026-07-11
       (`probe-target-prediction-spec.md`). **3A (UART plumbing) done:** `ProbeUART`
       framing/CRC/SetPrediction encode + response decode (fixtures computed

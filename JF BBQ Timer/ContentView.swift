@@ -836,6 +836,7 @@ struct ContentView: View {
                     cookName: cook.name,
                     unit: settings.temperatureUnit,
                     currentTargetCelsius: settings.probeTarget(forCookID: cook.id),
+                    settings: settings,
                     onSave: { celsius in
                         settings.setProbeTarget(celsius, forCookID: cook.id)
                     }
