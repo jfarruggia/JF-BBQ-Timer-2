@@ -113,6 +113,11 @@ class Settings: ObservableObject {
     /// Drives the probe's prediction set point and the target-crossed alert.
     @Published var probeTargetsByCookID: [UUID: Double] = [:]
 
+    /// User-editable doneness presets shown in the probe target sheet.
+    /// Seeded from `ProbeTargetPresets.defaults` when the key has never been
+    /// written; an intentionally emptied list stays empty.
+    @Published var probeTargetPresets: [ProbeTargetPreset] = []
+
     // True only for the separate ".dev" identity (the dev/TestFlight build) —
     // never the production App Store app, which has a different bundle id. Used to
     // expose testing-only affordances (e.g. the premium override below) in Release
@@ -215,6 +220,13 @@ class Settings: ObservableObject {
             self.probeTargetsByCookID = [:]
         }
 
+        if let data = UserDefaults.standard.data(forKey: "probeTargetPresets"),
+           let stored = try? JSONDecoder().decode([ProbeTargetPreset].self, from: data) {
+            self.probeTargetPresets = stored
+        } else {
+            self.probeTargetPresets = ProbeTargetPresets.defaults
+        }
+
         self.isPremiumUser = UserDefaults.standard.bool(forKey: "isPremiumUser")
         self.debugPremiumOverrideEnabled = UserDefaults.standard.bool(forKey: "debugPremiumOverrideEnabled")
         debugLog("📱 Initialized premium status from UserDefaults: \(self.isPremiumUser)")
@@ -255,6 +267,9 @@ class Settings: ObservableObject {
         }
         if let data = try? JSONEncoder().encode(probeTargetsByCookID) {
             UserDefaults.standard.set(data, forKey: "probeTargetsByCookID")
+        }
+        if let data = try? JSONEncoder().encode(probeTargetPresets) {
+            UserDefaults.standard.set(data, forKey: "probeTargetPresets")
         }
         UserDefaults.standard.synchronize()
         debugLog("✅ Settings saved successfully")
@@ -317,6 +332,46 @@ class Settings: ObservableObject {
     func setProbeTarget(_ celsius: Double?, forCookID id: UUID) {
         if probeTargetsByCookID[id] == celsius { return }
         probeTargetsByCookID[id] = celsius
+        save()
+    }
+
+    // MARK: - Probe target presets (user-editable doneness list)
+
+    /// Append a preset (validated + capped) and persist. Returns false when
+    /// rejected (invalid or at the cap) so the UI can react.
+    @discardableResult
+    func addProbeTargetPreset(_ preset: ProbeTargetPreset) -> Bool {
+        guard ProbeTargetPresets.isValid(preset),
+              probeTargetPresets.count < ProbeTargetPresets.maxCount else { return false }
+        probeTargetPresets.append(preset)
+        save()
+        return true
+    }
+
+    /// Update the preset with a matching id (validated) and persist.
+    @discardableResult
+    func updateProbeTargetPreset(_ preset: ProbeTargetPreset) -> Bool {
+        guard ProbeTargetPresets.isValid(preset),
+              let index = probeTargetPresets.firstIndex(where: { $0.id == preset.id })
+        else { return false }
+        probeTargetPresets[index] = preset
+        save()
+        return true
+    }
+
+    /// Remove presets at the given offsets (List swipe-to-delete) and persist.
+    /// (Manual descending removal — this file doesn't import SwiftUI, which is
+    /// where Array.remove(atOffsets:) lives.)
+    func removeProbeTargetPresets(at offsets: IndexSet) {
+        for index in offsets.sorted(by: >) where probeTargetPresets.indices.contains(index) {
+            probeTargetPresets.remove(at: index)
+        }
+        save()
+    }
+
+    /// Replace the list with the standard defaults and persist.
+    func restoreDefaultProbeTargetPresets() {
+        probeTargetPresets = ProbeTargetPresets.defaults
         save()
     }
 
