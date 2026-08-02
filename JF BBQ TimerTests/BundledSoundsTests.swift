@@ -40,3 +40,51 @@ struct BundledSoundsTests {
         #expect(manager.categories.first == BundledSoundsManager.freeCategory)
     }
 }
+
+@Suite("Notification sound provider")
+struct NotificationSoundProviderTests {
+
+    @Test("alarm variant naming strips the extension and appends ' Alarm.caf'")
+    func variantNaming() {
+        #expect(NotificationSoundProvider.alarmVariantName(forCatalogFilename: "Fog Horn.wav")
+                == "Fog Horn Alarm.caf")
+        #expect(NotificationSoundProvider.alarmVariantName(forCatalogFilename: "Danger Alert.mp3")
+                == "Danger Alert Alarm.caf")
+    }
+
+    @Test("every catalog sound has a bundled alarm variant that installs into Library/Sounds")
+    func everyVariantInstalls() {
+        for sound in BundledSoundsManager().allSounds {
+            let variant = NotificationSoundProvider.alarmVariantName(forCatalogFilename: sound.filename)
+            let installed = NotificationSoundProvider.installIntoLibrarySounds(bundleFilename: variant)
+            #expect(installed == variant, "\(variant) missing from bundle or install failed")
+        }
+    }
+
+    @Test("no bundled selection → system default sound")
+    func defaultWithoutSelection() {
+        let saved = UserDefaults.standard.string(forKey: "selectedBundledSoundID")
+        defer {
+            if let saved { UserDefaults.standard.set(saved, forKey: "selectedBundledSoundID") }
+            else { UserDefaults.standard.removeObject(forKey: "selectedBundledSoundID") }
+        }
+        UserDefaults.standard.removeObject(forKey: "selectedBundledSoundID")
+        #expect(NotificationSoundProvider.currentSound() == .default)
+    }
+
+    @Test("a bundled selection resolves to a non-default named sound")
+    func selectionResolvesToNamedSound() {
+        let manager = BundledSoundsManager()
+        guard let sound = manager.allSounds.first else {
+            Issue.record("Catalog empty")
+            return
+        }
+        let saved = UserDefaults.standard.string(forKey: "selectedBundledSoundID")
+        defer {
+            if let saved { UserDefaults.standard.set(saved, forKey: "selectedBundledSoundID") }
+            else { UserDefaults.standard.removeObject(forKey: "selectedBundledSoundID") }
+        }
+        UserDefaults.standard.set(sound.id.uuidString, forKey: "selectedBundledSoundID")
+        #expect(NotificationSoundProvider.currentSound() != .default)
+    }
+}
