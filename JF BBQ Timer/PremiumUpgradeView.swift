@@ -29,10 +29,10 @@ struct PremiumUpgradeView: View {
                     .foregroundColor(.white)
 
                 VStack(alignment: .leading, spacing: 12) {
+                    premiumFeatureRow("Temperature probe support")
                     premiumFeatureRow("Unlimited timers")
-                    premiumFeatureRow("Advanced timer settings")
-                    premiumFeatureRow("Custom themes")
-                    premiumFeatureRow("Priority support")
+                    premiumFeatureRow("Premium alert sounds")
+                    premiumFeatureRow("Custom sounds & voice alerts")
                 }
                 .padding()
 
