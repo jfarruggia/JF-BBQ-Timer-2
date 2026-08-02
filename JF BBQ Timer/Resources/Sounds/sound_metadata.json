@@ -89,5 +89,19 @@
     "displayName": "Woman Screaming 1",
     "category": "Get My Attention",
     "description": "An attention-grabbing scream"
+  },
+  {
+    "id": "cd4b205f-cc02-4743-9e37-7dbe4108e943",
+    "filename": "Church Bell.wav",
+    "displayName": "Church Bell",
+    "category": "Get My Attention",
+    "description": "A big bell with a long, natural ring"
+  },
+  {
+    "id": "8a7cff6b-2f25-4415-87f3-0d74d66b2eba",
+    "filename": "Ocean Liner Horn.wav",
+    "displayName": "Ocean Liner Horn",
+    "category": "Get My Attention",
+    "description": "A deep ship horn that carries outdoors"
   }
 ]
