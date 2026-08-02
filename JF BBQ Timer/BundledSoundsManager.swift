@@ -3,6 +3,11 @@ import AVFoundation
 
 // A class to manage bundled sounds included with the app
 class BundledSoundsManager: ObservableObject {
+    /// Catalog category whose sounds are available WITHOUT premium — shown in
+    /// their own ungated "Featured Sounds" section of the alert-sounds picker
+    /// and excluded from the premium block.
+    static let freeCategory = "Featured"
+
     // Structure to represent a bundled sound
     struct BundledSound: Identifiable, Codable, Equatable {
         let id: UUID
@@ -122,6 +127,7 @@ class BundledSoundsManager: ObservableObject {
             }
             // Sort categories by priority
             let categoryPriorities: [String: Int] = [
+                BundledSoundsManager.freeCategory: 0,   // free-tier sounds, listed first
                 "For the Faint of Heart": 1,
                 "Standard": 2,
                 "Get My Attention": 3,

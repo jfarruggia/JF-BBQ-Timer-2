@@ -1174,6 +1174,18 @@ struct AlertSoundsView: View {
                     }
                 }
                 
+                // Featured Sounds — real sound files, free for everyone.
+                // (Category defined by BundledSoundsManager.freeCategory and
+                // excluded from the premium block below.)
+                let featured = bundledSoundsManager.sounds(in: BundledSoundsManager.freeCategory)
+                if !featured.isEmpty {
+                    Section(header: Text("Featured Sounds")) {
+                        ForEach(featured) { sound in
+                            bundledSoundRow(sound: sound)
+                        }
+                    }
+                }
+
                 // System Sounds Section - always visible
                 Section(header: Text("System Sounds")) {
                     ForEach(Settings.AlertSound.standardSounds) { sound in
@@ -1213,8 +1225,12 @@ struct AlertSoundsView: View {
                                 .font(.caption)
                                 .foregroundColor(.red)
                         } else {
-                            // For each category, show a sub-section header and its sounds
-                            ForEach(bundledSoundsManager.categories, id: \.self) { category in
+                            // For each category, show a sub-section header and its
+                            // sounds (the free Featured category has its own
+                            // ungated section above)
+                            ForEach(bundledSoundsManager.categories.filter {
+                                $0 != BundledSoundsManager.freeCategory
+                            }, id: \.self) { category in
                                 VStack(alignment: .leading, spacing: 0) {
                                     Text(category)
                                         .font(.headline)
