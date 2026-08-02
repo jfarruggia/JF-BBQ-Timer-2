@@ -268,14 +268,6 @@ struct NewSettingsView: View {
                         .accessibilityIdentifier("ShowProbePredictedReady")
                 }
 
-                // Timer Customization & Advanced
-                Section(header: Text("Timer Customization")) {
-                    // Removed Alert Sound picker from here (now in Alerts & Sounds section)
-                    NavigationLink("Temperature Monitoring (Coming Soon)", destination: Text("Temperature monitoring - Coming Soon"))
-                    NavigationLink("Recipe Integration (Coming Soon)", destination: Text("Recipe integration - Coming Soon"))
-                    NavigationLink("Cloud Sync (Coming Soon)", destination: Text("Cloud sync - Coming Soon"))
-                }
-
                 // Thank you message for premium users
                 if settings.isPremiumUser {
                     Section {
