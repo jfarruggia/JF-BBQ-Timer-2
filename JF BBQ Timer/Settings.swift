@@ -238,6 +238,19 @@ class Settings: ObservableObject {
         if UserDefaults.standard.object(forKey: "hapticsEnabled") == nil {
             self.hapticsEnabled = true
         }
+
+        // First launch ever: default the alert sound to the free Dinner
+        // Triangle instead of the weak system chime. Guarded on the absence of
+        // ANY persisted sound choice — existing users have "selectedAlertSound"
+        // written by save(), so a deliberate System pick is never overridden.
+        if UserDefaults.standard.object(forKey: "selectedAlertSound") == nil,
+           UserDefaults.standard.string(forKey: "selectedBundledSoundID") == nil,
+           UserDefaults.standard.string(forKey: "selectedCustomSoundID") == nil,
+           let triangle = BundledSoundsManager().allSounds
+               .first(where: { $0.displayName == "Dinner Triangle" }) {
+            UserDefaults.standard.set(triangle.id.uuidString, forKey: "selectedBundledSoundID")
+            debugLog("🔔 First launch: defaulting alert sound to Dinner Triangle")
+        }
     }
 
     func save() {
