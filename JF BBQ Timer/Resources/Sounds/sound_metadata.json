@@ -68,5 +68,19 @@
     "displayName": "Ocean Liner Horn",
     "category": "Get My Attention",
     "description": "A deep ship horn that carries outdoors"
+  },
+  {
+    "id": "8c62b224-697d-44d4-9192-a1df4b2492a6",
+    "filename": "Dinner Triangle.wav",
+    "displayName": "Dinner Triangle",
+    "category": "Featured",
+    "description": "The classic come-and-get-it dinner bell"
+  },
+  {
+    "id": "dbfb8bd9-5b76-410c-88ec-714d49959f3a",
+    "filename": "Chimes.wav",
+    "displayName": "Chimes",
+    "category": "Featured",
+    "description": "Warm tubular chimes with a musical ring"
   }
 ]

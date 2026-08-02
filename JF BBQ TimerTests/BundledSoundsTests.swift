@@ -28,4 +28,15 @@ struct BundledSoundsTests {
         #expect(names.contains("Church Bell"))
         #expect(names.contains("Ocean Liner Horn"))
     }
+
+    @Test("free Featured category exists, holds the free pair, and sorts first")
+    func featuredCategory() {
+        let manager = BundledSoundsManager()
+        let featured = manager.sounds(in: BundledSoundsManager.freeCategory)
+        let names = Set(featured.map(\.displayName))
+        #expect(names.contains("Dinner Triangle"))
+        #expect(names.contains("Chimes"))
+        // Listed first so the picker's ungated section maps to the catalog order
+        #expect(manager.categories.first == BundledSoundsManager.freeCategory)
+    }
 }
