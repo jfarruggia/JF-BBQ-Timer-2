@@ -135,12 +135,26 @@ struct ContentView: View {
     }
 
     private var probeConnectButton: some View {
-        Button(action: { showProbeConnect = true }) {
+        // Premium gate: the chip is the probe feature's single entry point, so
+        // free users get the upgrade sheet here — no connection means no probe
+        // strip, targets, alerts, or watch probe page anywhere downstream.
+        Button(action: {
+            if settings.isPremiumUser {
+                showProbeConnect = true
+            } else {
+                showPremiumUpgrade = true
+            }
+        }) {
             HStack(spacing: 5) {
                 Image(systemName: "thermometer.medium")
                     .font(.system(size: 15, weight: .semibold))
                 Text("Probe")
                     .font(.system(size: 14, weight: .semibold))
+                if !settings.isPremiumUser {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 11, weight: .semibold))
+                        .opacity(0.85)
+                }
                 if let badge = probeHealthBadge {
                     Image(systemName: badge.symbol)
                         .font(.system(size: 12, weight: .bold))

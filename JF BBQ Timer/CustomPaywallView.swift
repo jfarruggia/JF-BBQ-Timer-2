@@ -64,10 +64,10 @@ struct CustomPaywallView: View {
             
             // Features list
             VStack(alignment: .leading, spacing: 8) {  // Tighter spacing
+                FeatureRow(text: "Connect your Combustion probe — live temps, guided cook, and pull-now alerts")
                 FeatureRow(text: "Track up to 24 foods at once with additional timers")
                 FeatureRow(text: "Choose from premium alert sounds or upload your own custom sound")
                 FeatureRow(text: "Voice announcements—hear alerts in your AirPods or speakers")
-                FeatureRow(text: "(Coming Soon!) Apple Watch app, Bluetooth probe integration, cloud sync, and more")
                 FeatureRow(text: "One-time purchase. Lifetime access.")
             }
             .padding(.horizontal, 24)
