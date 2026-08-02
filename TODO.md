@@ -103,6 +103,20 @@ glass + accent), added a "Done" button to the picker sheet, renamed discovered p
 ## Audio
 - [ ] **Voice announcements sound bad** — investigate + improve quality
       (`AnnouncementRepeater` / voice settings in `SettingsExtension.swift`).
+- [~] **Alerts overhaul** (discussed 2026-07-12; first slice landed as PR #15 —
+      Church Bell + Ocean Liner Horn, processed via the stdlib wave/audioop
+      pipeline + catalog guard test). Remaining, in value order:
+      - [ ] **Custom notification sounds** — notifications still play the stock
+            default ding even for premium users; wire the chosen sound (≤30 s
+            caf/wav variant) into timer/preheat/probe notifications. Biggest
+            perceived upgrade (locked phone = the loud-backyard case).
+      - [ ] `.timeSensitive` interruption level on timer alerts (breaks through
+            Focus).
+      - [ ] Repeating alarm patterns: build 10–20 s clang-clang variants of
+            short hits for the notification versions.
+      - [ ] More sounds per the curation list (dinner triangle, cowbell, boxing
+            bell…); retire/demote the novelty screams from "premium".
+      - [ ] Consistent loudness master across the whole legacy set.
 
 ## Design consistency (extend the glass language to the rest of the app)
 Shared helpers added in `ButtonStyles.swift` (reuse, don't re-roll): `EmberBackground`,
