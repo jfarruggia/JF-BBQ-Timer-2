@@ -199,6 +199,15 @@ extension Settings {
             debugLog("[DEBUG] No bundled sound ID selected.")
             return false
         }
+        // The selected sound may have been removed from the catalog by an app
+        // update (e.g. the retired novelty sounds). Deselect so the picker
+        // shows System honestly, and let the caller fall back — mirrors the
+        // missing-file handling in playCustomSound above.
+        guard BundledSoundsManager().allSounds.contains(where: { $0.id == id }) else {
+            debugLog("[DEBUG] Selected bundled sound no longer exists — deselecting.")
+            deselectBundledSound()
+            return false
+        }
         debugLog("[DEBUG] playBundledSound called with ID: \(id), loop: \(loop)")
         // Use the new AudioManager with looping
         let result = AudioManager.shared.playBundledSound(with: id, loop: loop)
