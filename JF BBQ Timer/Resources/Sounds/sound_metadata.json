@@ -82,5 +82,12 @@
     "displayName": "Chimes",
     "category": "Featured",
     "description": "Warm tubular chimes with a musical ring"
+  },
+  {
+    "id": "1f3a5ee9-31a7-45f7-b7eb-c355ff2ce307",
+    "filename": "Fog Horn.wav",
+    "displayName": "Fog Horn",
+    "category": "Get My Attention",
+    "description": "A deep fog horn that carries a long way"
   }
 ]
