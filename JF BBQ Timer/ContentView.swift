@@ -411,7 +411,8 @@ struct ContentView: View {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
-        content.sound = .default
+        content.sound = NotificationSoundProvider.currentSound()
+        content.interruptionLevel = .timeSensitive
         let request = UNNotificationRequest(
             identifier: "probe-alert-\(UUID().uuidString)",
             content: content,
@@ -1113,7 +1114,8 @@ struct ContentView: View {
         let content = UNMutableNotificationContent()
         content.title = "Preheat Complete"
         content.body = "Your grill preheat timer is done."
-        content.sound = .default
+        content.sound = NotificationSoundProvider.currentSound()
+        content.interruptionLevel = .timeSensitive
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: max(1, seconds), repeats: false)
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
         UNUserNotificationCenter.current().add(request) { error in

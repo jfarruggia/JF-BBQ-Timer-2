@@ -341,7 +341,10 @@ class TimerState: ObservableObject {
         let content = UNMutableNotificationContent()
         content.title = "Timer Complete"
         content.body = "\(displayName()) timer is complete."
-        content.sound = .default
+        // The user's chosen alert sound (repeated alarm variant), not the
+        // stock ding — the locked-phone case is exactly the loud-backyard one.
+        content.sound = NotificationSoundProvider.currentSound()
+        content.interruptionLevel = .timeSensitive
         let interval = max(1, fireDate.timeIntervalSinceNow)
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
