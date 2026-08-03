@@ -101,8 +101,14 @@ glass + accent), added a "Done" button to the picker sheet, renamed discovered p
       can't remove it without hand-editing `project.pbxproj`.
 
 ## Audio
-- [ ] **Voice announcements sound bad** — investigate + improve quality
-      (`AnnouncementRepeater` / voice settings in `SettingsExtension.swift`).
+- [x] **Voice announcements sound bad — fixed** (PR #24): the 2 s wall-timer
+      repeater cut phrases mid-word with a fresh synthesizer per repeat, and
+      per-repeat session re-activation swallowed opening syllables on
+      Bluetooth (the AirPods complaint). Now delegate-driven repeats (finish →
+      1.5 s gap → again) on one synthesizer, session configured once, and
+      `bestAnnouncementVoice()` auto-prefers Premium/Enhanced voices; picker
+      labels quality + hints at downloading better voices. **On-device
+      AirPods listen pending.**
 - [~] **Alerts overhaul** (discussed 2026-07-12; first slice landed as PR #15 —
       Church Bell + Ocean Liner Horn, processed via the stdlib wave/audioop
       pipeline + catalog guard test). Remaining, in value order:
