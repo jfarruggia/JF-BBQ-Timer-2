@@ -250,22 +250,28 @@ struct NewSettingsView: View {
                         .foregroundColor(.secondary)
                 }
 
-                Section(header: Text("Temperature Probe"),
-                        footer: Text("Choose what the probe strip on a timer card shows. Core temperature always shows when a probe is attached.")) {
-                    Picker("Temperature Unit", selection: $settings.temperatureUnit) {
-                        Text("Celsius (°C)").tag(TemperatureUnit.celsius)
-                        Text("Fahrenheit (°F)").tag(TemperatureUnit.fahrenheit)
+                // Probe settings only exist where the probe does — the feature
+                // is premium (gated at the header chip), so free users see no
+                // dead toggles here. The °F/°C picker rides along: every
+                // temperature the app shows today comes from the probe.
+                if settings.isPremiumUser {
+                    Section(header: Text("Temperature Probe"),
+                            footer: Text("Choose what the probe strip on a timer card shows. Core temperature always shows when a probe is attached.")) {
+                        Picker("Temperature Unit", selection: $settings.temperatureUnit) {
+                            Text("Celsius (°C)").tag(TemperatureUnit.celsius)
+                            Text("Fahrenheit (°F)").tag(TemperatureUnit.fahrenheit)
+                        }
+                        .accessibilityIdentifier("TemperatureUnit")
+                        Toggle("Show Surface Temp", isOn: $settings.showProbeSurfaceTemp)
+                            .tint(.blue)
+                            .accessibilityIdentifier("ShowProbeSurfaceTemp")
+                        Toggle("Show Ambient Temp", isOn: $settings.showProbeAmbientTemp)
+                            .tint(.blue)
+                            .accessibilityIdentifier("ShowProbeAmbientTemp")
+                        Toggle("Show Predicted Ready Time", isOn: $settings.showProbePredictedReady)
+                            .tint(.blue)
+                            .accessibilityIdentifier("ShowProbePredictedReady")
                     }
-                    .accessibilityIdentifier("TemperatureUnit")
-                    Toggle("Show Surface Temp", isOn: $settings.showProbeSurfaceTemp)
-                        .tint(.blue)
-                        .accessibilityIdentifier("ShowProbeSurfaceTemp")
-                    Toggle("Show Ambient Temp", isOn: $settings.showProbeAmbientTemp)
-                        .tint(.blue)
-                        .accessibilityIdentifier("ShowProbeAmbientTemp")
-                    Toggle("Show Predicted Ready Time", isOn: $settings.showProbePredictedReady)
-                        .tint(.blue)
-                        .accessibilityIdentifier("ShowProbePredictedReady")
                 }
 
                 // Thank you message for premium users
