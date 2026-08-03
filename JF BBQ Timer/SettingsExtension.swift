@@ -357,6 +357,25 @@ extension Settings {
         // Try to get the voice with the stored identifier
         return AVSpeechSynthesisVoice(identifier: selectedVoiceIdentifier)
     }
+
+    /// The voice announcements should actually use: the user's explicit pick,
+    /// or — when nothing is picked — the highest-quality English voice on the
+    /// device (Premium > Enhanced > compact), preferring the current locale.
+    /// iOS defaults to the compact robot voice unless an app asks for better.
+    func bestAnnouncementVoice() -> AVSpeechSynthesisVoice? {
+        if let chosen = AVSpeechSynthesisVoice(identifier: selectedVoiceIdentifier) {
+            return chosen
+        }
+        let preferred = AVSpeechSynthesisVoice.currentLanguageCode()   // e.g. "en-US"
+        let english = AVSpeechSynthesisVoice.speechVoices()
+            .filter { $0.language.hasPrefix("en") }
+        return english.max { a, b in
+            VoiceRanking.score(qualityRaw: a.quality.rawValue, language: a.language,
+                               preferredLanguage: preferred)
+                < VoiceRanking.score(qualityRaw: b.quality.rawValue, language: b.language,
+                                     preferredLanguage: preferred)
+        } ?? AVSpeechSynthesisVoice(language: nil)
+    }
     
     // Get list of available voices for the speech synthesizer
     func availableVoices() -> [AVSpeechSynthesisVoice] {
@@ -380,42 +399,75 @@ extension Settings {
         }
         
         // Filter to just English voices for simplicity
-        let englishVoices = allVoices.filter { 
+        let englishVoices = allVoices.filter {
             $0.language.starts(with: "en")
         }
-        
-        return englishVoices.sorted { $0.name < $1.name }
+
+        // Best voices first (Premium > Enhanced > compact), then by name
+        return englishVoices.sorted {
+            if $0.quality.rawValue != $1.quality.rawValue {
+                return $0.quality.rawValue > $1.quality.rawValue
+            }
+            return $0.name < $1.name
+        }
     }
     
-    // Class to manage repeating announcements
-    class AnnouncementRepeater {
+    // Manages repeating announcements. Rewritten (2026-08): the old version
+    // fired on a fixed 2 s wall timer and created a FRESH synthesizer per
+    // repeat — phrases longer than 2 s were cut off mid-word by the next
+    // repeat, and per-repeat audio-session re-activation swallowed the first
+    // syllables on Bluetooth (the "terrible with AirPods" report). Now: one
+    // long-lived synthesizer, session configured once, and the next repeat is
+    // scheduled only AFTER the previous utterance finishes, plus a short gap.
+    class AnnouncementRepeater: NSObject, AVSpeechSynthesizerDelegate {
         static let shared = AnnouncementRepeater()
-        private var timer: Timer?
+
+        /// Silence between the end of one announcement and the next.
+        private static let gapSeconds: TimeInterval = 1.5
+
+        private let synthesizer = AVSpeechSynthesizer()
         private var message: String = ""
-        private var settings: Settings?
-        
+        private weak var settings: Settings?
+        private var active = false
+        private var nextRepeat: DispatchWorkItem?
+
+        override private init() {
+            super.init()
+            synthesizer.delegate = self
+        }
+
         func startRepeating(message: String, settings: Settings) {
             stopRepeating()
             self.message = message
             self.settings = settings
-            // Announce immediately, then every 2 seconds
-            announce()
-            timer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
-                self?.announce()
-            }
-            if let timer = timer {
-                RunLoop.main.add(timer, forMode: .common)
-            }
+            active = true
+            configureSpeechSession(settings: settings)   // once, not per repeat
+            speakOnce()
         }
-        
+
         func stopRepeating() {
-            timer?.invalidate()
-            timer = nil
+            active = false
+            nextRepeat?.cancel()
+            nextRepeat = nil
+            synthesizer.stopSpeaking(at: .immediate)
         }
-        
-        private func announce() {
-            guard let settings = settings else { return }
-            directAnnouncement(message: message, settings: settings)
+
+        private func speakOnce() {
+            guard active, let settings else { return }
+            let utterance = AVSpeechUtterance(string: message)
+            utterance.rate = AVSpeechUtteranceDefaultSpeechRate
+            utterance.volume = 1.0
+            utterance.voice = settings.bestAnnouncementVoice()
+            synthesizer.speak(utterance)
+        }
+
+        // Repeat only after the sentence actually finished.
+        func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer,
+                               didFinish utterance: AVSpeechUtterance) {
+            guard active else { return }
+            let task = DispatchWorkItem { [weak self] in self?.speakOnce() }
+            nextRepeat = task
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.gapSeconds, execute: task)
         }
     }
     
@@ -526,11 +578,12 @@ class SpeechSynthesizerDelegate: NSObject, AVSpeechSynthesizerDelegate {
     }
 }
 
-// Function for direct announcement
-func directAnnouncement(message: String, settings: Settings) {
-    debugLog("🔊 SUPER SIMPLE DIRECT ANNOUNCEMENT 🔊")
-    // Configure audio session according to user's Silent Mode preference
-    // If bypass is OFF we still set up a session that respects Silent (ambient)
+// MARK: - Speech session + voice ranking
+
+/// Configure the shared audio session for spoken announcements, honoring the
+/// user's Silent Mode preference. Called once per announcement session — NOT
+/// per repeat; re-activation glitches the first syllables on Bluetooth routes.
+func configureSpeechSession(settings: Settings) {
     do {
         let audioSession = AVAudioSession.sharedInstance()
         if settings.playSoundInSilentMode {
@@ -539,41 +592,46 @@ func directAnnouncement(message: String, settings: Settings) {
             try audioSession.setCategory(.ambient, mode: .spokenAudio, options: [])
         }
         try audioSession.setActive(true)
-        debugLog("✓ Audio session active (bypass Silent: \(settings.playSoundInSilentMode))")
+        debugLog("✓ Speech session active (bypass Silent: \(settings.playSoundInSilentMode))")
     } catch {
-        debugLog("✗ Audio session error: \(error)")
+        debugLog("✗ Speech session error: \(error)")
     }
-    
-    // Create a completely fresh synthesizer instance
-    let synthesizer = AVSpeechSynthesizer()
-    debugLog("✓ Created synthesizer")
-    
-    // Setup a basic utterance
-    let utterance = AVSpeechUtterance(string: message)
-    utterance.rate = 0.5  // Slower
-    utterance.volume = 1.0  // Maximum volume
-    debugLog("✓ Created utterance: \"\(message)\"")
-    
-    // Try to get the selected voice from settings
-    if let selectedVoice = AVSpeechSynthesisVoice(identifier: settings.selectedVoiceIdentifier) {
-        utterance.voice = selectedVoice
-        debugLog("✓ Using selected voice: \(selectedVoice.name)")
-    } else {
-        // fallback to default
-        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
-        debugLog("✓ Using default voice: en-US")
-    }
-    
-    // Keep a reference to prevent deallocation
-    DirectSpeech.shared.synthesizer = synthesizer
-    
-    // Speak!
-    debugLog("▶️ Starting speech...")
-    synthesizer.speak(utterance)
 }
 
-// Class to hold a reference to the speech synthesizer
+/// Pure ranking for picking the best announcement voice — unit-tested.
+/// AVSpeechSynthesisVoiceQuality rawValues: default 1, enhanced 2, premium 3.
+enum VoiceRanking {
+    /// Higher wins. Quality dominates; matching the user's locale breaks ties.
+    static func score(qualityRaw: Int, language: String, preferredLanguage: String) -> Int {
+        let localeBonus = (language == preferredLanguage) ? 1 : 0
+        return qualityRaw * 10 + localeBonus
+    }
+
+    /// Suffix for the voice picker, e.g. "Enhanced" / "Premium"; nil for compact.
+    static func qualityLabel(forRaw raw: Int) -> String? {
+        switch raw {
+        case 2:  return "Enhanced"
+        case 3:  return "Premium"
+        default: return nil
+        }
+    }
+}
+
+// One-shot announcement (used by the Test Speech button). Reuses a persistent
+// synthesizer and the same best-voice logic as the repeater.
+func directAnnouncement(message: String, settings: Settings) {
+    configureSpeechSession(settings: settings)
+    let utterance = AVSpeechUtterance(string: message)
+    utterance.rate = AVSpeechUtteranceDefaultSpeechRate
+    utterance.volume = 1.0
+    utterance.voice = settings.bestAnnouncementVoice()
+    DirectSpeech.shared.synthesizer.stopSpeaking(at: .immediate)
+    DirectSpeech.shared.synthesizer.speak(utterance)
+}
+
+// Holds the long-lived one-shot synthesizer (creating a fresh instance per
+// utterance risks deallocation mid-speech).
 class DirectSpeech {
     static let shared = DirectSpeech()
-    var synthesizer: AVSpeechSynthesizer?
+    let synthesizer = AVSpeechSynthesizer()
 }

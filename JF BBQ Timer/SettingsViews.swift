@@ -1461,7 +1461,8 @@ struct VoiceAnnouncementSettingsView: View {
                 }
             }
             
-            Section(header: Text("Voice Selection"), footer: Text("Choose the voice for your announcements.")) {
+            Section(header: Text("Voice Selection"),
+                    footer: Text("Best voices are listed first. For even better ones, download Enhanced or Premium voices in iOS Settings ▸ Accessibility ▸ Spoken Content ▸ Voices — they'll appear here automatically.")) {
                 if availableVoices.isEmpty {
                     Text("No voices available")
                         .foregroundColor(.secondary)
@@ -1469,7 +1470,9 @@ struct VoiceAnnouncementSettingsView: View {
                     Picker("Voice", selection: $selectedVoiceIndex) {
                         ForEach(0..<availableVoices.count, id: \.self) { index in
                             let voice = availableVoices[index]
-                            Text("\(voice.name) (\(voice.language))")
+                            let quality = VoiceRanking.qualityLabel(forRaw: voice.quality.rawValue)
+                                .map { " — \($0)" } ?? ""
+                            Text("\(voice.name)\(quality) (\(voice.language))")
                                 .tag(index)
                         }
                     }
