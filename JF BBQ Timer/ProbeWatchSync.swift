@@ -42,7 +42,8 @@ func probeReadingWireDict(
     unit: TemperatureUnit = .celsius,
     targetC: Double? = nil,
     phaseRaw: UInt8 = 0,
-    overheating: Bool = false
+    overheating: Bool = false,
+    attachedCookID: String? = nil
 ) -> [String: Any] {
     var dict: [String: Any] = [
         "action":     "probe",
@@ -54,6 +55,7 @@ func probeReadingWireDict(
         "overheating": overheating
     ]
     if let targetC { dict["targetC"] = targetC }
+    if let attachedCookID { dict["cookID"] = attachedCookID }
 
     // Temperature values: omit if at or below the −20 °C sensor floor
     let floorC = -19.99

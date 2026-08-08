@@ -48,10 +48,13 @@ struct TimersListView: View {
                                     .font(.footnote)
                                     .baselineOffset(-3)
                             }
-                            // Glanceable core temp while on a timer page (the
-                            // probe page itself already shows it large).
+                            // Glanceable core temp — only on the page of the timer
+                            // the probe is attached to (the probe page itself
+                            // already shows it large). Other timers' pages stay
+                            // clean so the temp isn't misread as theirs.
                             if selectedTimerId != Self.probePageID,
-                               let probe = probeModel.probe, probe.connected, let core = probe.coreC {
+                               let probe = probeModel.probe, probe.connected, let core = probe.coreC,
+                               let attachedID = probe.attachedCookID, selectedTimerId == attachedID {
                                 Text(probe.unit.compactString(fromCelsius: core))
                                     .font(.footnote)
                                     .monospacedDigit()
