@@ -337,9 +337,8 @@ struct TimersListView: View {
             // under the bottom probe strip on smaller watch sizes.
             Spacer(minLength: 4)
             presetButtons(for: row)
-            // Centered Start/Pause button below preset buttons with tight spacing
-            startStopButton(for: row)
-                .padding(.top, 6)
+            // No Start/Pause button (removed by request — the preset buttons
+            // start timers; pause/resume is done from the iPhone).
             Spacer(minLength: 0)
         }
         .padding(.horizontal)
@@ -488,46 +487,6 @@ struct TimersListView: View {
         }
     }
 
-    // Centered Start/Pause button placed below the preset buttons
-    @ViewBuilder
-    private func startStopButton(for row: WatchTimersModel.Row) -> some View {
-        HStack { // center horizontally
-            Spacer()
-            Button(isRunning(row) ? "Pause" : "Start") {
-                // Stronger haptic: start vs pause use distinct patterns
-                let device = WKInterfaceDevice.current()
-                if isRunning(row) {
-                    device.play(.stop) // pausing
-                    // Optimistically pause locally so UI responds immediately
-                    optimisticPause(row)
-                    // If nothing else is running, end the extended runtime session
-                    refreshExtendedRuntimeSession()
-                } else {
-                    device.play(.start) // starting
-                    // Optimistically start locally so UI responds immediately
-                    // If the timer has no time, prefer Preset 1 if available
-                    let startingRemaining = row.remaining > 0 ? row.remaining : (row.preset1Seconds ?? max(1, row.remaining))
-                    optimisticStart(row, remainingOverride: startingRemaining)
-                    // Ensure extended runtime is active while a timer is running
-                    refreshExtendedRuntimeSession()
-                }
-                WCSessionManager.shared.sendCommand([
-                    "action": "toggleRun",
-                    "timerId": row.id
-                ])
-            }
-            // Use a filled prominent style with brand tint, and white text for contrast
-            .buttonStyle(.borderedProminent)
-            .tint(Color("TimerAccent"))
-            .foregroundStyle(.white)
-            .controlSize(.mini)
-            .font(.caption2)
-            .buttonBorderShape(.roundedRectangle(radius: 6))
-            .frame(width: 76, height: 44) // keep Apple tap height
-            Spacer()
-        }
-    }
-
     @ViewBuilder
     private func presetButtons(for row: WatchTimersModel.Row) -> some View {
         HStack {
@@ -599,25 +558,6 @@ struct TimersListView: View {
                     preset2Seconds: item.preset2Seconds,
                     elapsedSeconds: item.elapsedSeconds,
                     endDate: optimisticEnd
-                )
-            }
-            return item
-        }
-    }
-
-    private func optimisticPause(_ row: WatchTimersModel.Row) {
-        let currentRemaining = effectiveRemaining(for: row)
-        model.timers = model.timers.map { item in
-            if item.id == row.id {
-                return WatchTimersModel.Row(
-                    id: item.id,
-                    name: item.name,
-                    remaining: currentRemaining,
-                    state: "stopped",
-                    preset1Seconds: item.preset1Seconds,
-                    preset2Seconds: item.preset2Seconds,
-                    elapsedSeconds: item.elapsedSeconds,
-                    endDate: nil
                 )
             }
             return item
