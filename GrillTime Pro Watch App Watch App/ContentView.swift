@@ -36,6 +36,11 @@ struct TimersListView: View {
         // NavigationStack provides the top system bar on watchOS
         NavigationStack {
             mainContent
+                // Same ember-glow bed as the iPhone main screen, sized for the
+                // small display (fewer, softer coals so text stays readable).
+                .containerBackground(for: .navigation) {
+                    WatchEmberBackground()
+                }
                 // Clear any default title to avoid duplication with the toolbar item
                 .navigationTitle("")
                 // Put the timer name in the top-left, aligned with the system clock on the right
@@ -921,3 +926,47 @@ private func previewSampleTimers() -> [[String: Any]] {
 }
 #endif
 
+
+// MARK: - Ember background (watch)
+
+/// Watch-sized version of the iPhone's `EmberBackground` (ButtonStyles.swift):
+/// the same deep-charcoal base with radial "coal" glows, but fewer and softer
+/// spots so white text stays readable on the small display. Duplicated here
+/// because the watch target compiles only its own files.
+struct WatchEmberBackground: View {
+    /// (x, y) are unit positions; r is a fraction of width for the glow radius.
+    private var emberSpots: [(x: CGFloat, y: CGFloat, r: CGFloat, color: Color, opacity: Double)] {
+        let orange = Color(red: 0.96, green: 0.46, blue: 0.10)
+        let redOrange = Color(red: 0.86, green: 0.26, blue: 0.06)
+        let red = Color(red: 0.74, green: 0.14, blue: 0.05)
+        let amber = Color(red: 1.00, green: 0.56, blue: 0.14)
+        return [
+            (0.18, 0.08, 0.34, orange,    0.34),
+            (0.85, 0.14, 0.30, redOrange, 0.32),
+            (0.10, 0.52, 0.28, red,       0.28),
+            (0.62, 0.44, 0.26, amber,     0.24),
+            (0.38, 0.86, 0.34, orange,    0.30),
+            (0.90, 0.80, 0.28, redOrange, 0.28)
+        ]
+    }
+
+    var body: some View {
+        ZStack {
+            Color(red: 0.15, green: 0.035, blue: 0.02)
+            GeometryReader { geo in
+                ZStack {
+                    ForEach(emberSpots.indices, id: \.self) { i in
+                        let e = emberSpots[i]
+                        RadialGradient(
+                            colors: [e.color.opacity(e.opacity), Color.clear],
+                            center: UnitPoint(x: e.x, y: e.y),
+                            startRadius: 0,
+                            endRadius: geo.size.width * e.r
+                        )
+                    }
+                }
+            }
+        }
+        .ignoresSafeArea()
+    }
+}
