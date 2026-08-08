@@ -225,6 +225,18 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       food-safety-liability-adjacent, and low-and-slow BBQ blows past the thresholds
       anyway. Revisit only on user demand.
 
+## Recently shipped (2026-08-08) — notched card layout
+- [x] **Interlocking notched-button layout for the large glass card** (PR #35,
+      spec `notched-card-layout-spec.md`). Ring 155pt→200pt, preset buttons
+      become notched shapes carved from the ring's circle (`NotchedCardLayout`
+      pure geometry + `Path.subtracting`), Stop/Reset in the channel between
+      them. iOS 26 card only; compact + pre-26 layouts untouched. Prototyped
+      live with Jim in a throwaway `.swiftpm` app, tuned by slider, then built.
+- [x] **Fixed invisible `Color("TimerRed")` across the iOS app** (same PR):
+      the colorset only existed in the watch catalog; 9 iOS references
+      (old Stop button, probe battery warnings, …) silently rendered
+      transparent. Added system-red pair to the iOS catalog.
+
 ## Recently shipped (2026-08-08) — watch UX day
 - [x] Watch alert full-screen — tap anywhere to dismiss; controls underneath
       unreachable while showing, so a missed tap can't start a timer (PR #25).
