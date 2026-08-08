@@ -548,12 +548,96 @@ struct CircularTimerRing<Center: View>: View {
     }
 }
 
+// MARK: - Notched interlocking layout (see notched-card-layout-spec.md)
+
+/// Pure geometry for the large card's interlocking ring/button layout. Every
+/// value derives from the spec constants plus the card's content width, so the
+/// button notches always track the ring's circle exactly.
+@available(iOS 26.0, *)
+struct NotchedCardLayout {
+    static let ringD: CGFloat = 200       // ring outer diameter
+    static let ringCenterY: CGFloat = 125 // ring center from content top
+    static let moat: CGFloat = 12         // clear gap between ring and notch edge
+    static let buttonH: CGFloat = 124
+    static let centerGap: CGFloat = 92    // channel between the two buttons
+    static let overlap: CGFloat = 69      // buttons' top edge above circle bottom
+    static let corner: CGFloat = 16
+
+    /// Height of the title + ring + buttons region. Width-independent, so the
+    /// card can size itself before measuring its width.
+    static let interlockH: CGFloat = ringCenterY + ringD / 2 - overlap + buttonH
+
+    let contentW: CGFloat
+
+    var ringCenter: CGPoint { CGPoint(x: contentW / 2, y: Self.ringCenterY) }
+    var buttonsTop: CGFloat { Self.ringCenterY + Self.ringD / 2 - Self.overlap }
+    var buttonW: CGFloat { max((contentW - Self.centerGap) / 2, 0) }
+    var cutR: CGFloat { Self.ringD / 2 + Self.moat }
+
+    /// The notch circle's center in a button's own coordinate space.
+    func cutCenterLocal(leftButton: Bool) -> CGPoint {
+        let buttonOriginX: CGFloat = leftButton ? 0 : contentW - buttonW
+        return CGPoint(x: contentW / 2 - buttonOriginX,
+                       y: Self.ringCenterY - buttonsTop)
+    }
+}
+
+/// A continuously-rounded rectangle with the timer ring's circle (plus moat)
+/// subtracted out of one corner region.
+@available(iOS 26.0, *)
+struct NotchedRoundedRect: Shape {
+    let corner: CGFloat
+    let cutCenter: CGPoint
+    let cutRadius: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let base = Path(roundedRect: rect, cornerRadius: corner, style: .continuous)
+        let cut = Path(ellipseIn: CGRect(x: cutCenter.x - cutRadius,
+                                         y: cutCenter.y - cutRadius,
+                                         width: cutRadius * 2,
+                                         height: cutRadius * 2))
+        return base.subtracting(cut)
+    }
+}
+
+/// Notched-shape counterpart to `GlassActionButtonStyle`: primary is the solid
+/// warm accent (a control *on* the glass — deliberately not glass), secondary a
+/// quiet translucent fill. The tap target is clipped to the notched shape so
+/// taps in the moat never press the button.
+@available(iOS 26.0, *)
+struct NotchedActionButtonStyle: ButtonStyle {
+    enum Kind { case primary, secondary }
+    let kind: Kind
+    let shape: NotchedRoundedRect
+
+    private let onAccent = Color(red: 0.30, green: 0.13, blue: 0.02)
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(kind == .primary ? onAccent : Color.white)
+            .background {
+                if kind == .primary {
+                    shape.fill(Color("TimerAccent"))
+                } else {
+                    shape.fill(.white.opacity(0.18))
+                        .overlay(shape.stroke(.white.opacity(0.25), lineWidth: 0.5))
+                }
+            }
+            .contentShape(shape)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
+            .onChange(of: configuration.isPressed) { isPressed in
+                if isPressed { Haptics.tap() }
+            }
+    }
+}
+
 /// Redesigned content for a large timer card on iOS 26.
 ///
-/// Direction (see design review): one hero number ("Flip in"), the elapsed
-/// "Lit" time demoted to a quiet secondary line, no black text shadows, a
-/// single warm accent for the primary action, and translucent controls so the
-/// glass card material actually reads through. This view is the *content* only —
+/// Layout (see notched-card-layout-spec.md): the ring is the hero at 200pt, and
+/// the two preset buttons interlock with it — their notched shapes are carved
+/// from the ring's circle, with Stop/Reset in the channel between them. The
+/// probe strip keeps its place below. This view is the *content* only —
 /// the glass material, completion-flash border and adaptive height still come
 /// from `.timerContainerAppearance(isLargeTimer:)` applied by the caller, so the
 /// timer mechanics are untouched.
@@ -592,89 +676,8 @@ struct GlassLargeTimerContent: View {
     }
 
     var body: some View {
-        VStack(spacing: 14) {
-            HStack {
-                Text(timer.name)
-                    .font(.system(size: 17, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white.opacity(0.95))
-                Spacer()
-            }
-
-            CircularTimerRing(progress: state.progress(at: Date()), lineWidth: 12) {
-                VStack(spacing: 3) {
-                    Text("Flip in")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.6))
-                        .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
-                    Text(timeLabel(Int(state.intervalTime)))
-                        .font(.system(size: 54, weight: .semibold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(.white)
-                        .minimumScaleFactor(0.5)
-                        .lineLimit(1)
-                        .contentTransition(.numericText())
-                        .animation(.easeInOut, value: state.intervalTime)
-                        .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
-                    HStack(spacing: 5) {
-                        Image(systemName: "flame.fill")
-                            .font(.system(size: 13))
-                            .foregroundStyle(Color("TimerAccent"))
-                        Text("Lit \(timeLabel(Int(state.elapsedTime)))")
-                            .font(.system(size: 16, weight: .medium))
-                            .monospacedDigit()
-                            .foregroundStyle(.white.opacity(0.7))
-                            .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
-                    }
-                }
-            }
-            .frame(width: 155, height: 155)
-
-            HStack(spacing: 10) {
-                Button {
-                    startWithPreset(TimeInterval(timer.preset1))
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "play.fill").font(.system(size: 13))
-                        Text(timeLabel(timer.preset1))
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(GlassActionButtonStyle(kind: .primary))
-
-                Button {
-                    startWithPreset(TimeInterval(timer.preset2))
-                } label: {
-                    Text(timeLabel(timer.preset2))
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(GlassActionButtonStyle(kind: .secondary))
-            }
-
-            HStack(spacing: 20) {
-                if state.isRunning {
-                    Button {
-                        state.stop()
-                        settings.stopLoopingAlertSound()
-                    } label: {
-                        Label("Stop", systemImage: "stop.fill")
-                            .font(.system(size: 14, weight: .medium))
-                    }
-                    .foregroundStyle(Color("TimerRed"))
-                }
-                Button {
-                    state.reset()
-                    settings.stopLoopingAlertSound()
-                    #if os(iOS)
-                    settings.setProbeTarget(nil, forCookID: timer.id)
-                    #endif
-                } label: {
-                    Label("Reset", systemImage: "arrow.counterclockwise")
-                        .font(.system(size: 14, weight: .medium))
-                }
-                .foregroundStyle(.white.opacity(0.75))
-                Spacer()
-            }
-            .buttonStyle(.plain)
+        VStack(spacing: 12) {
+            interlock
 
             #if os(iOS)
             if let info = probeInfo {
@@ -745,6 +748,125 @@ struct GlassLargeTimerContent: View {
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 18)
         .padding(.vertical, 16)
+    }
+
+    /// Title + ring + notched buttons + channel controls, positioned by
+    /// `NotchedCardLayout`. Fixed height, so it sizes before width is known.
+    private var interlock: some View {
+        GeometryReader { geo in
+            let layout = NotchedCardLayout(contentW: geo.size.width)
+
+            ZStack(alignment: .topLeading) {
+                Text(timer.name)
+                    .font(.system(size: 17, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.95))
+
+                CircularTimerRing(progress: state.progress(at: Date()), lineWidth: 12) {
+                    ringContent
+                }
+                .frame(width: NotchedCardLayout.ringD, height: NotchedCardLayout.ringD)
+                .position(layout.ringCenter)
+
+                notchedPresetButton(layout: layout, left: true)
+                notchedPresetButton(layout: layout, left: false)
+                channelControls(layout: layout)
+            }
+        }
+        .frame(height: NotchedCardLayout.interlockH)
+    }
+
+    private var ringContent: some View {
+        VStack(spacing: 3) {
+            Text("Flip in")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(.white.opacity(0.6))
+                .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
+            Text(timeLabel(Int(state.intervalTime)))
+                .font(.system(size: 54, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(.white)
+                .minimumScaleFactor(0.5)
+                .lineLimit(1)
+                .contentTransition(.numericText())
+                .animation(.easeInOut, value: state.intervalTime)
+                .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
+            HStack(spacing: 5) {
+                Image(systemName: "flame.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color("TimerAccent"))
+                Text("Lit \(timeLabel(Int(state.elapsedTime)))")
+                    .font(.system(size: 16, weight: .medium))
+                    .monospacedDigit()
+                    .foregroundStyle(.white.opacity(0.7))
+                    .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
+            }
+        }
+    }
+
+    private func notchedPresetButton(layout: NotchedCardLayout, left: Bool) -> some View {
+        let shape = NotchedRoundedRect(corner: NotchedCardLayout.corner,
+                                       cutCenter: layout.cutCenterLocal(leftButton: left),
+                                       cutRadius: layout.cutR)
+        let preset = left ? timer.preset1 : timer.preset2
+
+        return Button {
+            startWithPreset(TimeInterval(preset))
+        } label: {
+            HStack(spacing: 7) {
+                if left {
+                    Image(systemName: "play.fill").font(.system(size: 16, weight: .bold))
+                }
+                Text(timeLabel(preset))
+                    .font(.system(size: 26, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            .padding(.bottom, 20)
+        }
+        .buttonStyle(NotchedActionButtonStyle(kind: left ? .primary : .secondary, shape: shape))
+        .frame(width: layout.buttonW, height: NotchedCardLayout.buttonH)
+        .position(x: left ? layout.buttonW / 2 : layout.contentW - layout.buttonW / 2,
+                  y: layout.buttonsTop + NotchedCardLayout.buttonH / 2)
+    }
+
+    /// Stop (while running) and Reset, in the channel between the two buttons.
+    private func channelControls(layout: NotchedCardLayout) -> some View {
+        HStack(spacing: 18) {
+            if state.isRunning {
+                Button {
+                    state.stop()
+                    settings.stopLoopingAlertSound()
+                } label: {
+                    VStack(spacing: 2) {
+                        Image(systemName: "stop.fill")
+                            .font(.system(size: 16, weight: .semibold))
+                        Text("Stop")
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                }
+                .foregroundStyle(Color("TimerRed"))
+            }
+            Button {
+                state.reset()
+                settings.stopLoopingAlertSound()
+                #if os(iOS)
+                settings.setProbeTarget(nil, forCookID: timer.id)
+                #endif
+            } label: {
+                VStack(spacing: 2) {
+                    Image(systemName: "arrow.counterclockwise")
+                        .font(.system(size: 16, weight: .semibold))
+                    Text("Reset")
+                        .font(.system(size: 11, weight: .medium))
+                }
+            }
+            .foregroundStyle(.white.opacity(0.75))
+        }
+        .buttonStyle(.plain)
+        .position(x: layout.contentW / 2,
+                  y: layout.buttonsTop + NotchedCardLayout.buttonH - 26)
     }
 }
 
