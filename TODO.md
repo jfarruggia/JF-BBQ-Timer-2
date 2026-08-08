@@ -225,6 +225,21 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       food-safety-liability-adjacent, and low-and-slow BBQ blows past the thresholds
       anyway. Revisit only on user demand.
 
+## Recently shipped (2026-08-08) — watch UX day
+- [x] Watch alert full-screen — tap anywhere to dismiss; controls underneath
+      unreachable while showing, so a missed tap can't start a timer (PR #25).
+      Jim verified on watch.
+- [x] Watch auto-focuses a timer started from the iPhone (stopped→running
+      transition in the snapshot pages over to it; watch-originated starts
+      don't jump). Fixes the "looks like it didn't start → user starts a
+      second timer" confusion (PR #26). Sim-verified.
+- [x] Watch probe temp chip only on the attached timer's page — probe payload
+      now carries `cookID` (PR #27). Needs both new phone+watch builds; verify
+      on device with a connected probe.
+- [x] Preheat cancels quietly when any cook timer starts (was: kept running
+      greyed-out and fired "Preheat Complete" mid-cook). Jim chose auto-stop
+      over blocking starts (PR #28). Sim-verified.
+
 ## Bugs / verify on device
 - [x] **Lit time froze when the flip countdown completed** — fixed: `handleCompletion()`
       no longer stops the refresh timer, so "Lit" keeps counting until Reset; resync restarts
@@ -256,6 +271,10 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       orphans already stranded on devices).
 - [ ] Does **compact mode persist** across a cold relaunch? The Settings toggle
       binds straight to the published property; no save-on-change was spotted.
+- [ ] **3 stale UI tests fail against the V2 UI** (`testPreheatTimer`,
+      `testSettingsOptions`, `testTimerDisplay`) — verified failing on
+      unmodified code 2026-08-08, so pre-existing since the glass redesign.
+      Update them to the new UI (task chip spawned).
 - [x] **Watch long-preset formatting:** fixed — watch `format(seconds:)` now shows hours
       (`1:30:00`), matching the iPhone (`935e84c`).
 
