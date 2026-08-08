@@ -448,6 +448,9 @@ struct WatchProbeReading: Equatable {
     var phaseRaw: UInt8 = 0
     /// True when a probe sensor reports overheating.
     var overheating: Bool = false
+    /// UUID string of the cook (timer) the probe is attached to; nil when
+    /// unattached. Lets the watch show the temp only on that timer's page.
+    var attachedCookID: String? = nil
 }
 
 /// Decodes a WatchConnectivity wire dict into a `WatchProbeReading`.
@@ -480,7 +483,8 @@ func decodeWatchProbeReading(from dict: [String: Any]) -> WatchProbeReading? {
         unit: unit,
         targetC: dict["targetC"] as? Double,
         phaseRaw: UInt8((dict["phaseRaw"] as? Int) ?? 0),
-        overheating: dict["overheating"] as? Bool ?? false
+        overheating: dict["overheating"] as? Bool ?? false,
+        attachedCookID: dict["cookID"] as? String
     )
 }
 

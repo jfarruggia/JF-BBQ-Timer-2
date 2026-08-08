@@ -98,7 +98,8 @@ final class ProbeWatchForwarder {
             unit: unit,
             targetC: bleManager?.targetCelsius,
             phaseRaw: phase.rawValue,
-            overheating: reading?.isOverheating ?? false
+            overheating: reading?.isOverheating ?? false,
+            attachedCookID: bleManager?.attachedCookID?.uuidString
         )
         let sent = WCSessionManager.shared.sendProbeReading(dict)
 
