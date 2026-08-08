@@ -152,10 +152,10 @@ struct TimersListView: View {
     private var mainContent: some View {
         if model.timers.isEmpty {
             emptyState
-                .overlay(alertBanner, alignment: .top)
+                .overlay(alertBanner, alignment: .center)
         } else {
             timersPager
-                .overlay(alertBanner, alignment: .top)
+                .overlay(alertBanner, alignment: .center)
         }
     }
 
@@ -332,7 +332,9 @@ struct TimersListView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    // Compact alert banner displayed at the top; tap to acknowledge/stop
+    // Full-screen alert; tap anywhere to acknowledge/stop. Covers the whole
+    // display on purpose: while an alert is showing, the preset/start buttons
+    // underneath must not be reachable, so a stray tap can't start a timer.
     @ViewBuilder
     private var alertBanner: some View {
         if let message = model.alertMessage {
@@ -343,22 +345,25 @@ struct TimersListView: View {
                 WCSessionManager.shared.sendCommand(payload)
                 model.alertMessage = nil
             } label: {
-                HStack(spacing: 8) {
+                VStack(spacing: 10) {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.footnote)
+                        .font(.system(size: 34))
                     Text(message)
                         .font(.headline)
-                        .lineLimit(1)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(3)
+                        .minimumScaleFactor(0.7)
+                    Text("Tap to dismiss")
+                        .font(.footnote)
+                        .foregroundColor(.white.opacity(0.75))
                 }
+                .padding(.horizontal, 12)
                 .foregroundColor(.white)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(
-                    Capsule().fill(Color("TimerRed"))
-                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color("TimerRed"))
             }
             .buttonStyle(.plain)
-            .padding(.top, 2)
+            .ignoresSafeArea()
         }
     }
 
