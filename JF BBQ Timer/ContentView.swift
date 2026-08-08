@@ -4,6 +4,38 @@ import UIKit
 import RevenueCat
 import UserNotifications
 import WatchConnectivity
+import UniformTypeIdentifiers
+
+/// Live-reorders the main-screen timer cards while one is dragged over another
+/// (the standard SwiftUI onDrag/onDrop reorder pattern: the move happens in
+/// `dropEntered` so cards shift out of the way as you hover, and `performDrop`
+/// just ends the gesture — the order is already persisted by then).
+struct TimerReorderDropDelegate: DropDelegate {
+    let item: UUID
+    @Binding var draggedItem: UUID?
+    let settings: Settings
+
+    func dropEntered(info: DropInfo) {
+        guard let dragged = draggedItem, dragged != item else { return }
+        var order = settings.allTimers.map(\.id)
+        guard let from = order.firstIndex(of: dragged),
+              let to = order.firstIndex(of: item) else { return }
+        order.move(fromOffsets: IndexSet(integer: from),
+                   toOffset: to > from ? to + 1 : to)
+        withAnimation(.easeInOut(duration: 0.2)) {
+            settings.setTimerOrder(order)
+        }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        draggedItem = nil
+        return true
+    }
+}
 
 // Remove the duplicate NewSettingsView declaration and keep only the most complete version
 struct ContentView: View {
@@ -26,6 +58,8 @@ struct ContentView: View {
     @State private var watchSyncTimer: Timer? = nil
     @State private var watchCommandObserver: NSObjectProtocol? = nil
     @State private var cookStartObserver: NSObjectProtocol? = nil
+    // Timer card currently being dragged to a new position (nil when not dragging)
+    @State private var draggedTimerId: UUID? = nil
     @State private var lastSnapshot: [String: Any]? = nil
 
     init() {
@@ -776,6 +810,17 @@ struct ContentView: View {
                                     additionalTimerView(for: timer, state: state)
                                         .id(timer.id)
                                         .accessibilityIdentifier("Timer_\(timer.id)")
+                                        // Long-press then drag to reorder cards; the
+                                        // new order persists and the watch follows it.
+                                        .onDrag {
+                                            draggedTimerId = timer.id
+                                            return NSItemProvider(object: timer.id.uuidString as NSString)
+                                        }
+                                        .onDrop(of: [.text], delegate: TimerReorderDropDelegate(
+                                            item: timer.id,
+                                            draggedItem: $draggedTimerId,
+                                            settings: settings
+                                        ))
                                 }
                             }
                         }
