@@ -130,6 +130,19 @@ struct ProbePickerView: View {
                                    value: temperatureUnit.preciseString(fromCelsius: reading.ambientTempC))
                     ProbeReadingRow(label: "Prediction State",
                                    value: predictionStateDescription(reading.prediction.state))
+                    // The probe reports battery as a single OK/low bit — no
+                    // percentage exists in the status packet to show.
+                    HStack {
+                        Text("Battery")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        HStack(spacing: 4) {
+                            Image(systemName: reading.batteryStatus == .low ? "battery.25" : "battery.100")
+                            Text(reading.batteryStatus == .low ? "Low" : "OK")
+                        }
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(reading.batteryStatus == .low ? .red : .green)
+                    }
                     if reading.prediction.state.isActivePrediction {
                         ProbeReadingRow(label: "Est. Time Remaining",
                                         value: "\(reading.prediction.predictionSeconds / 60) min")
