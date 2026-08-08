@@ -132,6 +132,14 @@ struct TimersListView: View {
             // Start/stop extended runtime according to whether any timers are running
             refreshExtendedRuntimeSession()
         }
+        // A timer just started running (typically from the iPhone) — page over to
+        // it so the user sees it counting down. Consumes focusTimerId (reset to
+        // nil) so the same timer can re-trigger focus on a later start.
+        .onChange(of: model.focusTimerId) { _, newValue in
+            guard let id = newValue else { return }
+            withAnimation { selectedTimerId = id }
+            model.focusTimerId = nil
+        }
         // When an alert appears, play a lightweight haptic once
         .onChange(of: model.alertMessage) { oldValue, newValue in
             if newValue != nil {
@@ -678,6 +686,12 @@ final class WatchTimersModel: ObservableObject {
     @Published var lastSnapshotAt: Date? = nil
     // Message to show in the alert banner when iPhone signals an alert
     @Published var alertMessage: String? = nil
+    // Set when a snapshot shows a timer that just transitioned to running (e.g.
+    // started from the iPhone) — the pager focuses it so the user can see it's
+    // going. Starts made on the watch don't trigger this: the optimistic local
+    // update already marks that timer running before the phone's snapshot echoes
+    // back. The view consumes the value and resets it to nil.
+    @Published var focusTimerId: String? = nil
 
     init() {
         debugLog("[⌚️Watch] WatchTimersModel initialized - setting up notification observers")
@@ -738,9 +752,18 @@ final class WatchTimersModel: ObservableObject {
                 return Row(id: id, name: name, remaining: remaining, state: state, preset1Seconds: preset1, preset2Seconds: preset2, elapsedSeconds: elapsed, endDate: endDate)
             }
             
-            let previousCount = self?.timers.count ?? 0
+            let previousRows = self?.timers ?? []
+            let previousCount = previousRows.count
             self?.timers = parsedTimers
             debugLog("[⌚️Watch] ✅ Updated timers: \(previousCount) → \(parsedTimers.count)")
+
+            // Focus a timer that just started running (set after `timers` so the
+            // page exists by the time the view reacts to focusTimerId).
+            let previouslyRunning = Set(previousRows.filter { $0.state == "running" }.map { $0.id })
+            if let newlyStarted = parsedTimers.first(where: { $0.state == "running" && !previouslyRunning.contains($0.id) }) {
+                debugLog("[⌚️Watch] 🎯 Timer '\(newlyStarted.name)' newly running — requesting focus")
+                self?.focusTimerId = newlyStarted.id
+            }
             
             // Update complication with the soonest finishing timer
             if let timers = self?.timers {
