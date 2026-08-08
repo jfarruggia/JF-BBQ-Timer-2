@@ -285,10 +285,11 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       orphans already stranded on devices).
 - [ ] Does **compact mode persist** across a cold relaunch? The Settings toggle
       binds straight to the published property; no save-on-change was spotted.
-- [ ] **3 stale UI tests fail against the V2 UI** (`testPreheatTimer`,
-      `testSettingsOptions`, `testTimerDisplay`) — verified failing on
-      unmodified code 2026-08-08, so pre-existing since the glass redesign.
-      Update them to the new UI (task chip spawned).
+- [x] **3 stale UI tests fixed** (PR #33): preheat test now uses the app's
+      `-UITEST_MODE` scaffolding; settings test scrolls to lazy rows; timer
+      test matches the stable `Timer_<uuid>` card identifier; all launches
+      skip onboarding. Full suite (unit + UI) green for the first time since
+      the V2 redesign.
 - [x] **Watch long-preset formatting:** fixed — watch `format(seconds:)` now shows hours
       (`1:30:00`), matching the iPhone (`935e84c`).
 
