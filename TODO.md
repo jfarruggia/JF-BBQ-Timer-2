@@ -239,6 +239,9 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
 - [x] Preheat cancels quietly when any cook timer starts (was: kept running
       greyed-out and fired "Preheat Complete" mid-cook). Jim chose auto-stop
       over blocking starts (PR #28). Sim-verified.
+- [x] Main screen: drag-to-reorder timer cards (long-press + drag; persisted
+      `timerOrderIds`; pure `TimerOrdering.apply`, 5 tests; watch pager follows
+      the order via the snapshot) (PR #29). Sim-verified incl. relaunch.
 
 ## Bugs / verify on device
 - [x] **Lit time froze when the flip countdown completed** — fixed: `handleCompletion()`
