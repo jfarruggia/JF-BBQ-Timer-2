@@ -290,6 +290,10 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       test matches the stable `Timer_<uuid>` card identifier; all launches
       skip onboarding. Full suite (unit + UI) green for the first time since
       the V2 redesign.
+- [x] Watch: Start/Pause button removed (PR #34) — Jim chose full removal
+      over hide-when-idle, knowing pause/resume now lives on the iPhone
+      (presets start timers; watch `toggleRun` no longer sent). If pause-on-
+      watch is ever missed on a real cook, restore as show-only-when-running.
 - [x] **Watch long-preset formatting:** fixed — watch `format(seconds:)` now shows hours
       (`1:30:00`), matching the iPhone (`935e84c`).
 
