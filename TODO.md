@@ -242,6 +242,11 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
 - [x] Main screen: drag-to-reorder timer cards (long-press + drag; persisted
       `timerOrderIds`; pure `TimerOrdering.apply`, 5 tests; watch pager follows
       the order via the snapshot) (PR #29). Sim-verified incl. relaunch.
+- [x] Probe attach prompt made reliable + manual "Attached Timer" Attach…/
+      Change… row in the picker. Root cause: attach cover couldn't present
+      while the picker cover was up (two fullScreenCovers) — the picker now
+      prompts itself (PR #30). **Verify with a real probe:** prompt appears on
+      connect with the picker open; row shows/changes the assignment.
 
 ## Bugs / verify on device
 - [x] **Lit time froze when the flip countdown completed** — fixed: `handleCompletion()`
