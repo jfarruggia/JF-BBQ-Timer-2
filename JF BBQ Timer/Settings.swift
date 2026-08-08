@@ -73,6 +73,12 @@ class Settings: ObservableObject {
 
     // New properties for multi-timer support
     @Published var additionalTimers: [BBQTimer] = []
+    /// User-chosen display order for the main screen, as timer UUID strings
+    /// (covers the two legacy timers and additional timers alike). Timers not
+    /// in the list keep their natural position after the ordered ones; ids of
+    /// deleted timers are ignored. Empty = natural order (legacy 1, 2, then
+    /// additional), which is what existing users see until they first drag.
+    @Published var timerOrderIds: [String] = []
 
     // Other settings
     @Published var preheatDuration: Int
@@ -213,6 +219,8 @@ class Settings: ObservableObject {
             self.additionalTimers = []
         }
 
+        self.timerOrderIds = UserDefaults.standard.stringArray(forKey: "timerOrderIds") ?? []
+
         if let data = UserDefaults.standard.data(forKey: "probeTargetsByCookID"),
            let stored = try? JSONDecoder().decode([UUID: Double].self, from: data) {
             self.probeTargetsByCookID = stored
@@ -278,6 +286,7 @@ class Settings: ObservableObject {
         if let data = try? JSONEncoder().encode(additionalTimers) {
             UserDefaults.standard.set(data, forKey: "additionalTimers")
         }
+        UserDefaults.standard.set(timerOrderIds, forKey: "timerOrderIds")
         if let data = try? JSONEncoder().encode(probeTargetsByCookID) {
             UserDefaults.standard.set(data, forKey: "probeTargetsByCookID")
         }
@@ -406,7 +415,14 @@ class Settings: ObservableObject {
     }
 
     var allTimers: [BBQTimer] {
-        legacyTimersAsBBQTimers + visibleAdditionalTimers
+        TimerOrdering.apply(order: timerOrderIds,
+                            to: legacyTimersAsBBQTimers + visibleAdditionalTimers)
+    }
+
+    /// Persist a full new display order (main-screen drag-to-reorder).
+    func setTimerOrder(_ ids: [UUID]) {
+        timerOrderIds = ids.map(\.uuidString)
+        save()
     }
 
     func initializeVoiceSettings() {
@@ -421,5 +437,26 @@ class Settings: ObservableObject {
                 }
             }
         }
+    }
+}
+
+// MARK: - Timer display ordering
+
+/// Pure ordering logic for the main-screen timer list (unit-tested).
+enum TimerOrdering {
+    /// Reorders `timers` to match `order` (UUID strings). Ids in `order` that
+    /// don't match a timer are ignored (e.g. deleted timers); timers missing
+    /// from `order` keep their relative order and follow the ordered ones
+    /// (e.g. newly added timers). An empty `order` returns `timers` unchanged.
+    static func apply(order: [String], to timers: [BBQTimer]) -> [BBQTimer] {
+        guard !order.isEmpty else { return timers }
+        var remaining = timers
+        var ordered: [BBQTimer] = []
+        for id in order {
+            if let index = remaining.firstIndex(where: { $0.id.uuidString == id }) {
+                ordered.append(remaining.remove(at: index))
+            }
+        }
+        return ordered + remaining
     }
 }
