@@ -247,6 +247,12 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       while the picker cover was up (two fullScreenCovers) — the picker now
       prompts itself (PR #30). **Verify with a real probe:** prompt appears on
       connect with the picker open; row shows/changes the assignment.
+- [x] Probe battery OK/Low row on the connect screen (the probe only reports
+      a single OK/low bit — no percentage exists on the wire) (PR #31).
+- [x] Watch: ember-glow background matching the iPhone (`WatchEmberBackground`
+      in the watch ContentView — watch target can't see ButtonStyles.swift;
+      applied via containerBackground so all pages get it) (PR #32).
+      Sim-verified.
 
 ## Bugs / verify on device
 - [x] **Lit time froze when the flip countdown completed** — fixed: `handleCompletion()`
