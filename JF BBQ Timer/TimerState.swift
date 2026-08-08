@@ -73,6 +73,11 @@ class AlertState: ObservableObject {
 
 // MARK: -
 
+extension Notification.Name {
+    /// Posted whenever any cook timer starts running (see TimerState.start).
+    static let cookTimerDidStart = Notification.Name("cookTimerDidStart")
+}
+
 class TimerState: ObservableObject {
     let id: UUID
 
@@ -157,6 +162,11 @@ class TimerState: ObservableObject {
         debugLog("TimerState (\(id)): started — endDate \(endDate!), starting \(Int(starting))s")
 
         saveState()
+
+        // Single choke point for every cook-timer start (cards, presets, watch
+        // commands) — lets the app react app-wide, e.g. cancel a running
+        // preheat countdown, without each start site needing to know.
+        NotificationCenter.default.post(name: .cookTimerDidStart, object: nil)
     }
 
     func stop(at now: Date = Date()) {
