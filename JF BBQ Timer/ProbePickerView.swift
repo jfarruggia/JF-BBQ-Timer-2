@@ -34,7 +34,10 @@ struct ProbePickerView: View {
     @ObservedObject var probeManager: ProbeBLEManager
     /// The user's temperature display unit (probe data is stored in °C).
     var temperatureUnit: TemperatureUnit = .celsius
+    /// Timers the probe can be attached to (for the "Attached Timer" row).
+    var cooks: [CookItem] = []
     @Environment(\.dismiss) private var dismiss
+    @State private var showAttachSheet = false
 
     var body: some View {
         NavigationView {
@@ -51,6 +54,20 @@ struct ProbePickerView: View {
                 }
         }
         .navigationViewStyle(.stack)
+        // Ask which timer to attach to as soon as a probe connects unattached.
+        // This must live HERE (not only in ContentView): while this picker is
+        // presented as a full-screen cover, ContentView cannot present a second
+        // cover, which is why the attach prompt used to appear only sometimes.
+        .onChange(of: probeManager.connectionState) { newState in
+            if case .connected = newState, probeManager.attachedCookID == nil, !cooks.isEmpty {
+                showAttachSheet = true
+            }
+        }
+        .sheet(isPresented: $showAttachSheet) {
+            if #available(iOS 16, *) {
+                ProbeAttachSheet(cooks: cooks, probeManager: probeManager)
+            }
+        }
     }
 
     private var pickerList: some View {
@@ -120,11 +137,35 @@ struct ProbePickerView: View {
                 }
             }
 
+            // MARK: Attached timer (when connected) — manual attach/change entry
+            // point, and the recovery path if the automatic prompt was missed.
+            if case .connected = probeManager.connectionState, !cooks.isEmpty {
+                Section(header: Text("Attached Timer")) {
+                    Button {
+                        showAttachSheet = true
+                    } label: {
+                        HStack {
+                            Text(attachedCookName ?? "Not attached")
+                                .foregroundStyle(attachedCookName == nil ? .secondary : .primary)
+                            Spacer()
+                            Text(attachedCookName == nil ? "Attach…" : "Change…")
+                                .foregroundStyle(Color("TimerAccent"))
+                        }
+                    }
+                }
+            }
+
             // MARK: Disconnect button (when connected or reconnecting)
             // Shown during `.reconnecting` too so the user can cancel a stuck reconnect.
             if case .connected   = probeManager.connectionState { disconnectSection }
             if case .reconnecting = probeManager.connectionState { disconnectSection }
         }
+    }
+
+    /// Name of the timer the probe is currently attached to, if any.
+    private var attachedCookName: String? {
+        guard let id = probeManager.attachedCookID else { return nil }
+        return cooks.first(where: { $0.id == id })?.name
     }
 
     // MARK: - Helpers

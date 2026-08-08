@@ -881,7 +881,9 @@ struct ContentView: View {
         }
         #if os(iOS)
         .fullScreenCover(isPresented: $showProbeConnect) {
-            ProbePickerView(probeManager: probeManager, temperatureUnit: settings.temperatureUnit)
+            ProbePickerView(probeManager: probeManager,
+                            temperatureUnit: settings.temperatureUnit,
+                            cooks: settings.allTimers.map { CookItem(id: $0.id, name: $0.name) })
         }
         .fullScreenCover(isPresented: $showAttachSheet) {
             if #available(iOS 16, *) {
@@ -905,7 +907,10 @@ struct ContentView: View {
             }
         }
         .onChange(of: probeManager.connectionState) { newState in
-            if case .connected = newState, probeManager.attachedCookID == nil {
+            // Auto-ask which timer to attach to — but only when the probe picker
+            // cover isn't up: two covers can't present at once (the old silent
+            // failure), and the picker now runs this same prompt itself.
+            if case .connected = newState, probeManager.attachedCookID == nil, !showProbeConnect {
                 showAttachSheet = true
             }
         }
