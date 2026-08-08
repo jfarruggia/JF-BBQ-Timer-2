@@ -25,6 +25,7 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var watchSyncTimer: Timer? = nil
     @State private var watchCommandObserver: NSObjectProtocol? = nil
+    @State private var cookStartObserver: NSObjectProtocol? = nil
     @State private var lastSnapshot: [String: Any]? = nil
 
     init() {
@@ -893,6 +894,19 @@ struct ContentView: View {
                 debugLog("[📱iOS] 🕐 Delayed sync timer start - scenePhase: \(scenePhase)")
                 startWatchSyncTimer()
             }
+            // Food going on the grill makes a running preheat countdown moot —
+            // cancel it quietly (no "Preheat Complete" alert or notification)
+            // whenever any cook timer starts, from any start site incl. the watch.
+            cookStartObserver = NotificationCenter.default.addObserver(
+                forName: .cookTimerDidStart,
+                object: nil,
+                queue: .main
+            ) { _ in
+                if preheatEndDate != nil {
+                    debugLog("Preheat cancelled — a cooking timer started")
+                    resetPreheatTimer()
+                }
+            }
             watchCommandObserver = NotificationCenter.default.addObserver(
                 forName: Notification.Name("receivedCommand"),
                 object: nil,
@@ -1003,6 +1017,10 @@ struct ContentView: View {
             if let observer = watchCommandObserver {
                 NotificationCenter.default.removeObserver(observer)
                 watchCommandObserver = nil
+            }
+            if let observer = cookStartObserver {
+                NotificationCenter.default.removeObserver(observer)
+                cookStartObserver = nil
             }
         }
     }
