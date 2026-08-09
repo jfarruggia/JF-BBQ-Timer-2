@@ -171,6 +171,17 @@ struct NewSettingsView: View {
                     }
                 }
 
+                // Display & Accessibility — right under Timers so the display
+                // mode is easy to find (moved up from below Alerts & Sounds).
+                Section(header: Text("Display & Accessibility")) {
+                    Toggle("Compact Display Mode", isOn: $settings.compactMode)
+                        .tint(.blue)
+                        .accessibilityIdentifier("CompactMode")
+                    Text(settings.compactMode ? "Compact mode saves space for more timers" : "Large display mode enabled for better visibility")
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                }
+
                 // Alerts & Sounds (grouped all related settings here)
                 Section(header: Text("Alerts & Sounds"), footer: Text("You can choose to play a sound, a voice announcement, or both when a timer completes.")) {
                     Toggle("Sound Alerts", isOn: $settings.soundEnabled)
@@ -238,16 +249,6 @@ struct NewSettingsView: View {
                     .disabled(!settings.voiceAnnouncementsEnabled)
                     // Moved Alert Sound picker here for better organization
                     NavigationLink("Alert Sound", destination: AlertSoundsView(settings: settings))
-                }
-
-                // Display & Accessibility
-                Section(header: Text("Display & Accessibility")) {
-                    Toggle("Compact Display Mode", isOn: $settings.compactMode)
-                        .tint(.blue)
-                        .accessibilityIdentifier("CompactMode")
-                    Text(settings.compactMode ? "Compact mode saves space for more timers" : "Large display mode enabled for better visibility")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
                 }
 
                 // Probe settings only exist where the probe does — the feature
