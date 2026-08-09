@@ -226,6 +226,11 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       anyway. Revisit only on user demand.
 
 ## Recently shipped (2026-08-08) — notched card layout + watch ring
+- [x] **Preheat bar disabled state restored** (PR #39): TimerStatesManager only
+      published on add/remove, so the bar's anyTimerRunning check went stale and
+      it stopped dimming while a cook ran. New published `anyTimerRunning`
+      aggregate (6 tests) + whole-pane dim on glass.
+- [x] **Settings reorder** (PR #38): Compact Display Mode moved up under Timers.
 - [x] **Free Featured sounds actually free** (PR #37): `bundledSoundRow` gated
       all bundled sounds on premium; Dinner Triangle + Chimes (free "Featured"
       category) now preview + select without the paywall for free users.
