@@ -226,6 +226,11 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       anyway. Revisit only on user demand.
 
 ## Recently shipped (2026-08-08) — notched card layout + watch ring
+- [x] **Voice replaces the alert sound** (PR #43): speaker path played the
+      looping alarm + announcement over each other (headphones path already
+      suppressed the sound). One rule now: when voice actually plays it
+      replaces the alarm; fallback to alarm if nothing to speak; background
+      notification sounds untouched. Settings footer copy updated.
 - [x] **Voice announcements name-first** (PR #42): real completions appended
       the name ("Your timer has completed Ribeye") while Test played name-first.
       Shared AnnouncementMessage builder (9 tests) + {timer} placeholder +
