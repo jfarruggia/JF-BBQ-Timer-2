@@ -226,6 +226,10 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       anyway. Revisit only on user demand.
 
 ## Recently shipped (2026-08-08) — notched card layout + watch ring
+- [x] **Voice announcements name-first** (PR #42): real completions appended
+      the name ("Your timer has completed Ribeye") while Test played name-first.
+      Shared AnnouncementMessage builder (9 tests) + {timer} placeholder +
+      legacy-default migration; test button and reality now share one code path.
 - [x] **Probe-chip paywall fixed** (PR #41): it presented a stub
       (PremiumUpgradeView) with a stale hardcoded $4.99 whose "Upgrade Now"
       granted premium with NO purchase. Now the real CustomPaywallView
