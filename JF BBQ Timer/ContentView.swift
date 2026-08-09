@@ -1159,6 +1159,11 @@ struct ContentView: View {
             if let end = state?.endDate {
                 row["endDate"] = end.timeIntervalSince1970
             }
+            // Total run duration lets the watch compute its countdown ring's
+            // fill fraction. Additive key — older watch builds ignore it.
+            if let duration = state?.runDuration, duration > 0 {
+                row["runDuration"] = Int(duration.rounded())
+            }
             return row
         }
         return ["timers": rows]
