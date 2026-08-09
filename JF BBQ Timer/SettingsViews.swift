@@ -1333,17 +1333,22 @@ struct AlertSoundsView: View {
     }
     
     private func bundledSoundRow(sound: BundledSoundsManager.BundledSound) -> some View {
-        HStack {
+        // Sounds in the free "Featured" category are usable without premium —
+        // no gray-out, no crown, no paywall on tap.
+        let unlocked = settings.isPremiumUser
+            || sound.category == BundledSoundsManager.freeCategory
+
+        return HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(sound.displayName).font(.body)
-                    .foregroundColor(!settings.isPremiumUser ? .gray : .primary)
+                    .foregroundColor(unlocked ? .primary : .gray)
                 if !sound.description.isEmpty {
                     Text(sound.description).font(.caption).foregroundColor(.secondary).lineLimit(1)
                 }
             }
             .contentShape(Rectangle())
             .onTapGesture {
-                guard settings.isPremiumUser else {
+                guard unlocked else {
                     showPremiumUpgrade = true
                     audioPlayer?.stop()
                     _ = bundledSoundsManager.playSound(with: sound.id)
@@ -1363,7 +1368,7 @@ struct AlertSoundsView: View {
             if let selectedID = settings.selectedBundledSoundID, selectedID == sound.id {
                 Image(systemName: "checkmark").foregroundColor(.blue)
             }
-            if !settings.isPremiumUser {
+            if !unlocked {
                 Image(systemName: "crown.fill").foregroundColor(.yellow).font(.footnote)
             } else {
                 Button(action: {
