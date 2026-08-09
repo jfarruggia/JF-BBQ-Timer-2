@@ -225,7 +225,14 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       food-safety-liability-adjacent, and low-and-slow BBQ blows past the thresholds
       anyway. Revisit only on user demand.
 
-## Recently shipped (2026-08-08) — notched card layout
+## Recently shipped (2026-08-08) — notched card layout + watch ring
+- [x] **Watch ring layout** (PR #36, spec `watch-ring-layout-spec.md`): timer
+      pages redesigned to match the iPhone card — 118pt countdown ring hero
+      (AOD-live digits via `Text(timerInterval:)`, fill from absolute dates),
+      name + probe core temp under the ring (top bar now clock-only; fixes
+      42mm truncation), iPhone-style preset buttons. Additive `runDuration`
+      snapshot key + `WatchRingMath` (pure, 7 tests). Verified end-to-end on
+      paired sims incl. mid-run reinstall survival.
 - [x] **Interlocking notched-button layout for the large glass card** (PR #35,
       spec `notched-card-layout-spec.md`). Ring 155pt→200pt, preset buttons
       become notched shapes carved from the ring's circle (`NotchedCardLayout`
