@@ -226,6 +226,9 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       anyway. Revisit only on user demand.
 
 ## Recently shipped (2026-08-08) — notched card layout + watch ring
+- [x] **Preheat press haptic fixed** (PR #40): local feedback generators were
+      deallocated before the Taptic Engine played — now a long-lived
+      Haptics.ignite() (double heavy pulse). Feel-check on device.
 - [x] **Preheat bar disabled state restored** (PR #39): TimerStatesManager only
       published on add/remove, so the bar's anyTimerRunning check went stale and
       it stopped dimming while a cook ran. New published `anyTimerRunning`
