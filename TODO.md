@@ -45,10 +45,16 @@ glass + accent), added a "Done" button to the picker sheet, renamed discovered p
   (`grillCardBodyTop/Bottom`), bevel/shadow strength.
 
 ## Up next
+- [ ] **Build 10 on-device test pass** — Jim archiving + testing PRs #35–#43
+      against `build-10-test-plan.md`. Fix anything it surfaces.
+- [ ] Then: **ship merge `Apple-Watch-Suport` → `main`** (V2 step 6), tag, release.
+      Note: the live App Store build still has the free-premium-unlock stub on the
+      probe chip (fixed in #41) — shipping V2 closes it.
 - [x] **Design-consistency sweep (V2 step 4)** — DONE: Settings stack, paywall, custom
       sounds, alert overlays (iPhone), + watchOS-native light touch. Watch on-device check
-      pending. **Next: onboarding review (step 5)**, then ship-merge (step 6).
-- Quick wins anytime: voice announcements, preheat→`endDate`, the two device bugs.
+      pending.
+- Quick wins anytime: preheat→`endDate`, the two device bugs. (Voice announcements:
+  done — PRs #24/#42/#43.)
 
 ## Features
 - **Combustion Bluetooth probe support** — see `combustion-probe-ble-spec.md`.
