@@ -488,4 +488,20 @@ func decodeWatchProbeReading(from dict: [String: Any]) -> WatchProbeReading? {
     )
 }
 
+// MARK: - Watch countdown-ring math
+
+/// Pure fill math for the watch's countdown ring (watch-ring-layout-spec.md).
+/// Lives in this shared file so the watch target compiles it and the iOS test
+/// target can unit-test it. Mirrors `TimerState.progress(at:)` semantics: 1 =
+/// full time remaining, 0 = done; measured against the run's total duration so
+/// pause/resume doesn't refill the ring.
+enum WatchRingMath {
+    /// Fraction of the run remaining, clamped to [0, 1]. Returns 0 when
+    /// `runDuration` is not positive (no sensible ring to draw).
+    static func progress(remaining: Double, runDuration: Double) -> Double {
+        guard runDuration > 0 else { return 0 }
+        return min(1, max(0, remaining / runDuration))
+    }
+}
+
 

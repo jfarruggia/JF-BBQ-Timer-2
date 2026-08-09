@@ -43,29 +43,15 @@ struct TimersListView: View {
                 }
                 // Clear any default title to avoid duplication with the toolbar item
                 .navigationTitle("")
-                // Put the timer name in the top-left, aligned with the system clock on the right
+                // Timer pages carry their own name + temp line under the ring
+                // (watch-ring-layout-spec.md) — the top row belongs to the
+                // system clock. Only the probe page still labels itself here.
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
-                        HStack(spacing: 6) {
-                            if let name = selectedTimerName {
-                                Text(name)
-                                    // Match the system clock size for visual alignment; nudge higher
-                                    .font(.footnote)
-                                    .baselineOffset(-3)
-                            }
-                            // Glanceable core temp — only on the page of the timer
-                            // the probe is attached to (the probe page itself
-                            // already shows it large). Other timers' pages stay
-                            // clean so the temp isn't misread as theirs.
-                            if selectedTimerId != Self.probePageID,
-                               let probe = probeModel.probe, probe.connected, let core = probe.coreC,
-                               let attachedID = probe.attachedCookID, selectedTimerId == attachedID {
-                                Text(probe.unit.compactString(fromCelsius: core))
-                                    .font(.footnote)
-                                    .monospacedDigit()
-                                    .foregroundColor(.orange)
-                                    .baselineOffset(-3)
-                            }
+                        if selectedTimerId == Self.probePageID {
+                            Text("Probe")
+                                .font(.footnote)
+                                .baselineOffset(-3)
                         }
                     }
                 }
@@ -329,22 +315,91 @@ struct TimersListView: View {
         .tabViewStyle(.page)
     }
 
+    // Ring layout per watch-ring-layout-spec.md (mirrors the iPhone card):
+    // ring hero, name + probe temp beneath it, preset buttons at the bottom.
+    // Leftover space splits above the ring / below the buttons so the group
+    // floats centered under the system clock.
     @ViewBuilder
     private func timerPage(_ row: WatchTimersModel.Row) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            header(for: row)
-            // minLength 4 (not 8) so the page can compress rather than overflow
-            // under the bottom probe strip on smaller watch sizes.
-            Spacer(minLength: 4)
+        VStack(spacing: 0) {
+            Spacer(minLength: 2)
+            countdownRing(for: row)
+            nameLine(for: row)
+                .padding(.top, 2)
             presetButtons(for: row)
+                .padding(.top, 3)
+                .padding(.horizontal, 14)
             // No Start/Pause button (removed by request — the preset buttons
             // start timers; pause/resume is done from the iPhone).
-            Spacer(minLength: 0)
+            Spacer(minLength: 11)
         }
-        .padding(.horizontal)
-        // Add breathing room below the top bar timer name
-        .padding(.top, 12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// The countdown ring — fill computed from absolute dates every tick
+    /// (never a decremented counter), digits system-managed so they stay live
+    /// on Always-On Display. The ring itself can't redraw while suspended and
+    /// catches up on wrist-raise (accepted in the spec).
+    private func countdownRing(for row: WatchTimersModel.Row) -> some View {
+        let remaining = Double(effectiveRemaining(for: row))
+        // Older iPhone apps don't send runDuration — approximate so the ring
+        // still renders sensibly.
+        let duration = Double(row.runDurationSeconds ?? max(row.remaining, row.preset1Seconds ?? 0))
+
+        return ZStack {
+            Circle()
+                .stroke(Color.white.opacity(0.14), lineWidth: 9)
+            Circle()
+                .trim(from: 0, to: WatchRingMath.progress(remaining: remaining, runDuration: duration))
+                .stroke(Color("TimerAccent"),
+                        style: StrokeStyle(lineWidth: 9, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+
+            VStack(spacing: 1) {
+                Text("Flip in")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white.opacity(0.6))
+                remainingCountdown(for: row)
+                if let shownElapsed = effectiveElapsed(for: row) {
+                    HStack(spacing: 3) {
+                        Image(systemName: "flame.fill")
+                            .font(.system(size: 8))
+                            .foregroundColor(Color("TimerAccent"))
+                        Text("Lit \(format(seconds: shownElapsed))")
+                            .font(.system(size: 11, weight: .medium))
+                            .monospacedDigit()
+                            .foregroundColor(.white.opacity(0.7))
+                    }
+                }
+            }
+            .padding(.horizontal, 12)
+        }
+        .padding(4.5)
+        .frame(width: 118, height: 118)
+    }
+
+    /// Timer name + glanceable core temp (only when the probe is attached to
+    /// this cook), on a full-width line between the ring and the buttons.
+    private func nameLine(for row: WatchTimersModel.Row) -> some View {
+        HStack(spacing: 5) {
+            Text(row.name)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .foregroundColor(.white.opacity(0.9))
+                .lineLimit(1)
+            if let probe = probeModel.probe, probe.connected, let core = probe.coreC,
+               probe.attachedCookID == row.id {
+                HStack(spacing: 2) {
+                    Image(systemName: "thermometer.medium")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(Color("TimerAccent"))
+                    Text(probe.unit.compactString(fromCelsius: core))
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundColor(Color("TimerAccent"))
+                }
+            }
+        }
+        .padding(.horizontal, 12)
     }
 
     // Full-screen alert; tap anywhere to acknowledge/stop. Covers the whole
@@ -382,27 +437,17 @@ struct TimersListView: View {
         }
     }
 
-    // Returns the name of the currently visible timer (or first timer if none selected)
-    private var selectedTimerName: String? {
-        if selectedTimerId == Self.probePageID { return "Probe" }
-        if model.timers.isEmpty { return nil }
-        if let id = selectedTimerId,
-           let row = model.timers.first(where: { $0.id == id }) {
-            return row.name
-        }
-        return model.timers.first?.name
-    }
-
     private func format(seconds: Int) -> String {
         let h = seconds / 3600
         let m = (seconds % 3600) / 60
         let s = seconds % 60
         // Show hours for long presets/elapsed (e.g. 1:30:00, not 90:00) to match
-        // the iPhone's timeLabel formatting.
+        // the iPhone's timeLabel formatting — including no leading zero on
+        // minutes ("5:00", not "05:00"), so idle and running text agree.
         if h > 0 {
             return String(format: "%d:%02d:%02d", h, m, s)
         }
-        return String(format: "%02d:%02d", m, s)
+        return String(format: "%d:%02d", m, s)
     }
 
     // Build the button label using preset1 seconds if present; fallback to generic
@@ -414,10 +459,12 @@ struct TimersListView: View {
     }
 
     private func preset2Label(for row: WatchTimersModel.Row) -> String {
+        // Plain time label to match the iPhone card (the action starts the
+        // preset, it doesn't add time — the old "+" prefix was misleading).
         if let preset = row.preset2Seconds {
-            return "+" + format(seconds: preset)
+            return format(seconds: preset)
         }
-        return "+Preset 2"
+        return "Preset 2"
     }
 
     // MARK: - Local time computations for smooth UI
@@ -447,50 +494,38 @@ struct TimersListView: View {
         return max(0, base + delta)
     }
 
-    // MARK: - Small helper views to keep body() simple for the compiler
-    @ViewBuilder
-    private func header(for row: WatchTimersModel.Row) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text("Flip In")
-                        .font(.headline)
-                        .foregroundColor(.secondary)
-                    remainingCountdown(for: row)
-                }
-                if let shownElapsed = effectiveElapsed(for: row) {
-                    Text("Lit Time \(format(seconds: shownElapsed))")
-                        .font(.system(.headline, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundColor(.secondary)
-                }
-            }
-            .layoutPriority(1)
-            Spacer()
-        }
-    }
-
     // System-managed countdown — self-updates without app code running,
     // so it stays live on Always-On Display even when the watch is suspended.
     @ViewBuilder
     private func remainingCountdown(for row: WatchTimersModel.Row) -> some View {
         if let end = row.endDate, isRunning(row), end > Date() {
             Text(timerInterval: Date.now...end, countsDown: true)
-                .font(.system(.title2, design: .rounded))
-                .fontWeight(.bold)
+                .font(.system(size: 32, weight: .semibold, design: .rounded))
                 .monospacedDigit()
+                .foregroundColor(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .multilineTextAlignment(.center)
         } else {
             Text(format(seconds: effectiveRemaining(for: row)))
-                .font(.system(.title2, design: .rounded))
-                .fontWeight(.bold)
+                .font(.system(size: 32, weight: .semibold, design: .rounded))
                 .monospacedDigit()
+                .foregroundColor(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
         }
     }
 
+    // Dark label color for text on the solid accent button (matches the
+    // iPhone's GlassActionButtonStyle onAccent).
+    private var onAccent: Color { Color(red: 0.30, green: 0.13, blue: 0.02) }
+
+    // Preset buttons styled like the iPhone card: primary = solid accent with
+    // play icon, secondary = quiet translucent chip. Actions unchanged.
     @ViewBuilder
     private func presetButtons(for row: WatchTimersModel.Row) -> some View {
-        HStack {
-            Button(preset1Label(for: row)) {
+        HStack(spacing: 6) {
+            Button {
                 // Stronger confirmation haptic on preset apply
                 WKInterfaceDevice.current().play(.success)
                 // Optimistically apply Preset 1 and start immediately for snappy UX
@@ -502,19 +537,25 @@ struct TimersListView: View {
                     "action": "applyPreset1",
                     "timerId": row.id
                 ])
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "play.fill")
+                        .font(.system(size: 11, weight: .bold))
+                    Text(preset1Label(for: row))
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                }
+                .foregroundColor(onAccent)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .frame(maxWidth: .infinity, minHeight: 39)
+                .background(
+                    RoundedRectangle(cornerRadius: 11, style: .continuous)
+                        .fill(Color("TimerAccent")))
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Color("PresetButtonBG"))
-            // Use .small so the custom minHeight is applied on watchOS
-            .controlSize(.small)
-            // Slightly larger label text for better readability on-watch
-            .font(.footnote)
-            .foregroundStyle(.white)
-            .buttonBorderShape(.roundedRectangle(radius: 10))
-            // Increase vertical height for a taller, easier tap target on watchOS
-            .frame(minWidth: 64, minHeight: 52)
+            .buttonStyle(.plain)
 
-            Button(preset2Label(for: row)) {
+            Button {
                 // Stronger confirmation haptic on preset apply
                 WKInterfaceDevice.current().play(.success)
                 // Optimistically apply Preset 2 and start immediately for snappy UX
@@ -526,17 +567,22 @@ struct TimersListView: View {
                     "action": "applyPreset2",
                     "timerId": row.id
                 ])
+            } label: {
+                Text(preset2Label(for: row))
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .frame(maxWidth: .infinity, minHeight: 39)
+                    .background(
+                        RoundedRectangle(cornerRadius: 11, style: .continuous)
+                            .fill(Color.white.opacity(0.18))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                                    .stroke(Color.white.opacity(0.25), lineWidth: 0.5)))
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Color("PresetButtonBG"))
-            // Use .small so the custom minHeight is applied on watchOS
-            .controlSize(.small)
-            // Slightly larger label text for better readability on-watch
-            .font(.footnote)
-            .foregroundStyle(.white)
-            .buttonBorderShape(.roundedRectangle(radius: 10))
-            // Increase vertical height for a taller, easier tap target on watchOS
-            .frame(minWidth: 64, minHeight: 52)
+            .buttonStyle(.plain)
         }
     }
 
@@ -557,7 +603,10 @@ struct TimersListView: View {
                     preset1Seconds: item.preset1Seconds,
                     preset2Seconds: item.preset2Seconds,
                     elapsedSeconds: item.elapsedSeconds,
-                    endDate: optimisticEnd
+                    endDate: optimisticEnd,
+                    // A preset start runs for exactly the preset length, so the
+                    // ring starts full; the next phone snapshot reconciles.
+                    runDurationSeconds: newRemaining
                 )
             }
             return item
@@ -627,6 +676,9 @@ final class WatchTimersModel: ObservableObject {
         let elapsedSeconds: Int?
         // Absolute end time from iPhone — survives watch suspension without drift.
         let endDate: Date?
+        // Total run duration (seconds) — drives the countdown ring's fill.
+        // Nil when the paired iPhone app predates the "runDuration" snapshot key.
+        let runDurationSeconds: Int?
     }
 
     @Published var timers: [Row] = []
@@ -697,7 +749,8 @@ final class WatchTimersModel: ObservableObject {
                 let preset2 = item["preset2"] as? Int
                 let elapsed = item["elapsed"] as? Int
                 let endDate: Date? = (item["endDate"] as? Double).map { Date(timeIntervalSince1970: $0) }
-                return Row(id: id, name: name, remaining: remaining, state: state, preset1Seconds: preset1, preset2Seconds: preset2, elapsedSeconds: elapsed, endDate: endDate)
+                let runDuration = item["runDuration"] as? Int
+                return Row(id: id, name: name, remaining: remaining, state: state, preset1Seconds: preset1, preset2Seconds: preset2, elapsedSeconds: elapsed, endDate: endDate, runDurationSeconds: runDuration)
             }
             
             let previousRows = self?.timers ?? []
