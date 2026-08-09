@@ -226,6 +226,9 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       anyway. Revisit only on user demand.
 
 ## Recently shipped (2026-08-08) — notched card layout + watch ring
+- [x] **Free Featured sounds actually free** (PR #37): `bundledSoundRow` gated
+      all bundled sounds on premium; Dinner Triangle + Chimes (free "Featured"
+      category) now preview + select without the paywall for free users.
 - [x] **Watch ring layout** (PR #36, spec `watch-ring-layout-spec.md`): timer
       pages redesigned to match the iPhone card — 118pt countdown ring hero
       (AOD-live digits via `Text(timerInterval:)`, fill from absolute dates),
