@@ -334,21 +334,20 @@ extension Settings {
     // Announce when timer completes
     func announceTimerCompletion(timerId: UUID) {
         debugLog("Timer completion for timer ID: \(timerId)")
-        
+
         // Get timer name
         if let timerName = getTimerName(for: timerId) {
-            // Create message and use the direct announcement
-            let message = "\(timerName) timer is complete."
+            let message = AnnouncementMessage.spoken(custom: customAnnouncementMessage, timerName: timerName)
             directAnnouncement(message: message, settings: self)
         } else {
             debugLog("⚠️ Could not find timer name for ID: \(timerId)")
         }
     }
-    
+
     // Announce when timer completes (by name)
     func announceTimerCompletion(for name: String) {
         debugLog("Timer completion for: \(name)")
-        let message = "\(name) timer is complete."
+        let message = AnnouncementMessage.spoken(custom: customAnnouncementMessage, timerName: name)
         directAnnouncement(message: message, settings: self)
     }
     
@@ -499,15 +498,9 @@ extension Settings {
         let shouldAnnounce = voiceAnnouncementsEnabled && (!requiresHeadphones || headphonesConnected)
         let forceAnnouncement = false
         
-        // Helper to get the message with timer name if needed
+        // Name-first phrase, shared with the Settings test button.
         func announcementMessage(for timerName: String) -> String {
-            // If the custom message contains {timer}, replace it
-            if customAnnouncementMessage.contains("{timer}") {
-                return customAnnouncementMessage.replacingOccurrences(of: "{timer}", with: timerName)
-            } else {
-                // Otherwise, append the timer name to the end of the custom message
-                return customAnnouncementMessage + " " + timerName
-            }
+            AnnouncementMessage.spoken(custom: customAnnouncementMessage, timerName: timerName)
         }
         
         if shouldAnnounce || forceAnnouncement {

@@ -1434,7 +1434,7 @@ struct VoiceAnnouncementSettingsView: View {
     
     var body: some View {
         Form {
-            Section(header: Text("Customization"), footer: Text("This message will be spoken when your timer completes.")) {
+            Section(header: Text("Customization"), footer: Text("Spoken after the timer's name — e.g. \"Ribeye timer is complete\". Use {timer} in the message to place the name yourself.")) {
                 HStack {
                     TextField("Custom announcement message", text: $customMessage)
                         .onChange(of: customMessage) { newValue in
@@ -1443,8 +1443,11 @@ struct VoiceAnnouncementSettingsView: View {
                         }
                         .accessibilityIdentifier("CustomAnnouncementMessage")
                     Button(action: {
-                        // Preview the custom message
-                        directAnnouncement(message: customMessage, settings: settings)
+                        // Preview the custom message exactly as a completion
+                        // will speak it (name first / {timer} placement).
+                        let timerName = settings.legacyTimersAsBBQTimers.first?.name ?? "Test"
+                        let message = AnnouncementMessage.spoken(custom: customMessage, timerName: timerName)
+                        directAnnouncement(message: message, settings: settings)
                     }) {
                         Image(systemName: "play.circle")
                             .foregroundColor(.blue)
@@ -1452,8 +1455,8 @@ struct VoiceAnnouncementSettingsView: View {
                     .accessibilityIdentifier("PreviewAnnouncementMessage")
                 }
                 Button(action: {
-                    // Reset to default message
-                    customMessage = "Your timer has completed"
+                    // Reset to default message (name-first: "<name> timer is complete")
+                    customMessage = AnnouncementMessage.defaultMessage
                     settings.customAnnouncementMessage = customMessage
                     settings.save()
                 }) {
@@ -1518,8 +1521,11 @@ struct VoiceAnnouncementSettingsView: View {
             Section(header: Text("Test Speech"), footer: Text("Test how your announcement will sound.")) {
                 Button(action: {
                     debugLog("Test announcement button pressed")
+                    // Same builder as real completions — what you test is
+                    // what a finished timer will actually say.
                     let timerName = settings.legacyTimersAsBBQTimers.first?.name ?? "Test"
-                    let message = "\(timerName) timer is complete."
+                    let message = AnnouncementMessage.spoken(
+                        custom: settings.customAnnouncementMessage, timerName: timerName)
                     directAnnouncement(message: message, settings: settings)
                 }) {
                     HStack {
