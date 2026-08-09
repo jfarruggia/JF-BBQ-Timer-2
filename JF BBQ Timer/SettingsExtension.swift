@@ -504,30 +504,25 @@ extension Settings {
         }
         
         if shouldAnnounce || forceAnnouncement {
-            if headphonesConnected {
-                debugLog("[LOGIC] Headphones connected: Only playing repeating voice announcement, skipping sound alert.")
-                // Only play the repeating announcement
-                if let timerName = getTimerName(for: timerId) {
-                    let message = announcementMessage(for: timerName)
-                    startRepeatingAnnouncement(message: message)
-                } else {
-                    debugLog("Could not find timer name for ID: \(timerId)")
-                }
-                debugLog("===== END PLAY TIMER COMPLETION =====")
-                return
+            // A voice announcement REPLACES the alert sound whenever it
+            // actually plays — speaker or headphones. (Previously only the
+            // headphones path suppressed the sound; on the speaker both
+            // played over each other.) The repeating announcement keeps
+            // nagging until dismissed, same as the looping alarm. Background
+            // completions are unaffected: those alert via local notification
+            // sounds, since speech can't run while the app is suspended.
+            if let timerName = getTimerName(for: timerId) {
+                debugLog("[LOGIC] Voice announcement replaces the sound alert.")
+                let message = announcementMessage(for: timerName)
+                startRepeatingAnnouncement(message: message)
             } else {
-                // Play both sound and announcement (repeating announcement)
+                // Nothing to speak — fall back to the alarm so a completion
+                // is never silent.
+                debugLog("Could not find timer name for ID: \(timerId) — falling back to sound alert")
                 playTimerCompletionSound(loop: true)
-                debugLog("[LOGIC] No headphones: Playing both sound and repeating announcement.")
-                if let timerName = getTimerName(for: timerId) {
-                    let message = announcementMessage(for: timerName)
-                    startRepeatingAnnouncement(message: message)
-                } else {
-                    debugLog("Could not find timer name for ID: \(timerId)")
-                }
-                debugLog("===== END PLAY TIMER COMPLETION =====")
-                return
             }
+            debugLog("===== END PLAY TIMER COMPLETION =====")
+            return
         } else {
             // Play only the sound
             playTimerCompletionSound(loop: true)

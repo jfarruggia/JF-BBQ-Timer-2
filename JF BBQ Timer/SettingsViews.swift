@@ -183,7 +183,7 @@ struct NewSettingsView: View {
                 }
 
                 // Alerts & Sounds (grouped all related settings here)
-                Section(header: Text("Alerts & Sounds"), footer: Text("You can choose to play a sound, a voice announcement, or both when a timer completes.")) {
+                Section(header: Text("Alerts & Sounds"), footer: Text("When a timer completes you'll hear your chosen alert sound — or, if Voice Announcements are on, a spoken announcement replaces the sound.")) {
                     Toggle("Sound Alerts", isOn: $settings.soundEnabled)
                         .accessibilityIdentifier("SoundAlerts")
                     Toggle("Haptic Feedback", isOn: $settings.hapticsEnabled)
