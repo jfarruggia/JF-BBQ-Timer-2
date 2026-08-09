@@ -3,6 +3,7 @@ import AVFoundation
 import UIKit
 import SwiftUI
 import UserNotifications
+import Combine
 
 class AlertState: ObservableObject {
     @Published var isPresented: Bool
@@ -468,11 +469,46 @@ enum PreheatCountdown {
 // MARK: -
 
 class TimerStatesManager: ObservableObject {
-    @Published var states: [TimerState] = []
+    @Published var states: [TimerState] = [] {
+        didSet { resubscribeToRunningChanges() }
+    }
+    /// True while any timer is running. Published separately because `states`
+    /// only changes on add/remove — an individual timer starting or stopping
+    /// doesn't touch the array, so views that gate on "is anything running"
+    /// (e.g. the Preheat bar's disabled look) would never re-render off
+    /// `states` alone. Only fires when the aggregate answer actually flips.
+    @Published private(set) var anyTimerRunning: Bool = false
+    private var runningCancellables: Set<AnyCancellable> = []
     private var settings: Settings?
 
     init(settings: Settings? = nil) {
         self.settings = settings
+    }
+
+    private func resubscribeToRunningChanges() {
+        runningCancellables.removeAll()
+        updateAnyTimerRunning()
+        for state in states {
+            // $isRunning emits the new value during willSet, so the changed
+            // state must be judged by the emitted value, not its property.
+            state.$isRunning
+                .sink { [weak self, weak state] newValue in
+                    guard let self else { return }
+                    let othersRunning = self.states.contains { $0 !== state && $0.isRunning }
+                    let running = newValue || othersRunning
+                    if running != self.anyTimerRunning {
+                        self.anyTimerRunning = running
+                    }
+                }
+                .store(in: &runningCancellables)
+        }
+    }
+
+    private func updateAnyTimerRunning() {
+        let running = states.contains { $0.isRunning }
+        if running != anyTimerRunning {
+            anyTimerRunning = running
+        }
     }
 
     func initializeTimerStates(timers: [BBQTimer]) {
