@@ -661,7 +661,10 @@ struct ContentView: View {
     }
 
     private func preheatButtonView() -> some View {
-        let anyTimerRunning = timerStates.states.contains { $0.isRunning }
+        // Published aggregate (not a states-array scan): flips exactly when a
+        // timer starts/stops, so this view re-renders and the disabled look
+        // tracks reality.
+        let anyTimerRunning = timerStates.anyTimerRunning
         let isUITest = ProcessInfo.processInfo.arguments.contains("-UITEST_MODE")
 
         return Button(action: {
@@ -746,6 +749,11 @@ struct ContentView: View {
                 )
             )
             .shadow(color: .black.opacity(0.55), radius: 18, x: 0, y: 10)
+            // Whole-pane dim while a cook timer runs (text-only dimming was
+            // too subtle on glass to read as "disabled").
+            .saturation(anyTimerRunning ? 0.5 : 1.0)
+            .opacity(anyTimerRunning ? 0.55 : 1.0)
+            .animation(.easeInOut(duration: 0.25), value: anyTimerRunning)
             .scaleEffect(preheatPressPulse ? 0.97 : 1.0)
             .animation(.spring(response: 0.25, dampingFraction: 0.7), value: preheatPressPulse)
             .modifier(PreheatCompleteModifier(isPreheatComplete: isPreheatComplete))
