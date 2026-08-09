@@ -25,6 +25,22 @@ enum Haptics {
         light.impactOccurred()
         light.prepare()
     }
+
+    private static let heavy = UIImpactFeedbackGenerator(style: .heavy)
+
+    /// Double heavy "ignite" pulse for the Preheat button. Must use this
+    /// long-lived generator: a generator created locally in a button action
+    /// can be deallocated before the Taptic Engine plays, silently dropping
+    /// the haptic.
+    static func ignite() {
+        guard isEnabled else { return }
+        heavy.prepare()
+        heavy.impactOccurred(intensity: 1.0)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            heavy.impactOccurred(intensity: 1.0)
+            heavy.prepare()
+        }
+    }
 }
 
 extension Color {

@@ -669,14 +669,7 @@ struct ContentView: View {
 
         return Button(action: {
             if settings.hapticsEnabled {
-                let heavy1 = UIImpactFeedbackGenerator(style: .heavy)
-                heavy1.prepare()
-                heavy1.impactOccurred(intensity: 1.0)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-                    let heavy2 = UIImpactFeedbackGenerator(style: .heavy)
-                    heavy2.prepare()
-                    heavy2.impactOccurred(intensity: 1.0)
-                }
+                Haptics.ignite()
             }
             preheatPressPulse = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
