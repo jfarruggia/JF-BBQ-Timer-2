@@ -192,7 +192,11 @@ class Settings: ObservableObject {
         self.hapticsEnabled = UserDefaults.standard.bool(forKey: "hapticsEnabled")
         self.compactMode = UserDefaults.standard.bool(forKey: "compactMode")
         self.voiceAnnouncementsEnabled = UserDefaults.standard.bool(forKey: "voiceAnnouncementsEnabled")
-        self.customAnnouncementMessage = UserDefaults.standard.string(forKey: "customAnnouncementMessage") ?? ""
+        // Migrates the old "Your timer has completed" default (which was
+        // spoken with the timer name awkwardly appended) to the name-first
+        // default; custom messages pass through untouched.
+        self.customAnnouncementMessage = AnnouncementMessage.migratedStoredMessage(
+            UserDefaults.standard.string(forKey: "customAnnouncementMessage") ?? "")
         self.selectedVoiceIdentifier = UserDefaults.standard.string(forKey: "selectedVoiceIdentifier") ?? ""
         self.announceOnlyWithHeadphones = UserDefaults.standard.bool(forKey: "announceOnlyWithHeadphones")
         self.temperatureUnit = TemperatureUnit(rawValue: UserDefaults.standard.string(forKey: "temperatureUnit") ?? "C") ?? .celsius
