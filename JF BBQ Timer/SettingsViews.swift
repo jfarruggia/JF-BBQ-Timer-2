@@ -402,6 +402,7 @@ struct TimerManagementView: View {
     @State private var editingTimerIndex: Int? = nil
     @State private var editingLegacyTimer: Int? = nil // 0 for Timer 1, 1 for Timer 2
     @State private var showPremiumUpgrade = false // For showing premium upgrade modal
+    @State private var premiumPrice: String = "$3.99" // Fallback until RevenueCat loads
     @State private var timerToDelete: Int? = nil // Track which timer to delete
     @State private var showDeleteConfirmation = false // Control delete confirmation
     @State private var showTimerSaved = false
@@ -539,7 +540,7 @@ struct TimerManagementView: View {
                                 Text("Upgrade to Premium")
                                     .bold()
                                 Spacer()
-                                Text("$3.99") // Static price for Manage Timers list
+                                Text(premiumPrice) // Live RevenueCat price ($3.99 fallback)
                                     .foregroundColor(.secondary)
                             }
                         }
@@ -552,6 +553,7 @@ struct TimerManagementView: View {
             }
             .immersiveGlassList()
             .navigationTitle("Manage Timers")
+            .onAppear { fetchPremiumPrice() }
             .sheet(isPresented: $showingAddTimerSheet) {
                 addTimerSheet
             }
@@ -788,6 +790,19 @@ struct TimerManagementView: View {
         .padding(.horizontal, 4)
     }
     
+    /// Same lookup as SettingsView's price fetch: prefer the lifetime package,
+    /// fall back to the first available; keep the static fallback on failure.
+    private func fetchPremiumPrice() {
+        Purchases.shared.getOfferings { offerings, _ in
+            guard let offering = offerings?.current else { return }
+            let package = offering.availablePackages.first(where: { $0.identifier == "custom_lifetime_oneoff" })
+                ?? offering.availablePackages.first
+            if let price = package?.storeProduct.localizedPriceString {
+                DispatchQueue.main.async { self.premiumPrice = price }
+            }
+        }
+    }
+
     private var addTimerSheet: some View {
         NavigationView {
             Form {

@@ -861,8 +861,12 @@ struct ContentView: View {
                 .accessibilityIdentifier("PreheatAlert")
             }
 
+            // The real RevenueCat paywall (live price, actual purchase flow) —
+            // same one Settings and onboarding use. The old PremiumUpgradeView
+            // stub here hardcoded a stale price and granted premium without a
+            // purchase.
             if showPremiumUpgrade {
-                PremiumUpgradeView(settings: settings, isPresented: $showPremiumUpgrade)
+                CustomPaywallView(dismissAction: { showPremiumUpgrade = false }, settings: settings)
                     .transition(.opacity)
                     .zIndex(100)
                     .accessibilityIdentifier("PremiumUpgrade")
