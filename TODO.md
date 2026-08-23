@@ -231,6 +231,16 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       food-safety-liability-adjacent, and low-and-slow BBQ blows past the thresholds
       anyway. Revisit only on user demand.
 
+## Recently shipped (2026-08-23) — probe preset rename
+- [x] **Preset target renames the timer** (PR #44, spec
+      probe-preset-rename-spec.md): tapping a Common target preset (e.g.
+      "Chicken") renames the attached cook's timer so the card, alerts,
+      voice line, and watch all match the food. Custom temps / Clear never
+      rename; sheet footer says what happens. `Settings.renameTimer(id:to:)`
+      covers legacy + additional timers (6 new tests; test helper seeds a
+      sound choice so Settings' first-launch sound write can't race the
+      NotificationSoundProvider tests).
+
 ## Recently shipped (2026-08-08) — notched card layout + watch ring
 - [x] **Voice replaces the alert sound** (PR #43): speaker path played the
       looping alarm + announcement over each other (headphones path already
