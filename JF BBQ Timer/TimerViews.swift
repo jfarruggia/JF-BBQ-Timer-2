@@ -616,12 +616,45 @@ struct NotchedActionButtonStyle: ButtonStyle {
         configuration.label
             .foregroundStyle(kind == .primary ? onAccent : Color.white)
             .background {
-                if kind == .primary {
-                    shape.fill(Color("TimerAccent"))
-                } else {
-                    shape.fill(.white.opacity(0.18))
-                        .overlay(shape.stroke(.white.opacity(0.25), lineWidth: 0.5))
+                // Same lit-from-above language as the card pane: body gradient,
+                // beveled rim (light top / dark bottom), drop shadow. The shadow
+                // collapses while pressed so the button reads as pushed in.
+                Group {
+                    if kind == .primary {
+                        shape.fill(Color("TimerAccent"))
+                            .overlay(
+                                shape.fill(
+                                    LinearGradient(
+                                        colors: [.white.opacity(0.32), .white.opacity(0.0), .black.opacity(0.22)],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                            )
+                    } else {
+                        shape.fill(
+                            LinearGradient(
+                                colors: [.white.opacity(0.26), .white.opacity(0.10)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                    }
                 }
+                .overlay(
+                    shape.stroke(
+                        LinearGradient(
+                            colors: [.white.opacity(0.55), .clear, .black.opacity(0.35)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: 1.5
+                    )
+                )
+                .shadow(color: .black.opacity(configuration.isPressed ? 0.15 : 0.40),
+                        radius: configuration.isPressed ? 2 : 6,
+                        x: 0, y: configuration.isPressed ? 1 : 4)
+                .brightness(configuration.isPressed ? -0.06 : 0)
             }
             .contentShape(shape)
             .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
