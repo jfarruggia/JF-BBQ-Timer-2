@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <circle cx="725" cy="515" r="190" fill="#0B0F14"/>
+  <circle cx="725" cy="515" r="160" fill="#FBEFD7"/>
+  <g stroke="#0B0F14" stroke-width="12" stroke-linecap="round">
+    <!-- 12 tick marks r118->r142 -->
+    <line x1="725" y1="373" x2="725" y2="397"/>
+    <line x1="796" y1="392" x2="784" y2="413"/>
+    <line x1="848" y1="444" x2="827" y2="456"/>
+    <line x1="867" y1="515" x2="843" y2="515"/>
+    <line x1="848" y1="586" x2="827" y2="574"/>
+    <line x1="796" y1="638" x2="784" y2="617"/>
+    <line x1="725" y1="657" x2="725" y2="633"/>
+    <line x1="654" y1="638" x2="666" y2="617"/>
+    <line x1="602" y1="586" x2="623" y2="574"/>
+    <line x1="583" y1="515" x2="607" y2="515"/>
+    <line x1="602" y1="444" x2="623" y2="456"/>
+    <line x1="654" y1="392" x2="666" y2="413"/>
+    <!-- hands: ~11:56 -->
+    <line x1="725" y1="515" x2="697" y2="390" stroke-width="11"/>
+    <line x1="725" y1="515" x2="691" y2="440" stroke-width="13"/>
+  </g>
+  <circle cx="725" cy="515" r="13" fill="#0B0F14"/>
+</svg>

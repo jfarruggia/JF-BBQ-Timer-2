@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <g fill="#0B0F14" stroke="none">
+    <!-- lid rim -->
+    <rect x="148" y="428" width="456" height="36" rx="10"/>
+    <!-- handle stub -->
+    <rect x="596" y="437" width="42" height="18" rx="9"/>
+    <!-- bowl (hemisphere) -->
+    <path d="M 178 464 L 572 464 A 197 197 0 0 1 178 464 Z"/>
+  </g>
+  <g stroke="#0B0F14" stroke-linecap="round" fill="none">
+    <!-- center leg -->
+    <line x1="375" y1="650" x2="375" y2="892" stroke-width="34"/>
+    <!-- outer legs -->
+    <line x1="296" y1="608" x2="184" y2="852" stroke-width="32"/>
+    <line x1="454" y1="608" x2="530" y2="852" stroke-width="32"/>
+    <!-- cross braces -->
+    <line x1="228" y1="768" x2="375" y2="722" stroke-width="20"/>
+    <line x1="375" y1="722" x2="498" y2="768" stroke-width="20"/>
+    <!-- axle -->
+    <line x1="184" y1="868" x2="530" y2="868" stroke-width="20"/>
+    <!-- wheels -->
+    <circle cx="178" cy="868" r="40" stroke-width="26"/>
+    <circle cx="536" cy="868" r="40" stroke-width="26"/>
+  </g>
+</svg>
