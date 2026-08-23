@@ -347,6 +347,28 @@ class Settings: ObservableObject {
         save()
     }
 
+    /// Rename whichever timer owns `id` — the two legacy timers or an
+    /// additional timer. No-op for unknown ids, empty names, or a same-name
+    /// rename (avoids a pointless save/sync cycle).
+    func renameTimer(id: UUID, to newName: String) {
+        let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+
+        let legacy = legacyTimersAsBBQTimers
+        if id == legacy[0].id {
+            guard timer1Name != name else { return }
+            timer1Name = name
+            save()
+        } else if id == legacy[1].id {
+            guard timer2Name != name else { return }
+            timer2Name = name
+            save()
+        } else if let index = additionalTimers.firstIndex(where: { $0.id == id }),
+                  additionalTimers[index].name != name {
+            updateTimer(at: index, name: name)
+        }
+    }
+
     // MARK: - Probe target temperature
 
     /// The probe target for a cook (°C), or nil when none is set.

@@ -24,8 +24,10 @@ struct ProbeTargetSheet: View {
     let currentTargetCelsius: Double?
     /// Source of the editable preset list.
     @ObservedObject var settings: Settings
-    /// Called with the chosen target in °C, or nil to clear it.
-    let onSave: (Double?) -> Void
+    /// Called with the chosen target in °C (nil to clear it), and the tapped
+    /// preset's name — nil for a custom entry or a clear, since only a preset
+    /// tap should rename the cook's timer.
+    let onSave: (Double?, String?) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var entryText: String = ""
@@ -57,7 +59,7 @@ struct ProbeTargetSheet: View {
                             .focused($entryFocused)
                         Button("Set") {
                             if let celsius = enteredCelsius {
-                                onSave(celsius)
+                                onSave(celsius, nil)
                                 dismiss()
                             }
                         }
@@ -74,7 +76,7 @@ struct ProbeTargetSheet: View {
                 Section {
                     ForEach(settings.probeTargetPresets) { preset in
                         Button {
-                            onSave(preset.celsius)
+                            onSave(preset.celsius, preset.name)
                             dismiss()
                         } label: {
                             HStack {
@@ -97,12 +99,14 @@ struct ProbeTargetSheet: View {
                         }
                         .font(.footnote.weight(.semibold))
                     }
+                } footer: {
+                    Text("Choosing a common target also renames this timer to match.")
                 }
 
                 if currentTargetCelsius != nil {
                     Section {
                         Button(role: .destructive) {
-                            onSave(nil)
+                            onSave(nil, nil)
                             dismiss()
                         } label: {
                             Text("Clear target")
