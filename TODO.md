@@ -344,8 +344,13 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       + launch-time sweep of all pending `preheat-…` requests (preheats never
       survive relaunch, so any pending at launch is an orphan — also cleans
       orphans already stranded on devices).
-- [ ] Does **compact mode persist** across a cold relaunch? The Settings toggle
-      binds straight to the published property; no save-on-change was spotted.
+- [x] Does **compact mode persist** across a cold relaunch? — YES, it always did:
+      Settings is a `fullScreenCover`, so the Done button (which calls `save()`)
+      is the only way out. Belt-and-braces added anyway (PR #46): the Settings
+      form now also saves `.onDisappear`, protecting the direct-bound toggles
+      (compact, sound, haptics) if the screen ever becomes a swipeable sheet.
+      Verified on the 26.5 sim: toggle → navigate away (no Done) → kill →
+      relaunch → still compact.
 - [x] **3 stale UI tests fixed** (PR #33): preheat test now uses the app's
       `-UITEST_MODE` scaffolding; settings test scrolls to lazy rows; timer
       test matches the stable `Timer_<uuid>` card identifier; all launches

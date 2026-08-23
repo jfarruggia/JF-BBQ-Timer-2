@@ -323,6 +323,10 @@ struct NewSettingsView: View {
             }
             .listStyle(InsetGroupedListStyle())
             .immersiveGlassList()
+            // Direct $settings bindings (compact mode, sound, haptics) only
+            // persist via the Done button's save() — swiping the sheet down
+            // would lose them on a cold relaunch without this.
+            .onDisappear { settings.save() }
             .navigationTitle("Settings")
             .navigationBarItems(trailing: Button("Done") {
                 settings.save()
