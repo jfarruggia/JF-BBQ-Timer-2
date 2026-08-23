@@ -199,7 +199,8 @@ class Settings: ObservableObject {
             UserDefaults.standard.string(forKey: "customAnnouncementMessage") ?? "")
         self.selectedVoiceIdentifier = UserDefaults.standard.string(forKey: "selectedVoiceIdentifier") ?? ""
         self.announceOnlyWithHeadphones = UserDefaults.standard.bool(forKey: "announceOnlyWithHeadphones")
-        self.temperatureUnit = TemperatureUnit(rawValue: UserDefaults.standard.string(forKey: "temperatureUnit") ?? "C") ?? .celsius
+        // Default Fahrenheit (US BBQ audience); a stored choice always wins.
+        self.temperatureUnit = TemperatureUnit(rawValue: UserDefaults.standard.string(forKey: "temperatureUnit") ?? "F") ?? .fahrenheit
         // Probe display toggles default ON (bool(forKey:) returns false for
         // missing keys, so treat "never set" as true — same pattern as soundEnabled).
         self.showProbeSurfaceTemp = UserDefaults.standard.object(forKey: "showProbeSurfaceTemp") == nil
