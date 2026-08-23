@@ -90,7 +90,9 @@ final class ProbeWatchForwarder {
         // Build the wire dict and attempt to send. The display unit (set by the
         // user in Settings) rides along so the watch renders the same unit as the
         // phone; read at send time so unit changes propagate immediately.
-        let unit = TemperatureUnit(rawValue: UserDefaults.standard.string(forKey: "temperatureUnit") ?? "C") ?? .celsius
+        // Fallback must match Settings' default (Fahrenheit) so the watch
+        // agrees with the phone before the preference is ever saved.
+        let unit = TemperatureUnit(rawValue: UserDefaults.standard.string(forKey: "temperatureUnit") ?? "F") ?? .fahrenheit
         let dict = probeReadingWireDict(
             connected: connected,
             reading: reading,
