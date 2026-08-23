@@ -905,8 +905,11 @@ struct ContentView: View {
                     unit: settings.temperatureUnit,
                     currentTargetCelsius: settings.probeTarget(forCookID: cook.id),
                     settings: settings,
-                    onSave: { celsius in
+                    onSave: { celsius, presetName in
                         settings.setProbeTarget(celsius, forCookID: cook.id)
+                        if let presetName {
+                            settings.renameTimer(id: cook.id, to: presetName)
+                        }
                     }
                 )
             }
