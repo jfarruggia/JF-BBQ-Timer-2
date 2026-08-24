@@ -12,4 +12,12 @@ public struct TimeFormatter {
         // Always show hours, minutes, and seconds in HH:mm:ss format
         return String(format: "%02d:%02d:%02d", h, m, s)
     }
-} 
+
+    /// "MM:SS" for durations known to be at most an hour (the preset steppers
+    /// cap at 3600 s, shown as "60:00"). Total minutes, no hours field — the
+    /// full HH:mm:ss made the Manage Timers rows wrap on narrower phones.
+    public static func compactTimeString(from seconds: Int) -> String {
+        let clamped = max(0, seconds)
+        return String(format: "%02d:%02d", clamped / 60, clamped % 60)
+    }
+}
