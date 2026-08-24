@@ -60,11 +60,13 @@ struct AlertView: View {
     }
 }
 
-/// Frosted-red completion-alert card: warm glass (clear glass tinted red on iOS 26,
-/// solid red fallback pre-26) with a pulsing red rim + glow so it still grabs attention
-/// across the room while reading as part of the app's glass language.
+/// Frosted completion-alert card: warm glass (clear glass tinted `tint` on iOS 26,
+/// solid `tint` fallback pre-26) with a pulsing `tint`-colored rim + glow so it still
+/// grabs attention across the room while reading as part of the app's glass language.
+/// Red by default (the timer completion card); the probe alert reuses this with green.
 private struct AlertGlassCardStyle: ViewModifier {
     let pulse: Bool
+    var tint: Color = .red
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: 28, style: .continuous)
@@ -72,20 +74,111 @@ private struct AlertGlassCardStyle: ViewModifier {
         if #available(iOS 26, *) {
             filled = AnyView(
                 content
-                    .glassEffect(.clear.tint(Color.red.opacity(0.45)), in: shape)
+                    .glassEffect(.clear.tint(tint.opacity(0.45)), in: shape)
             )
         } else {
             filled = AnyView(
-                content.background(Color.red, in: shape)
+                content.background(tint, in: shape)
             )
         }
         return filled
             .overlay(
-                shape.stroke(Color.red, lineWidth: pulse ? 9 : 3)
+                shape.stroke(tint, lineWidth: pulse ? 9 : 3)
             )
-            .shadow(color: Color.red.opacity(pulse ? 0.85 : 0.35),
+            .shadow(color: tint.opacity(pulse ? 0.85 : 0.35),
                     radius: pulse ? 26 : 10)
             .scaleEffect(pulse ? 1.04 : 1.0)
+    }
+}
+
+// MARK: - Probe alert (green "act now" card)
+
+/// Content for the in-app probe alert card — pure so it's unit-testable
+/// independent of SwiftUI. `nil` for events that stay quiet notification
+/// banners (`batteryLow`, `overheating`).
+struct ProbeAlertContent: Equatable {
+    let symbolName: String
+    let cookName: String?
+    let tempText: String?
+    let message: String
+
+    static func make(event: ProbeCookEvent, tempText: String?, cookName: String?) -> ProbeAlertContent? {
+        let message: String
+        switch event {
+        case .pullNow:
+            message = "Pull the food now"
+        case .targetReached:
+            message = "Target temperature reached"
+        case .restingDone:
+            message = "Food is ready"
+        case .batteryLow, .overheating:
+            return nil
+        }
+
+        func nonEmpty(_ s: String?) -> String? {
+            guard let trimmed = s?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !trimmed.isEmpty else { return nil }
+            return trimmed
+        }
+
+        return ProbeAlertContent(
+            symbolName: "thermometer.high",
+            cookName: nonEmpty(cookName),
+            tempText: nonEmpty(tempText),
+            message: message
+        )
+    }
+}
+
+/// Full-screen green "act now" overlay for probe cook events — mirrors `AlertView`'s
+/// red completion card (same tap-to-dismiss, same pulse cadence) but green, per
+/// `probe-alert-spec.md`. Carries no sound logic; the caller's existing
+/// notification/haptic path (`ContentView.handleProbeCookEvent`) is unchanged and
+/// fires independently of whether this card is shown.
+struct ProbeAlertView: View {
+    let content: ProbeAlertContent
+    var onDismiss: () -> Void
+
+    /// Same breathing-rim pulse as `AlertView`.
+    @State private var pulse = false
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.001)
+                .edgesIgnoringSafeArea(.all)
+                .onTapGesture { onDismiss() }
+
+            Button(action: onDismiss) {
+                VStack(spacing: 10) {
+                    Image(systemName: content.symbolName)
+                        .font(.system(size: 46, weight: .bold))
+                    if let cookName = content.cookName {
+                        Text(cookName)
+                            .font(.system(size: 22, weight: .semibold, design: .rounded))
+                    }
+                    if let tempText = content.tempText {
+                        Text(tempText)
+                            .font(.system(size: 44, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                    }
+                    Text(content.message)
+                        .font(.system(size: 20, weight: .semibold, design: .rounded))
+                }
+                .foregroundColor(.white)
+                .multilineTextAlignment(.center)
+                .padding(24)
+                .frame(width: 240)
+                .frame(minHeight: 240)
+                .modifier(AlertGlassCardStyle(pulse: pulse, tint: .green))
+            }
+            .buttonStyle(PlainButtonStyle())
+        }
+        .transition(.opacity)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true)) {
+                pulse = true
+            }
+        }
     }
 }
 
