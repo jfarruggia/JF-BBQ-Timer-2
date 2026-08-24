@@ -398,3 +398,29 @@ struct StartPresetTests {
         state.reset()
     }
 }
+
+// MARK: - TimeFormatter.compactTimeString
+
+// "MM:SS" for the Manage Timers preset rows (steppers cap at 3600 s).
+@Suite("TimeFormatter compactTimeString")
+struct CompactTimeStringTests {
+
+    @Test("Common values render as MM:SS")
+    func commonValues() {
+        #expect(TimeFormatter.compactTimeString(from: 0) == "00:00")
+        #expect(TimeFormatter.compactTimeString(from: 30) == "00:30")
+        #expect(TimeFormatter.compactTimeString(from: 90) == "01:30")
+        #expect(TimeFormatter.compactTimeString(from: 300) == "05:00")
+        #expect(TimeFormatter.compactTimeString(from: 3599) == "59:59")
+    }
+
+    @Test("The one-hour cap shows as total minutes, not an hours field")
+    func hourCap() {
+        #expect(TimeFormatter.compactTimeString(from: 3600) == "60:00")
+    }
+
+    @Test("Negative input clamps to zero")
+    func negative() {
+        #expect(TimeFormatter.compactTimeString(from: -5) == "00:00")
+    }
+}

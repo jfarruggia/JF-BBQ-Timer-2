@@ -753,7 +753,7 @@ struct TimerManagementView: View {
                     in: 0...3600,
                     step: 30
                 ) {
-                    Text(TimeFormatter.timeString(from: timer.preset1))
+                    Text(TimeFormatter.compactTimeString(from: timer.preset1))
                         .font(.subheadline)
                 }
             }
@@ -783,7 +783,7 @@ struct TimerManagementView: View {
                     in: 0...3600,
                     step: 30
                 ) {
-                    Text(TimeFormatter.timeString(from: timer.preset2))
+                    Text(TimeFormatter.compactTimeString(from: timer.preset2))
                         .font(.subheadline)
                 }
             }
@@ -831,7 +831,7 @@ struct TimerManagementView: View {
                             in: 0...3600,
                             step: 30
                         ) {
-                            Text(TimeFormatter.timeString(from: tempPreset1))
+                            Text(TimeFormatter.compactTimeString(from: tempPreset1))
                                 .font(.subheadline)
                         }
                     }
@@ -846,7 +846,7 @@ struct TimerManagementView: View {
                             in: 0...3600,
                             step: 30
                         ) {
-                            Text(TimeFormatter.timeString(from: tempPreset2))
+                            Text(TimeFormatter.compactTimeString(from: tempPreset2))
                                 .font(.subheadline)
                         }
                     }
