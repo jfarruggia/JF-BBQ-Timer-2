@@ -347,6 +347,15 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       + launch-time sweep of all pending `preheat-…` requests (preheats never
       survive relaunch, so any pending at launch is an orphan — also cleans
       orphans already stranded on devices).
+- [x] **Preset started the wrong duration ("pressed 0:30, got 5:00") — fixed**
+      (Jim's build-10 device repro 2026-08-23, PR #48): preset buttons did
+      stop() → async setCurrentIntervalTime() → start() 0.1 s later, and
+      start()'s no-remaining-time fallback is `initialIntervalTime` — so
+      main-queue work in the gap (the completion alert's audio teardown)
+      could let start() run before the preset applied. New atomic
+      `TimerState.startPreset(_:onComplete:)` replaces the dance at all six
+      call sites (glass + pre-26 layouts); 5 regression tests incl. Jim's
+      exact repro. Verify on device in build 11.
 - [x] Does **compact mode persist** across a cold relaunch? — YES, it always did:
       Settings is a `fullScreenCover`, so the Done button (which calls `save()`)
       is the only way out. Belt-and-braces added anyway (PR #46): the Settings

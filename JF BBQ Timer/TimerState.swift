@@ -170,6 +170,23 @@ class TimerState: ObservableObject {
         NotificationCenter.default.post(name: .cookTimerDidStart, object: nil)
     }
 
+    /// Apply a preset duration and start counting down, in one synchronous
+    /// step. The card buttons previously did this as stop() → an async
+    /// setCurrentIntervalTime() → start() 0.1 s later; any main-queue work
+    /// landing in that gap (e.g. the completion alert's audio teardown) let
+    /// start() run before the new duration was applied, so it fell back to
+    /// `initialIntervalTime` — tap 0:30, get the 5:00 default. No gap now.
+    /// Elapsed ("Lit") is deliberately untouched: it keeps counting across
+    /// preset restarts until Reset, same as before.
+    func startPreset(_ duration: TimeInterval, onComplete: @escaping () -> Void) {
+        endDate = nil
+        isRunning = false
+        remainingAtPause = duration
+        runDuration = duration
+        intervalTime = duration
+        start(onComplete: onComplete)
+    }
+
     func stop(at now: Date = Date()) {
         remainingAtPause = remaining(at: now)
         endDate = nil
