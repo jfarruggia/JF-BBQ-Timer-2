@@ -235,6 +235,13 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       anyway. Revisit only on user demand.
 
 ## Recently shipped (2026-08-23) — probe preset rename
+- [x] **Green probe alert card** (PR #52, spec probe-alert-spec.md): pullNow /
+      targetReached / restingDone now show a full-screen green glass card
+      (thermometer + cook name + live temp + action line) while foreground —
+      unmistakable vs the red timer alert. Notifications/haptics unchanged.
+- [x] **3D notched preset buttons** (PR #45) · **settings save-on-close**
+      (PR #46) · **°F default** (PR #47) · **preset-race fix** (PR #48, also
+      in Bugs) · **Manage Timers MM:SS + capsule spacing** (PRs #49–#51).
 - [x] **Preset target renames the timer** (PR #44, spec
       probe-preset-rename-spec.md): tapping a Common target preset (e.g.
       "Chicken") renames the attached cook's timer so the card, alerts,
