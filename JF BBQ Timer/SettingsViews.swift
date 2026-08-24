@@ -653,7 +653,10 @@ struct TimerManagementView: View {
     
     // Updated timer row to handle both legacy and additional timers
     private func timerRow(for timer: BBQTimer, isLegacy: Bool = false, legacyIndex: Int? = nil, at index: Int? = nil) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        // 12pt, not 4: the iOS 26 glass stepper capsule paints beyond its
+        // layout bounds, so tighter spacing lets the two rows' − / + capsules
+        // visually overlap each other.
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
                 // Inline editing for timer name (row identified by timer.id —
                 // legacy timers have stable synthetic UUIDs, so this is unique)
