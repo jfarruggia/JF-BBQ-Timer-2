@@ -52,6 +52,9 @@ struct ContentView: View {
     @State private var showProbeConnect = false
     /// The cook whose probe target sheet is open (nil = closed).
     @State private var targetSheetCook: BBQTimer? = nil
+    /// The in-app green "act now" probe overlay (pullNow/targetReached/restingDone
+    /// only). Foreground-only; a new event replaces whatever's currently shown.
+    @State private var probeAlertContent: ProbeAlertContent? = nil
     #endif
     @State private var preheatPressPulse = false
     @Environment(\.scenePhase) private var scenePhase
@@ -471,6 +474,24 @@ struct ContentView: View {
             if let error { debugLog("❌ Probe alert notification failed: \(error)") }
         }
         if settings.hapticsEnabled { Haptics.tap() }
+
+        // Unmistakable in-app overlay for the three "act now" moments — only
+        // while the app is actually up front; the notification above already
+        // covers background/lock-screen. Replaces any overlay already showing.
+        guard scenePhase == .active else { return }
+        let cookName = probeManager.attachedCookID
+            .flatMap { id in settings.allTimers.first(where: { $0.id == id })?.name }
+        // Same −20 °C sensor-floor check as `probeInfo(for:)` — a reading object
+        // can exist with no usable core temp yet; that must read as "no temp",
+        // never a bogus below-floor number.
+        let coreTempC = probeManager.latestReading?.coreTempC
+        let tempText = coreTempC.flatMap { c -> String? in
+            guard c > -19.99 else { return nil }
+            return settings.temperatureUnit.compactString(fromCelsius: c) + settings.temperatureUnit.rawValue
+        }
+        if let content = ProbeAlertContent.make(event: event, tempText: tempText, cookName: cookName) {
+            probeAlertContent = content
+        }
     }
 
     /// Push the attached cook's stored target into the probe manager, which
@@ -837,6 +858,15 @@ struct ContentView: View {
                     .padding(.vertical, 12)
                     .accessibilityIdentifier("PreheatButton")
             }
+
+            #if os(iOS)
+            // Below the timer alert in z-order on purpose — if both are up,
+            // the timer completion card wins (spec: no coordination beyond z-order).
+            if let probeContent = probeAlertContent {
+                ProbeAlertView(content: probeContent, onDismiss: { probeAlertContent = nil })
+                    .accessibilityIdentifier("ProbeAlert")
+            }
+            #endif
 
             if alertState.isPresented, let timer1 = settings.legacyTimersAsBBQTimers.first, let timer1State = timerStates.state(for: timer1.id) {
                 AlertView(alertState: alertState, audioPlayer: Settings.sharedAudioPlayer, isPreheat: false, settings: settings, timerState: timer1State)

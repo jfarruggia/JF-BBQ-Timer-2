@@ -185,6 +185,58 @@ struct ProbeCookPhaseTests {
     }
 }
 
+// MARK: - ProbeAlertContent
+
+@Suite("ProbeAlertContent")
+struct ProbeAlertContentTests {
+
+    @Test("pullNow builds the act-now card with temp + name passed through")
+    func pullNowContent() {
+        let content = ProbeAlertContent.make(event: .pullNow, tempText: "135°F", cookName: "Ribeye")
+        #expect(content?.symbolName == "thermometer.high")
+        #expect(content?.cookName == "Ribeye")
+        #expect(content?.tempText == "135°F")
+        #expect(content?.message == "Pull the food now")
+    }
+
+    @Test("targetReached message")
+    func targetReachedContent() {
+        let content = ProbeAlertContent.make(event: .targetReached, tempText: "160°F", cookName: "Brisket")
+        #expect(content?.message == "Target temperature reached")
+        #expect(content?.tempText == "160°F")
+        #expect(content?.cookName == "Brisket")
+    }
+
+    @Test("restingDone message")
+    func restingDoneContent() {
+        let content = ProbeAlertContent.make(event: .restingDone, tempText: "203°F", cookName: "Pork Shoulder")
+        #expect(content?.message == "Food is ready")
+        #expect(content?.symbolName == "thermometer.high")
+    }
+
+    @Test("batteryLow and overheating never get a card")
+    func quietEventsReturnNil() {
+        #expect(ProbeAlertContent.make(event: .batteryLow, tempText: "135°F", cookName: "Ribeye") == nil)
+        #expect(ProbeAlertContent.make(event: .overheating, tempText: "135°F", cookName: "Ribeye") == nil)
+    }
+
+    @Test("nil temp and nil name are omitted, not placeholders")
+    func nilInputsOmitLines() {
+        let content = ProbeAlertContent.make(event: .pullNow, tempText: nil, cookName: nil)
+        #expect(content?.tempText == nil)
+        #expect(content?.cookName == nil)
+    }
+
+    @Test("empty or whitespace-only cook name is treated as nil")
+    func blankNameOmitted() {
+        let empty = ProbeAlertContent.make(event: .pullNow, tempText: "135°F", cookName: "")
+        #expect(empty?.cookName == nil)
+
+        let whitespace = ProbeAlertContent.make(event: .targetReached, tempText: "135°F", cookName: "   ")
+        #expect(whitespace?.cookName == nil)
+    }
+}
+
 // MARK: - Manager wiring
 
 #if os(iOS)
