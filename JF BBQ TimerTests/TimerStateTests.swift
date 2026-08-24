@@ -333,3 +333,68 @@ struct PreheatCountdownTests {
         #expect(PreheatCountdown.remaining(endDate: nil, now: Date()) == 0)
     }
 }
+
+// MARK: - startPreset(_:onComplete:) — the "pressed 0:30, got 5:00" race
+
+// The card buttons used to stop(), queue setCurrentIntervalTime() async, and
+// start() 0.1 s later. start() falls back to initialIntervalTime when no
+// remaining time is set, so any main-queue work landing in the gap (e.g. the
+// completion alert's audio teardown) started the DEFAULT duration instead of
+// the tapped preset. startPreset() applies the duration and starts in one
+// synchronous step; these pin that behavior.
+@Suite("TimerState startPreset")
+struct StartPresetTests {
+
+    @Test("start() with no remaining time falls back to the default duration")
+    func startFallbackIsTheDefault() {
+        let state = TimerState(id: UUID(), interval: 300)
+        state.completeNow()   // finished cook: remaining is zero
+        state.stop()
+        state.start { }       // what the race let happen before the preset applied
+        // Documents the failure mode this suite guards against: 5:00, not 0:30.
+        #expect(state.intervalTime == 300)
+        state.reset()
+    }
+
+    @Test("startPreset after a completed cook starts the tapped preset")
+    func afterCompletion() {
+        let state = TimerState(id: UUID(), interval: 300)
+        state.completeNow()
+        state.startPreset(30) { }
+        #expect(state.intervalTime == 30)
+        #expect(state.isRunning)
+        #expect(state.remaining(at: Date()) <= 30)
+        state.reset()
+    }
+
+    @Test("startPreset after Reset starts the tapped preset, not the default")
+    func afterReset() {
+        let state = TimerState(id: UUID(), interval: 300)
+        state.completeNow()
+        state.reset()   // Jim's repro: reset the finished cook, then tap 0:30
+        state.startPreset(30) { }
+        #expect(state.intervalTime == 30)
+        #expect(state.isRunning)
+        state.reset()
+    }
+
+    @Test("startPreset restarts a running timer at the new duration")
+    func whileRunning() {
+        let state = TimerState(id: UUID(), interval: 300)
+        state.start { }
+        state.startPreset(30) { }
+        #expect(state.intervalTime == 30)
+        #expect(state.isRunning)
+        state.reset()
+    }
+
+    @Test("startPreset keeps elapsed (Lit) counting from the earlier start")
+    func preservesElapsed() {
+        let state = TimerState(id: UUID(), interval: 300)
+        state.start { }   // elapsedStartDate ≈ now
+        state.startPreset(30) { }
+        // If startPreset had cleared the elapsed clock, this would be ~0.
+        #expect(state.elapsed(at: Date().addingTimeInterval(100)) >= 99)
+        state.reset()
+    }
+}

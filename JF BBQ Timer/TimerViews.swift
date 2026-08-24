@@ -376,13 +376,9 @@ struct CompactTimerView: View {
                 VStack(spacing: 8) {
                     HStack(spacing: 8) {
                         Button(action: {
-                            state.stop()
-                            state.setCurrentIntervalTime(preset1)
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                state.start {
-                                    if settings.soundEnabled { state.playSound() }
-                                    if settings.hapticsEnabled { alertState.isPresented = true }
-                                }
+                            state.startPreset(preset1) {
+                                if settings.soundEnabled { state.playSound() }
+                                if settings.hapticsEnabled { alertState.isPresented = true }
                             }
                         }) {
                             Text(verbatim: {
@@ -400,13 +396,9 @@ struct CompactTimerView: View {
                         .buttonStyle(ElevatedButtonStyle(tint: Color(UIColor(red: 70/255, green: 70/255, blue: 70/255, alpha: 1.0)), height: 40, fontSize: 16))
 
                         Button(action: {
-                            state.stop()
-                            state.setCurrentIntervalTime(preset2)
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                state.start {
-                                    if settings.soundEnabled { state.playSound() }
-                                    if settings.hapticsEnabled { alertState.isPresented = true }
-                                }
+                            state.startPreset(preset2) {
+                                if settings.soundEnabled { state.playSound() }
+                                if settings.hapticsEnabled { alertState.isPresented = true }
                             }
                         }) {
                             Text(verbatim: {
@@ -687,13 +679,9 @@ struct GlassLargeTimerContent: View {
     #endif
 
     private func startWithPreset(_ preset: TimeInterval) {
-        state.stop()
-        state.setCurrentIntervalTime(preset)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            state.start {
-                if settings.soundEnabled { state.playSound() }
-                if settings.hapticsEnabled { alertState.isPresented = true }
-            }
+        state.startPreset(preset) {
+            if settings.soundEnabled { state.playSound() }
+            if settings.hapticsEnabled { alertState.isPresented = true }
         }
     }
 
@@ -962,13 +950,9 @@ struct GlassCompactTimerContent: View {
     #endif
 
     private func startWithPreset(_ preset: TimeInterval) {
-        state.stop()
-        state.setCurrentIntervalTime(preset)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            state.start {
-                if settings.soundEnabled { state.playSound() }
-                if settings.hapticsEnabled { alertState.isPresented = true }
-            }
+        state.startPreset(preset) {
+            if settings.soundEnabled { state.playSound() }
+            if settings.hapticsEnabled { alertState.isPresented = true }
         }
     }
 

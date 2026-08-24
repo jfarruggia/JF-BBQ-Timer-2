@@ -577,13 +577,9 @@ struct ContentView: View {
                         presetTime: TimeInterval(timer.preset1),
                         timeStringConverter: timeStringNoLeadingHours,
                         action: {
-                            state.stop()
-                            state.setCurrentIntervalTime(TimeInterval(timer.preset1))
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                state.start {
-                                    if settings.soundEnabled { state.playSound() }
-                                    if settings.hapticsEnabled { alertState.isPresented = true }
-                                }
+                            state.startPreset(TimeInterval(timer.preset1)) {
+                                if settings.soundEnabled { state.playSound() }
+                                if settings.hapticsEnabled { alertState.isPresented = true }
                             }
                         }
                     )
@@ -592,13 +588,9 @@ struct ContentView: View {
                         presetTime: TimeInterval(timer.preset2),
                         timeStringConverter: timeStringNoLeadingHours,
                         action: {
-                            state.stop()
-                            state.setCurrentIntervalTime(TimeInterval(timer.preset2))
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                state.start {
-                                    if settings.soundEnabled { state.playSound() }
-                                    if settings.hapticsEnabled { alertState.isPresented = true }
-                                }
+                            state.startPreset(TimeInterval(timer.preset2)) {
+                                if settings.soundEnabled { state.playSound() }
+                                if settings.hapticsEnabled { alertState.isPresented = true }
                             }
                         }
                     )
