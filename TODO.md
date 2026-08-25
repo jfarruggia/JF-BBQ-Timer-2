@@ -57,10 +57,9 @@ glass + accent), added a "Done" button to the picker sheet, renamed discovered p
       target's deployment target had become **12**, and there is no watchOS 12
       (see the gotcha in CLAUDE.md). Jim set it to 11.6 in Xcode; re-archive
       build 12 and upload.
-- [ ] **Decide: iPhone minimum iOS.** The same Xcode session changed the app's
-      iOS deployment target 15.6 → 18.6 (possibly Xcode's "recommended
-      settings"). Shipping that drops updates for users on iOS 15–18.5 —
-      needs Jim's explicit yes/no before it's committed.
+- [x] **iPhone minimum iOS stays 15.6** (Jim, 2026-08-24): an Xcode session had
+      silently bumped it to 18.6; reverted before commit. Watch for Xcode's
+      "update to recommended settings" re-bumping it on future archives.
 - [ ] Then: **ship merge `Apple-Watch-Suport` → `main`** (V2 step 6), tag, release.
       Note: the live App Store build still has the free-premium-unlock stub on the
       probe chip (fixed in #41) — shipping V2 closes it.
