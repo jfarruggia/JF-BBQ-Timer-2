@@ -1,4 +1,4 @@
-# Build 10 test plan — PRs #35–#47
+# Build 12 test plan — PRs #35–#52 (upload as build 12)
 
 > **Updated 2026-08-23:** the archived build 10 also includes PRs #44–#47 —
 > sections added at the bottom. A tap-to-check phone version of this whole
@@ -109,3 +109,13 @@ Everything merged to `Apple-Watch-Suport` since build 9. Test on iPhone
 - [ ] Probe section renders correctly on the real watch.
 - [ ] Long cook (1+ hr): correct through wrist drops; leave Bluetooth range
       and return → probe auto-reconnects.
+
+## Build 12 fixes (2026-08-23/24) 📱
+- [ ] **Preset race (PR #48):** finish a cook, dismiss/reset the alert, QUICKLY
+      tap the 0:30 preset → starts 0:30, never the 5:00 default. Repeat 3–4×;
+      once on the compact card too.
+- [ ] **Manage Timers (PRs #49–#51):** times as MM:SS; name bar + both − / +
+      capsules clearly separated on device.
+- [ ] **Green probe alert (PR #52, needs probe):** pull/target/resting-done →
+      green glass card with cook name + live temp; tap dismisses; lock-screen
+      notification unchanged; battery-low stays a plain banner.
