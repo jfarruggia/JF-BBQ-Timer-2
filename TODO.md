@@ -48,8 +48,19 @@ glass + accent), added a "Done" button to the picker sheet, renamed discovered p
   (`grillCardBodyTop/Bottom`), bevel/shadow strength.
 
 ## Up next
-- [ ] **Build 10 on-device test pass** — Jim archiving + testing PRs #35–#43
-      against `build-10-test-plan.md`. Fix anything it surfaces.
+- [ ] **Build 12 on-device test pass** — covers PRs #35–#52 (build 10 was never
+      tested; 11 was superseded). Test against `build-10-test-plan.md` (now
+      extended through #47) + the day-2 fixes: preset race (#48), Manage Timers
+      MM:SS/spacing (#49–#51), green probe alert (#52, needs a real probe).
+      Refresh the "Build 10 Test Pass" artifact/PDF to a build-12 version.
+- [x] **Build 12 upload rejected (error 91164) — fixed 2026-08-24:** the watch
+      target's deployment target had become **12**, and there is no watchOS 12
+      (see the gotcha in CLAUDE.md). Jim set it to 11.6 in Xcode; re-archive
+      build 12 and upload.
+- [ ] **Decide: iPhone minimum iOS.** The same Xcode session changed the app's
+      iOS deployment target 15.6 → 18.6 (possibly Xcode's "recommended
+      settings"). Shipping that drops updates for users on iOS 15–18.5 —
+      needs Jim's explicit yes/no before it's committed.
 - [ ] Then: **ship merge `Apple-Watch-Suport` → `main`** (V2 step 6), tag, release.
       Note: the live App Store build still has the free-premium-unlock stub on the
       probe chip (fixed in #41) — shipping V2 closes it.

@@ -23,7 +23,7 @@ Grill Time Pro is a shipping iOS app (live on the App Store) that helps users ti
 
 ## Build & test
 
-> **Jim's Xcode version: 26.5 (17F42).** When giving GUI directions (menu paths,
+> **Jim's Xcode version: 26.6 (17F113).** When giving GUI directions (menu paths,
 > Settings panels, where to click), reference *this* version — Xcode moves things
 > between releases, so instructions written for older versions can send him to the
 > wrong place. Known 26.x change: **merging a branch is in the Source Control
@@ -78,6 +78,11 @@ You **can** compile and run tests from the command line to verify your work. You
 - **Don't introduce new dependencies** without flagging it first.
 
 ## watchOS gotchas to keep in mind
+
+- **There is no watchOS 12.** Apple jumped 11 → 26 (unified numbering), and App
+  Store Connect rejects an upload whose watch bundle has `MinimumOSVersion` 12
+  (error 91164: "must be 26.0 or later, or earlier than 12.0"). The watch
+  target's deployment target must stay ≤ 11.x (currently 11.5) or move to ≥ 26.
 
 - The watch app gets **suspended** when the wrist drops / screen sleeps. Anything that relies on a continuously-running `Timer` to stay correct will drift or freeze. Time-based state must be derived from absolute `Date`s, not decremented counters.
 - Always-On Display shows a dimmed UI while suspended — prefer system-managed self-updating views (e.g. `Text(timerInterval:)`) for anything that must stay live.
