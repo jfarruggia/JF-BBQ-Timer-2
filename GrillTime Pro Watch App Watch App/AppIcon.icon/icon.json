@@ -28,6 +28,13 @@
       "translucency" : {
         "enabled" : true,
         "value" : 0.5
+      },
+      "position" : {
+        "scale" : 0.85,
+        "translation-in-points" : [
+          0,
+          0
+        ]
       }
     },
     {
@@ -78,7 +85,7 @@
         }
       ],
       "position" : {
-        "scale" : 1,
+        "scale" : 0.85,
         "translation-in-points" : [
           0,
           0
@@ -154,6 +161,13 @@
       "translucency" : {
         "enabled" : true,
         "value" : 0.48
+      },
+      "position" : {
+        "scale" : 0.85,
+        "translation-in-points" : [
+          0,
+          0
+        ]
       }
     },
     {
