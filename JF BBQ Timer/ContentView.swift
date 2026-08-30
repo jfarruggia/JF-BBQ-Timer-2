@@ -640,6 +640,19 @@ struct ContentView: View {
                             .font(.system(size: 16, weight: .semibold, design: .rounded))
                             .monospacedDigit()
                             .foregroundColor(Color("TimerAccent"))
+                        if let target = info.targetText {
+                            Text("\u{2192} \(target)")
+                                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                .monospacedDigit()
+                                .foregroundColor(.secondary)
+                        } else {
+                            Text("Set target")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .overlay(Capsule().stroke(Color.secondary.opacity(0.5), lineWidth: 1))
+                        }
                         Spacer()
                         Text("ready")
                             .font(.system(size: 12, weight: .medium))
@@ -656,6 +669,11 @@ struct ContentView: View {
                     }
                     .padding(.horizontal, 4)
                     .padding(.bottom, 4)
+                    // Same entry point as the glass card's probe strip: tapping
+                    // opens the per-cook target sheet. Without this the pre-26
+                    // large layout had no way to set a target at all.
+                    .contentShape(Rectangle())
+                    .onTapGesture { targetSheetCook = timer }
                 }
             }
             .padding(.horizontal, 10)
