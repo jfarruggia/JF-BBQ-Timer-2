@@ -21,7 +21,6 @@ struct CookItem: Identifiable {
 
 // MARK: - ProbeAttachSheet
 
-@available(iOS 16, *)
 struct ProbeAttachSheet: View {
 
     /// The cooks the user can assign the probe to.

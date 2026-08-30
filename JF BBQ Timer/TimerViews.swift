@@ -489,7 +489,7 @@ struct CompactTimerView: View {
                         Text(info.readySlotLabel)
                             .font(.system(size: 11, weight: .medium))
                             .foregroundColor(info.readySlotEmphasized ? Color("TimerAccent") : .secondary)
-                        if #available(iOS 16, *), let readyDate = info.readyDate {
+                        if let readyDate = info.readyDate {
                             Text(timerInterval: Date()...readyDate, countsDown: true)
                                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                                 .monospacedDigit()

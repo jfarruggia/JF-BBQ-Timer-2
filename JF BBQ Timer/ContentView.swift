@@ -657,7 +657,7 @@ struct ContentView: View {
                         Text("ready")
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.secondary)
-                        if #available(iOS 16, *), let readyDate = info.readyDate {
+                        if let readyDate = info.readyDate {
                             Text(timerInterval: Date()...readyDate, countsDown: true)
                                 .font(.system(size: 14, weight: .semibold, design: .rounded))
                                 .monospacedDigit()
@@ -931,28 +931,24 @@ struct ContentView: View {
                             cooks: settings.allTimers.map { CookItem(id: $0.id, name: $0.name) })
         }
         .fullScreenCover(isPresented: $showAttachSheet) {
-            if #available(iOS 16, *) {
-                ProbeAttachSheet(
-                    cooks: settings.allTimers.map { CookItem(id: $0.id, name: $0.name) },
-                    probeManager: probeManager
-                )
-            }
+            ProbeAttachSheet(
+                cooks: settings.allTimers.map { CookItem(id: $0.id, name: $0.name) },
+                probeManager: probeManager
+            )
         }
         .sheet(item: $targetSheetCook) { cook in
-            if #available(iOS 16, *) {
-                ProbeTargetSheet(
-                    cookName: cook.name,
-                    unit: settings.temperatureUnit,
-                    currentTargetCelsius: settings.probeTarget(forCookID: cook.id),
-                    settings: settings,
-                    onSave: { celsius, presetName in
-                        settings.setProbeTarget(celsius, forCookID: cook.id)
-                        if let presetName {
-                            settings.renameTimer(id: cook.id, to: presetName)
-                        }
+            ProbeTargetSheet(
+                cookName: cook.name,
+                unit: settings.temperatureUnit,
+                currentTargetCelsius: settings.probeTarget(forCookID: cook.id),
+                settings: settings,
+                onSave: { celsius, presetName in
+                    settings.setProbeTarget(celsius, forCookID: cook.id)
+                    if let presetName {
+                        settings.renameTimer(id: cook.id, to: presetName)
                     }
-                )
-            }
+                }
+            )
         }
         .onChange(of: probeManager.connectionState) { newState in
             // Auto-ask which timer to attach to — but only when the probe picker

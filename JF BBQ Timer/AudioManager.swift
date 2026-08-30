@@ -103,22 +103,8 @@ class AudioManager {
         // Stop any existing custom sound
         stopSound()
         
-        // For iOS 9 and later, we can use AudioServicesPlaySystemSoundWithCompletion
-        if #available(iOS 9.0, *) {
-            AudioServicesPlaySystemSoundWithCompletion(soundID) {
-                completion?()
-            }
-        } else {
-            // Fallback for older iOS versions
-            AudioServicesPlaySystemSound(soundID)
-            
-            // Approximate the completion callback with a delay
-            if let completion = completion {
-                // Most system sounds are short (less than 3 seconds)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-                    completion()
-                }
-            }
+        AudioServicesPlaySystemSoundWithCompletion(soundID) {
+            completion?()
         }
     }
     

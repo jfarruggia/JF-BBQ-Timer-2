@@ -64,9 +64,7 @@ struct ProbePickerView: View {
             }
         }
         .sheet(isPresented: $showAttachSheet) {
-            if #available(iOS 16, *) {
-                ProbeAttachSheet(cooks: cooks, probeManager: probeManager)
-            }
+            ProbeAttachSheet(cooks: cooks, probeManager: probeManager)
         }
     }
 

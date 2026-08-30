@@ -15,7 +15,6 @@
 
 import SwiftUI
 
-@available(iOS 16, *)
 struct ProbeTargetSheet: View {
 
     let cookName: String
@@ -141,7 +140,6 @@ struct ProbeTargetSheet: View {
 
 /// Manage the "Common targets" list: tap to edit, swipe to delete, add new,
 /// restore the standard defaults. Pushed from the target sheet's Edit link.
-@available(iOS 16, *)
 struct ProbeTargetPresetEditor: View {
 
     @ObservedObject var settings: Settings
@@ -219,7 +217,6 @@ struct ProbeTargetPresetEditor: View {
 
 /// Small form for one preset: name + temperature in the user's unit.
 /// Pass `preset: nil` to create a new one.
-@available(iOS 16, *)
 private struct ProbeTargetPresetForm: View {
 
     let unit: TemperatureUnit
