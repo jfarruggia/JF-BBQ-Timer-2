@@ -406,8 +406,19 @@ All iOS 26-gated with pre-26 fallbacks; build + unit tests green; verified on an
       chain runs without approval prompts (git/xcodebuild/pgrep/caffeinate/etc.); destructive
       git stays denied. Fixed the overnight runs stalling on permission dialogs.
 - [ ] **Final ship merge `Apple-Watch-Suport` → `main`** once V2 is done — then tag +
-      release. (Optional pre-merge tidy: drop now-unreferenced `Icon-60@2x/3x.png`.)
-- [ ] App Store submission once the watch features are ready.
+      release. (The `Icon-60@2x/3x.png` tidy is done — the whole `AppIcon.appiconset`
+      went with the Icon Composer switch, `09d59e1`.)
+- [ ] App Store submission once the watch features are ready. Blockers found
+      2026-08-30 while walking the submission steps — all three are pre-archive work:
+  - [ ] **Support URL is a placeholder.** `AppStoreMetadata.md` still points at
+        `github.com/yourusername/JF-BBQ-Timer/issues`. Review will fail on it.
+  - [ ] **Description is pre-V2.** It never mentions the Combustion probe or the
+        Apple Watch app — the two headline features. Keywords need the same pass.
+        The file's bundle ID is stale too (`com.jamesfarruggia.JF-BBQ-Timer` vs the
+        project's `com.jamesfarruggia.jfbbqtimer.dev`).
+  - [ ] **No privacy manifest.** There is no `PrivacyInfo.xcprivacy` in the app
+        target, and `UserDefaults` is a required-reason API — expect ITMS-91053 on
+        upload. Check past upload mails to see whether it has already been warned.
 
 ## Recently shipped (2026-06-14)
 - [x] Large timer card Liquid Glass redesign (`f9b4117`)
