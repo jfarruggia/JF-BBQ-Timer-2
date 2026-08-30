@@ -107,6 +107,21 @@ The app builds against the iOS/watchOS 26 SDK. Recompiling against this SDK caus
 - **Notched large-card layout** (2026-08-08, spec `notched-card-layout-spec.md`): the large card interlocks a 200pt ring with two preset buttons whose shapes are carved from the ring's circle — `NotchedCardLayout` (pure geometry, all values derive from spec constants + content width), `NotchedRoundedRect` (rounded rect minus circle via `Path.subtracting`, fine because the glass card is iOS 26-only), `NotchedActionButtonStyle` (solid-accent primary / translucent secondary, tap target clipped to the shape). Stop/Reset live in the channel between the buttons. Compact card and pre-26 layouts unchanged.
 - **Alerts & voice:** the completion phrase is built by `AnnouncementMessage` (name-first — "Ribeye timer is complete" — with a `{timer}` placement placeholder; unit-tested; the Settings test button uses the same builder). When a voice announcement actually plays it **replaces** the looping alert sound (`SettingsExtension.playTimerCompletion`); background completions still alert via notification sounds. For "is any timer running" UI (e.g. the Preheat bar's disabled state), use the published `TimerStatesManager.anyTimerRunning` — the `states` array only publishes on add/remove, so scanning it from a view goes stale.
 
+- **App icon — Icon Composer, two diverging copies.** The icon is an Icon Composer
+  bundle, not an asset-catalog `AppIcon.appiconset`: `JF BBQ Timer/AppIcon.icon` for
+  iOS and `GrillTime Pro Watch App Watch App/AppIcon.icon` for watchOS. Both folders
+  are file-system-synchronized groups, so the bundles are picked up without touching
+  `project.pbxproj`, and the old `AppIcon.appiconset`s were **deleted** — leaving both
+  under the name `AppIcon` is ambiguous. Xcode still generates the legacy PNG sizes
+  from the `.icon`, so the iOS 15.6 deployment target is covered.
+  - **Gotcha: the two copies are not identical.** The watch copy's flame / grill /
+    stopwatch groups are scaled to `0.85` in `icon.json` (background group left at 1)
+    so the art clears watchOS's circular mask. **Re-exporting from Icon Composer
+    overwrites that inset — reapply it**, or the art runs into the rim.
+  - **Known, deliberate:** in Dark appearance the plate stays bright orange while
+    system icons go dark, so it stands out on the Home Screen. Not a bug; revisit only
+    if it starts reading as a mistake.
+
 ## Workflow
 
 - Jim writes/approves a spec before implementation. Work from the spec; if the spec is ambiguous, ask before guessing.
