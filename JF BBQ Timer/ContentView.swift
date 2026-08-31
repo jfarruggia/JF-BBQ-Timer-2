@@ -441,6 +441,7 @@ struct ContentView: View {
     /// reliable even when backgrounded, since the app holds the BLE background
     /// mode — plus a haptic when the app is frontmost.
     private func handleProbeCookEvent(_ event: ProbeCookEvent) {
+        debugLog("🔔 handleProbeCookEvent: \(event), scenePhase \(scenePhase)")
         let title: String
         let body: String
         switch event {
@@ -478,7 +479,10 @@ struct ContentView: View {
         // Unmistakable in-app overlay for the three "act now" moments — only
         // while the app is actually up front; the notification above already
         // covers background/lock-screen. Replaces any overlay already showing.
-        guard scenePhase == .active else { return }
+        guard scenePhase == .active else {
+            debugLog("🔔 probe overlay skipped — scenePhase \(scenePhase) (notification above still fired)")
+            return
+        }
         let cookName = probeManager.attachedCookID
             .flatMap { id in settings.allTimers.first(where: { $0.id == id })?.name }
         // Same −20 °C sensor-floor check as `probeInfo(for:)` — a reading object

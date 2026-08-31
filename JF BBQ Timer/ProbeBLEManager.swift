@@ -419,8 +419,16 @@ final class ProbeBLEManager: ObservableObject {
             notifiedOverheating = true
             events.append(.overheating)
         }
-        if phaseEngine.phase != cookPhase { cookPhase = phaseEngine.phase }
-        for event in events { onCookEvent?(event) }
+        if phaseEngine.phase != cookPhase {
+            debugLog("🔔 Probe cook phase: \(cookPhase) → \(phaseEngine.phase) (core \(reading.coreTempC)°C, target \(targetCelsius.map { "\($0)°C" } ?? "none"))")
+            cookPhase = phaseEngine.phase
+        }
+        // Trace every emitted event and whether anyone is listening — the
+        // missing-alert cook (2026-08-24) could not be diagnosed without this.
+        for event in events {
+            debugLog("🔔 Probe cook event: \(event) → handler \(onCookEvent == nil ? "MISSING" : "wired")")
+            onCookEvent?(event)
+        }
     }
 }
 
