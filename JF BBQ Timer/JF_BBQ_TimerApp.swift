@@ -9,9 +9,31 @@ import SwiftUI
 import UIKit
 import RevenueCat
 import WatchConnectivity
+import UserNotifications
+
+/// Which banner/sound treatment a local notification gets while the app is
+/// FOREGROUND. iOS suppresses foreground notifications entirely unless a
+/// delegate opts in — without this, probe alerts were invisible whenever the
+/// user was actually looking at the app (Jim's missed pull alert, 2026-08-24).
+/// Pure so it's unit-testable.
+///   • probe-alert-…: show banner + sound — the notification IS the alert when
+///     the green card isn't on screen (e.g. user is in Settings).
+///   • everything else (timer/preheat completions): stay suppressed in
+///     foreground — the in-app AlertView + looping sound already covers them,
+///     and a banner would double-alert.
+func foregroundNotificationOptions(forIdentifier identifier: String) -> UNNotificationPresentationOptions {
+    identifier.hasPrefix("probe-alert-") ? [.banner, .list, .sound] : []
+}
 
 // Add a class to handle app delegate functionality
-class AppDelegate: NSObject, UIApplicationDelegate {
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                willPresent notification: UNNotification,
+                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler(foregroundNotificationOptions(forIdentifier: notification.request.identifier))
+    }
+
     // Single source of truth for allowed orientations. Returned from
     // supportedInterfaceOrientationsFor below to lock the app to portrait —
     // the App Store-safe approach (no private UIDevice key-value hack).
@@ -33,7 +55,10 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             "hapticsEnabled": true
         ]
         UserDefaults.standard.register(defaults: defaults)
-        
+
+        // Foreground notification presentation (see foregroundNotificationOptions).
+        UNUserNotificationCenter.current().delegate = self
+
         return true
     }
 
