@@ -256,3 +256,27 @@ struct ProbeCookPhaseManagerTests {
     }
 }
 #endif
+
+// MARK: - Foreground notification presentation
+
+// iOS hides a foreground app's notifications unless the delegate opts in.
+// Probe alerts must show (they ARE the alert when the green card isn't
+// visible); timer/preheat notifications stay suppressed — the in-app
+// AlertView covers those and a banner would double-alert.
+@Suite("foregroundNotificationOptions")
+struct ForegroundNotificationOptionsTests {
+
+    @Test("Probe alerts present with banner + sound in foreground")
+    func probeAlertsPresent() {
+        let opts = foregroundNotificationOptions(forIdentifier: "probe-alert-1234")
+        #expect(opts.contains(.banner))
+        #expect(opts.contains(.sound))
+    }
+
+    @Test("Timer and preheat notifications stay suppressed in foreground")
+    func othersSuppressed() {
+        #expect(foregroundNotificationOptions(forIdentifier: "timer-ABC") == [])
+        #expect(foregroundNotificationOptions(forIdentifier: "preheat-XYZ") == [])
+        #expect(foregroundNotificationOptions(forIdentifier: "anything") == [])
+    }
+}
