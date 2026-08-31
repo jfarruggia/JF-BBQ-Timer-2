@@ -47,6 +47,26 @@ glass + accent), added a "Done" button to the picker sheet, renamed discovered p
 - Fine-tune knobs if desired: ember intensity (`emberSpots` opacities), card body opacity
   (`grillCardBodyTop/Bottom`), bevel/shadow strength.
 
+## Real-cook bug report (2026-08-24, build 12) — two fixed, one open
+- [x] **Missed pull alert — foreground suppression** (PR #53): iOS hides a
+      foreground app's notifications without a willPresent delegate; the app
+      had none, so probe alerts were invisible exactly when Jim was watching
+      the app. probe-alert-* now banner+sound in foreground; timer/preheat
+      stay suppressed (in-app AlertView covers them).
+- [x] **Watch probe temp froze** (PR #54): readings were live-only
+      (sendMessage skipped while unreachable). Now also mirrored via the WC
+      application context (latest-wins on wake); context receiver routes
+      action=="probe"; timers-snapshot path untouched. Jim-approved sync change.
+- [ ] **Open: no green card on build 12 at target.** Foreground suppression
+      can't explain it (the overlay isn't a notification). Either the app
+      wasn't front-and-center at that moment, or the cook event never fired
+      (target never armed?). Next probe cook: note whether the card strip
+      shows a "pull in" countdown (= probe accepted the target). Both #53/#54
+      fixes need on-device verification in **build 13**.
+- Note: watch deployment target is now **11.6** (Jim's pick fixing ASC 91164).
+  Local watch sims are 11.2 → can't run the watch app; watches on 11.0–11.5
+  excluded. Drop to 11.0 if wider reach wanted.
+
 ## Up next
 - [ ] **Build 12 on-device test pass** — covers PRs #35–#52 (build 10 was never
       tested; 11 was superseded). Test against `build-10-test-plan.md` (now
