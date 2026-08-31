@@ -134,8 +134,20 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
         guard WCSession.isSupported() else { return false }
         let session = WCSession.default
         guard session.activationState == .activated else { return false }
+
+        // Latest-wins mirror through the application context: sendMessage below
+        // is live-only (skipped whenever the watch isn't reachable), so without
+        // this a suspended watch keeps showing the last reading it happened to
+        // catch — Jim's frozen-temp cook, 2026-08-24. Context is delivered when
+        // the watch wakes; repeated updates replace each other, never queue.
+        do {
+            try session.updateApplicationContext(dict)
+        } catch {
+            debugLog("[\(platformTag)] ⚠️ sendProbeReading: context mirror failed: \(error.localizedDescription)")
+        }
+
         guard session.isReachable else {
-            debugLog("[\(platformTag)] ⏭️ sendProbeReading: watch not reachable — skipping (ephemeral)")
+            debugLog("[\(platformTag)] ⏭️ sendProbeReading: watch not reachable — context mirror only")
             return false
         }
         session.sendMessage(dict, replyHandler: nil) { [weak self] error in
@@ -222,8 +234,21 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
         debugLog("[\(platformTag)] \(emoji) Reachability changed: \(session.isReachable ? "REACHABLE" : "NOT REACHABLE")")
     }
 
-    /// Received updated application context (treat as a timers snapshot)
+    /// Received updated application context. Probe readings arrive here as the
+    /// latest-wins mirror (see sendProbeReading); anything else keeps the
+    /// legacy treatment as a timers snapshot.
     func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String : Any]) {
+        if applicationContext["action"] as? String == "probe" {
+            debugLog("[\(platformTag)] 📥 didReceiveApplicationContext: probe reading (context mirror)")
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(
+                    name: Notification.Name("receivedProbeReading"),
+                    object: nil,
+                    userInfo: applicationContext
+                )
+            }
+            return
+        }
         let timerCount = (applicationContext["timers"] as? [[String: Any]])?.count ?? 0
         debugLog("[\(platformTag)] 📥 didReceiveApplicationContext: \(timerCount) timers")
         
