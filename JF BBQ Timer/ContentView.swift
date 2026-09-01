@@ -633,42 +633,47 @@ struct ContentView: View {
                     Divider()
                         .padding(.horizontal, 4)
 
+                    // Fixed dark ink, not .secondary/accent: system grays and the
+                    // orange accent both wash out against this card's orange body
+                    // (Jim, iOS 18 device), and fixed tones hold up in dark mode
+                    // where .primary/.secondary would flip light.
                     HStack(spacing: 6) {
                         Image(systemName: "thermometer.medium")
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(Color("TimerAccent"))
+                            .foregroundColor(.black.opacity(0.65))
                         Text("Core")
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.black.opacity(0.65))
                         Text(info.coreText)
-                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
                             .monospacedDigit()
-                            .foregroundColor(Color("TimerAccent"))
+                            .foregroundColor(.black.opacity(0.9))
                         if let target = info.targetText {
                             Text("\u{2192} \(target)")
                                 .font(.system(size: 14, weight: .semibold, design: .rounded))
                                 .monospacedDigit()
-                                .foregroundColor(.secondary)
+                                .foregroundColor(.black.opacity(0.75))
                         } else {
                             Text("Set target")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(.secondary)
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(.black.opacity(0.7))
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .overlay(Capsule().stroke(Color.secondary.opacity(0.5), lineWidth: 1))
+                                .overlay(Capsule().stroke(Color.black.opacity(0.45), lineWidth: 1))
                         }
                         Spacer()
                         Text("ready")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(.black.opacity(0.65))
                         if let readyDate = info.readyDate {
                             Text(timerInterval: Date()...readyDate, countsDown: true)
                                 .font(.system(size: 14, weight: .semibold, design: .rounded))
                                 .monospacedDigit()
+                                .foregroundColor(.black.opacity(0.9))
                         } else {
                             Text(info.readyDate != nil ? "~" : "—")
                                 .font(.system(size: 14, weight: .semibold, design: .rounded))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(.black.opacity(0.55))
                         }
                     }
                     .padding(.horizontal, 4)
