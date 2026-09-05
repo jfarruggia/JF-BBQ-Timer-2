@@ -54,9 +54,23 @@ xcodebuild test -scheme "JF BBQ Timer" \
   -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 
-To see a change running, install + launch on a booted sim and screenshot — the
-developer can't relay screenshots back, but `xcrun simctl io <id> screenshot`
-works headlessly:
+To see a change running, prefer the desktop app's **iOS Simulator tools**
+(`mcp__Claude_Code_iOS_Simulator__build` / `…__control`): `build` compiles the
+scheme headlessly, `control` with `launch` installs and runs it, `attach` opens a
+live panel Jim can watch, and `screenshot` / `tap` / `swipe` let Claude verify its
+own UI work without Jim relaying anything. Attach the panel *before* building so
+Jim can follow along. There must be a booted simulator first:
+
+```bash
+xcrun simctl boot DD218285-0833-46D8-85D6-62BE07D1B767   # iPhone 16, iOS 18.3
+```
+
+**Pick the runtime to match what you are checking.** Most installed simulators are
+iOS 18.x, which renders the **pre-26 fallback** — flat cards, no glass. To verify any
+Liquid Glass work, boot an **iOS 26.5** simulator instead
+(`xcrun simctl list devices available` groups devices under their runtime).
+
+The raw CLI still works as a fallback:
 
 ```bash
 xcrun simctl install <id> "<DerivedData>/.../JF BBQ Timer.app"
@@ -68,7 +82,13 @@ Note: toggling `compactMode` via `defaults write` does **not** reliably take
 effect for this app — flip "Compact Display Mode" in the in-app Settings to test
 compact layouts.
 
-You **can** compile and run tests from the command line to verify your work. You **cannot** see the running app — visual and interaction verification happens in Xcode by the developer (Jim). For UI changes, describe clearly what to look for when he checks.
+You **can** compile, run tests, and **see the running app on a simulator** — build it,
+launch it, screenshot it, and tap through it yourself rather than asking Jim to check.
+Verify UI work this way before reporting it done, and still describe what to look for.
+
+Two things remain Jim-only: **real devices** (the simulator tools cannot drive his
+iPhone or Watch — build and deploy for the device instead) and **paired
+phone↔watch behaviour**, which needs real hardware.
 
 ## Hard rules
 
