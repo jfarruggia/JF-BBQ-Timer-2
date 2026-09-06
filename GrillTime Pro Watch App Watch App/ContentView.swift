@@ -667,6 +667,12 @@ struct TimersListView: View {
     /// Manages the extended runtime session to keep the app active while timers are running.
     /// This helps prevent the watch from going back to the watch face too quickly.
     private func refreshExtendedRuntimeSession() {
+        // Refreshed here rather than at init: the controller outlives any single
+        // body evaluation, and this closure must read the CURRENT timer list.
+        // Capture the model OBJECT, not the view struct — a captured struct copy
+        // freezes whatever it held at capture time (the scenePhase bug, #57).
+        let timersModel = model
+        runtime.isTimerRunning = { timersModel.timers.contains { $0.state == "running" } }
         if hasRunningTimer {
             // Start extended runtime if a timer is running
             if !runtime.isRunning {
@@ -859,6 +865,18 @@ final class ExtendedRuntimeController: NSObject, WKExtendedRuntimeSessionDelegat
     private var session: WKExtendedRuntimeSession?
     private(set) var isRunning: Bool = false
 
+    /// Asked at invalidation time whether a cook timer is still counting down.
+    /// Set by the view; nil means "assume nothing to keep alive".
+    var isTimerRunning: (() -> Bool)?
+
+    /// When the session that is ending began, so the restart policy can tell a
+    /// genuine hour-long expiry from a session that failed immediately.
+    private var sessionStartedAt: Date?
+
+    /// Injectable clock, so the restart decision never depends on wall time in
+    /// a way tests can't reach.
+    var now: () -> Date = Date.init
+
     /// Start a new extended runtime session if not already running.
     func startIfNeeded() {
         if isRunning {
@@ -893,6 +911,7 @@ final class ExtendedRuntimeController: NSObject, WKExtendedRuntimeSessionDelegat
     // MARK: - WKExtendedRuntimeSessionDelegate
     func extendedRuntimeSessionDidStart(_ extendedRuntimeSession: WKExtendedRuntimeSession) {
         isRunning = true
+        sessionStartedAt = now()
         debugLog("[⌚️Watch] ✅ Extended runtime session STARTED successfully")
     }
 
@@ -920,6 +939,27 @@ final class ExtendedRuntimeController: NSObject, WKExtendedRuntimeSessionDelegat
             debugLog("[⌚️Watch] ❌ Extended runtime INVALIDATED: \(reasonDescription), error: \(error.localizedDescription)")
         } else {
             debugLog("[⌚️Watch] 🔋 Extended runtime INVALIDATED: \(reasonDescription)")
+        }
+
+        // watchOS caps a session at about an hour. Renew it so a long cook
+        // (brisket, pork butt) keeps ticking on the wrist instead of going
+        // quiet halfway through. Only on a genuine expiry, only while a cook is
+        // still running, and only if the session actually lived a while — see
+        // ExtendedRuntimeRestartPolicy.
+        let lifetime = sessionStartedAt.map { now().timeIntervalSince($0) } ?? 0
+        sessionStartedAt = nil
+        guard ExtendedRuntimeRestartPolicy.shouldRestart(
+            expired: reason == .expired,
+            timerRunning: isTimerRunning?() ?? false,
+            sessionLifetime: lifetime
+        ) else { return }
+
+        // A short breath before reopening: watchOS refuses a new session that
+        // starts inside the invalidation callback.
+        debugLog("[⌚️Watch] 🔋 Session expired after \(Int(lifetime))s with a cook running — renewing")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+            guard let self, self.isTimerRunning?() == true else { return }
+            self.startIfNeeded()
         }
     }
 }
