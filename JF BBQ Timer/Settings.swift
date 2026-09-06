@@ -124,16 +124,23 @@ class Settings: ObservableObject {
     /// written; an intentionally emptied list stays empty.
     @Published var probeTargetPresets: [ProbeTargetPreset] = []
 
-    // True only for the separate ".dev" identity (the dev/TestFlight build) —
-    // never the production App Store app, which has a different bundle id. Used to
-    // expose testing-only affordances (e.g. the premium override below) in Release
-    // dev builds while keeping them impossible to trigger in production.
-    static let isDevBuild = Bundle.main.bundleIdentifier == "com.jamesfarruggia.jfbbqtimer.dev"
+    // True for Debug builds and TestFlight builds — never the App Store build.
+    // The App Store receipt is named "receipt"; a TestFlight receipt is named
+    // "sandboxReceipt". Used to expose testing-only affordances (e.g. the premium
+    // override below) while keeping them impossible to trigger in production.
+    static let isTestBuild: Bool = {
+        #if DEBUG
+        return true
+        #else
+        guard let receiptURL = Bundle.main.appStoreReceiptURL else { return false }
+        return receiptURL.lastPathComponent == "sandboxReceipt"
+        #endif
+    }()
 
     // Premium features flag - one-time purchase
     // When debugPremiumOverrideEnabled is true, RevenueCat sync is ignored so
     // isPremiumUser can be set manually for testing. The override only has any
-    // effect when isDevBuild is true, so it can never affect the production app.
+    // effect when isTestBuild is true, so it can never affect the production app.
     @Published var debugPremiumOverrideEnabled: Bool {
         didSet {
             UserDefaults.standard.set(debugPremiumOverrideEnabled, forKey: "debugPremiumOverrideEnabled")
@@ -166,8 +173,8 @@ class Settings: ObservableObject {
             debugLog("🔑 Entitlements: \(String(describing: customerInfo?.entitlements))")
 
             DispatchQueue.main.async {
-                if Settings.isDevBuild && self?.debugPremiumOverrideEnabled == true {
-                    debugLog("🧪 Premium override active (dev build) — ignoring RevenueCat sync")
+                if Settings.isTestBuild && self?.debugPremiumOverrideEnabled == true {
+                    debugLog("🧪 Premium override active (test build) — ignoring RevenueCat sync")
                     return
                 }
                 if self?.isPremiumUser != isPremium {
