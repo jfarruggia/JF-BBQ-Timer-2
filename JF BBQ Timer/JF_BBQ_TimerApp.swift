@@ -16,13 +16,20 @@ import UserNotifications
 /// delegate opts in — without this, probe alerts were invisible whenever the
 /// user was actually looking at the app (Jim's missed pull alert, 2026-08-24).
 /// Pure so it's unit-testable.
+///   • probe-alert-silent-…: suppressed. The green card is already on screen
+///     for this moment, so a banner on top of it double-alerts (Jim, iOS 18 +
+///     iOS 26, 2026-09-06). The notification still lands in Notification Centre
+///     as the record of the moment.
 ///   • probe-alert-…: show banner + sound — the notification IS the alert when
-///     the green card isn't on screen (e.g. user is in Settings).
+///     no green card is coming (battery/overheat warnings, or the app is only
+///     `inactive` so the overlay was skipped).
 ///   • everything else (timer/preheat completions): stay suppressed in
 ///     foreground — the in-app AlertView + looping sound already covers them,
 ///     and a banner would double-alert.
 func foregroundNotificationOptions(forIdentifier identifier: String) -> UNNotificationPresentationOptions {
-    identifier.hasPrefix("probe-alert-") ? [.banner, .list, .sound] : []
+    // Check the silent prefix FIRST — it also starts with "probe-alert-".
+    if identifier.hasPrefix("probe-alert-silent-") { return [] }
+    return identifier.hasPrefix("probe-alert-") ? [.banner, .list, .sound] : []
 }
 
 // Add a class to handle app delegate functionality

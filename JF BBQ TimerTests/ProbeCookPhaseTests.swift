@@ -279,4 +279,22 @@ struct ForegroundNotificationOptionsTests {
         #expect(foregroundNotificationOptions(forIdentifier: "preheat-XYZ") == [])
         #expect(foregroundNotificationOptions(forIdentifier: "anything") == [])
     }
+
+    /// The green card is already on screen for this moment, so a banner on top
+    /// of it double-alerts (Jim, iOS 18 + iOS 26, 2026-09-06).
+    @Test("Card-covered probe alerts stay suppressed in foreground")
+    func silentProbeAlertsSuppressed() {
+        #expect(foregroundNotificationOptions(forIdentifier: "probe-alert-silent-1234") == [])
+    }
+
+    /// Regression guard: "probe-alert-silent-…" also starts with
+    /// "probe-alert-", so the silent check must be tested BEFORE the general
+    /// one. Getting that order wrong brings the double banner straight back.
+    @Test("Silent prefix wins over the general probe prefix")
+    func silentPrefixCheckedFirst() {
+        let silent = foregroundNotificationOptions(forIdentifier: "probe-alert-silent-abc")
+        let plain  = foregroundNotificationOptions(forIdentifier: "probe-alert-abc")
+        #expect(silent == [])
+        #expect(plain.contains(.banner))
+    }
 }

@@ -66,6 +66,11 @@ final class WatchProbeAlertModel: ObservableObject {
                 debugLog("[⌚️Watch] ⚠️ receivedProbeEvent: missing userInfo")
                 return
             }
+            if isProbeEventClear(dict) {
+                debugLog("[⌚️Watch] 🔕 receivedProbeEvent: cleared from the phone")
+                self?.alert = nil
+                return
+            }
             guard let event = decodeWatchProbeEvent(from: dict) else {
                 debugLog("[⌚️Watch] ⚠️ receivedProbeEvent: decode failed")
                 return
