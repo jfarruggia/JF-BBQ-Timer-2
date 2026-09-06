@@ -157,6 +157,27 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
         return true
     }
 
+    /// Sends a probe cook-moment alert (pull now / target reached / resting
+    /// done) to the watch.
+    ///
+    /// Unlike `sendProbeReading`, an alert must never be dropped, so this uses
+    /// `transferUserInfo`: the payload is queued by the system and delivered
+    /// when the watch next wakes, even if it is unreachable right now.
+    /// - Parameter dict: Wire dict produced by `probeEventWireDict`.
+    /// - Returns: true if the transfer was queued.
+    @discardableResult
+    func sendProbeEvent(_ dict: [String: Any]) -> Bool {
+        guard WCSession.isSupported() else { return false }
+        let session = WCSession.default
+        guard session.activationState == .activated else {
+            debugLog("[\(platformTag)] ⏭️ sendProbeEvent: session not activated")
+            return false
+        }
+        session.transferUserInfo(dict)
+        debugLog("[\(platformTag)] 📤 sendProbeEvent queued: \(dict["event"] as? String ?? "?")")
+        return true
+    }
+
     /// Sends a command to the counterpart. If the session is reachable, uses sendMessage
     /// with an optional reply handler; otherwise falls back to transferUserInfo.
     /// - Parameters:
@@ -285,6 +306,8 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
                 name = "receivedTimersSnapshot"
             } else if action == "probe" {
                 name = "receivedProbeReading"
+            } else if action == "probeEvent" {
+                name = "receivedProbeEvent"
             } else {
                 name = "receivedCommand"
             }
@@ -321,6 +344,8 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
                 name = "receivedTimersSnapshot"
             } else if action == "probe" {
                 name = "receivedProbeReading"
+            } else if action == "probeEvent" {
+                name = "receivedProbeEvent"
             } else {
                 name = "receivedCommand"
             }
@@ -359,6 +384,8 @@ final class WCSessionManager: NSObject, WCSessionDelegate {
                 name = "receivedTimersSnapshot"
             } else if action == "probe" {
                 name = "receivedProbeReading"
+            } else if action == "probeEvent" {
+                name = "receivedProbeEvent"
             } else {
                 name = "receivedCommand"
             }
@@ -510,6 +537,74 @@ func decodeWatchProbeReading(from dict: [String: Any]) -> WatchProbeReading? {
         phaseRaw: UInt8((dict["phaseRaw"] as? Int) ?? 0),
         overheating: dict["overheating"] as? Bool ?? false,
         attachedCookID: dict["cookID"] as? String
+    )
+}
+
+// MARK: - Probe cook-moment alerts (iPhone → watch)
+
+/// The probe cook moments that are worth interrupting the user for. Raw values
+/// are the wire strings, so older/newer builds degrade to "unknown event"
+/// rather than crashing.
+///
+/// Lives in this shared file (with the other wire types) because the watch
+/// target only compiles selected files — see CLAUDE.md.
+enum WatchProbeAlertKind: String, CaseIterable, Equatable {
+    case pullNow
+    case targetReached
+    case restingDone
+}
+
+/// Compact, plist-safe probe alert forwarded iPhone → watch.
+struct WatchProbeEvent: Equatable {
+    /// Which cook moment fired.
+    var kind: WatchProbeAlertKind
+    /// Headline for the moment, e.g. "Target temperature reached".
+    var title: String
+    /// Formatted core temperature at fire time (already in the user's unit),
+    /// e.g. "135°F"; nil when no usable reading.
+    var tempText: String?
+    /// Name of the cook the probe is attached to; nil when unknown.
+    var cookName: String?
+    /// True when the iPhone app was frontmost as the alert fired.
+    ///
+    /// iOS only mirrors a phone notification to the watch while the phone is
+    /// locked. So this flag tells the watch whether a mirrored banner is
+    /// coming: when the phone was frontmost (no mirror), the watch posts its
+    /// own local notification; otherwise it stays quiet and lets the mirror do
+    /// the work. That keeps the user from being alerted twice.
+    var phoneForeground: Bool
+}
+
+/// Builds the WatchConnectivity wire dict for a probe cook moment.
+func probeEventWireDict(kind: WatchProbeAlertKind,
+                        title: String,
+                        tempText: String?,
+                        cookName: String?,
+                        phoneForeground: Bool) -> [String: Any] {
+    var dict: [String: Any] = [
+        "action": "probeEvent",
+        "event": kind.rawValue,
+        "title": title,
+        "phoneForeground": phoneForeground
+    ]
+    if let tempText { dict["tempText"] = tempText }
+    if let cookName { dict["cookName"] = cookName }
+    return dict
+}
+
+/// Decodes a WatchConnectivity wire dict into a `WatchProbeEvent`.
+/// Returns nil unless `action` is `"probeEvent"` and `event` is a kind this
+/// build knows about.
+func decodeWatchProbeEvent(from dict: [String: Any]) -> WatchProbeEvent? {
+    guard dict["action"] as? String == "probeEvent",
+          let raw = dict["event"] as? String,
+          let kind = WatchProbeAlertKind(rawValue: raw) else { return nil }
+    return WatchProbeEvent(
+        kind: kind,
+        title: (dict["title"] as? String) ?? "Probe alert",
+        tempText: dict["tempText"] as? String,
+        cookName: dict["cookName"] as? String,
+        phoneForeground: dict["phoneForeground"] as? Bool ?? false
     )
 }
 

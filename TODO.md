@@ -57,12 +57,20 @@ glass + accent), added a "Done" button to the picker sheet, renamed discovered p
       (sendMessage skipped while unreachable). Now also mirrored via the WC
       application context (latest-wins on wake); context receiver routes
       action=="probe"; timers-snapshot path untouched. Jim-approved sync change.
-- [ ] **Open: no green card on build 12 at target.** Foreground suppression
-      can't explain it (the overlay isn't a notification). Either the app
-      wasn't front-and-center at that moment, or the cook event never fired
-      (target never armed?). Next probe cook: note whether the card strip
-      shows a "pull in" countdown (= probe accepted the target). Both #53/#54
-      fixes need on-device verification in **build 13**.
+- [x] **No green card at target — FOUND + FIXED (PR #57, 2026-09-06).**
+      Reproduced on build 13 (water test, 110 °F target): notification fired,
+      no green card. Cause: `handleProbeCookEvent` runs inside the
+      `onCookEvent` closure captured in `.onAppear`, so the `scenePhase` it
+      read was a frozen copy from that moment (usually not `.active`) and the
+      foreground guard always failed. Now asks
+      `UIApplication.shared.applicationState`. Verified on an iOS 26.5 sim.
+- [ ] **Probe alerts on the watch** (spec `probe-watch-alert-spec.md`, build
+      after 13): the watch stayed silent at the target because the green-card
+      spec put the watch out of scope, and iOS only relays a phone
+      notification to the wrist while the phone is locked. New `probeEvent`
+      WC route (transferUserInfo) → green watch card + haptic, or a watch-side
+      local notification when the watch app is asleep and no phone relay is
+      coming. Needs on-device phone↔watch verification (Jim only).
 - Note: watch deployment target is now **11.6** (Jim's pick fixing ASC 91164).
   Local watch sims are 11.2 → can't run the watch app; watches on 11.0–11.5
   excluded. Drop to 11.0 if wider reach wanted.

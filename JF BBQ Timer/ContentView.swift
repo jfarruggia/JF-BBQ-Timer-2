@@ -476,18 +476,13 @@ struct ContentView: View {
         }
         if settings.hapticsEnabled { Haptics.tap() }
 
-        // Unmistakable in-app overlay for the three "act now" moments — only
-        // while the app is actually up front; the notification above already
-        // covers background/lock-screen. Replaces any overlay already showing.
         // Ask UIKit for the live foreground state, NOT the `scenePhase`
         // environment value. This runs inside the `onCookEvent` closure captured
         // in `.onAppear`, so `scenePhase` there is a frozen copy from that
         // moment (usually not yet `.active`) — reading it suppressed the green
         // card on every real cook (build 12/13 bug).
-        guard UIApplication.shared.applicationState == .active else {
-            debugLog("🔔 probe overlay skipped — app not active (notification above still fired)")
-            return
-        }
+        let phoneForeground = UIApplication.shared.applicationState == .active
+
         let cookName = probeManager.attachedCookID
             .flatMap { id in settings.allTimers.first(where: { $0.id == id })?.name }
         // Same −20 °C sensor-floor check as `probeInfo(for:)` — a reading object
@@ -498,8 +493,40 @@ struct ContentView: View {
             guard c > -19.99 else { return nil }
             return settings.temperatureUnit.compactString(fromCelsius: c) + settings.temperatureUnit.rawValue
         }
+
+        // Mirror the act-now moments to the watch. The phone owns the probe, so
+        // the watch has no way to know a moment fired otherwise — and iOS only
+        // relays this phone notification to the wrist while the phone is
+        // locked, which is why Jim's foreground cook left the watch silent.
+        if let kind = watchAlertKind(for: event) {
+            WCSessionManager.shared.sendProbeEvent(
+                probeEventWireDict(kind: kind,
+                                   title: title,
+                                   tempText: tempText,
+                                   cookName: cookName,
+                                   phoneForeground: phoneForeground)
+            )
+        }
+
+        // Unmistakable in-app overlay — only while the app is actually up front;
+        // the notification above already covers background/lock-screen.
+        guard phoneForeground else {
+            debugLog("🔔 probe overlay skipped — app not active (notification above still fired)")
+            return
+        }
         if let content = ProbeAlertContent.make(event: event, tempText: tempText, cookName: cookName) {
             probeAlertContent = content
+        }
+    }
+
+    /// The watch only gets the three "act now" moments. Battery-low and
+    /// overheating are warnings — they stay a quiet phone notification.
+    private func watchAlertKind(for event: ProbeCookEvent) -> WatchProbeAlertKind? {
+        switch event {
+        case .pullNow:       return .pullNow
+        case .targetReached: return .targetReached
+        case .restingDone:   return .restingDone
+        case .batteryLow, .overheating: return nil
         }
     }
 
