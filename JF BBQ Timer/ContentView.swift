@@ -441,7 +441,7 @@ struct ContentView: View {
     /// reliable even when backgrounded, since the app holds the BLE background
     /// mode — plus a haptic when the app is frontmost.
     private func handleProbeCookEvent(_ event: ProbeCookEvent) {
-        debugLog("🔔 handleProbeCookEvent: \(event), scenePhase \(scenePhase)")
+        debugLog("🔔 handleProbeCookEvent: \(event), appState \(UIApplication.shared.applicationState.rawValue)")
         let title: String
         let body: String
         switch event {
@@ -479,8 +479,13 @@ struct ContentView: View {
         // Unmistakable in-app overlay for the three "act now" moments — only
         // while the app is actually up front; the notification above already
         // covers background/lock-screen. Replaces any overlay already showing.
-        guard scenePhase == .active else {
-            debugLog("🔔 probe overlay skipped — scenePhase \(scenePhase) (notification above still fired)")
+        // Ask UIKit for the live foreground state, NOT the `scenePhase`
+        // environment value. This runs inside the `onCookEvent` closure captured
+        // in `.onAppear`, so `scenePhase` there is a frozen copy from that
+        // moment (usually not yet `.active`) — reading it suppressed the green
+        // card on every real cook (build 12/13 bug).
+        guard UIApplication.shared.applicationState == .active else {
+            debugLog("🔔 probe overlay skipped — app not active (notification above still fired)")
             return
         }
         let cookName = probeManager.attachedCookID
