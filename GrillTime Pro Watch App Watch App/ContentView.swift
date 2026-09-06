@@ -12,6 +12,7 @@ import WatchKit
 struct TimersListView: View {
     @StateObject private var model = WatchTimersModel()
     @StateObject private var probeModel = WatchProbeModel()
+    @StateObject private var probeAlertModel = WatchProbeAlertModel()
     // Local ticker so the watch UI updates every second without waiting for iPhone
     // Only active when timers are running to save battery
     @State private var now = Date()
@@ -140,6 +141,12 @@ struct TimersListView: View {
                 WKInterfaceDevice.current().play(.notification)
             }
         }
+        // Same one-shot haptic for a probe cook moment
+        .onChange(of: probeAlertModel.alert) { _, newValue in
+            if newValue != nil {
+                WKInterfaceDevice.current().play(.notification)
+            }
+        }
         // If the probe disconnects while its page is showing, the page is removed
         // from the pager — move the selection back to a timer.
         .onChange(of: probeConnected) { _, connected in
@@ -155,9 +162,11 @@ struct TimersListView: View {
         if model.timers.isEmpty {
             emptyState
                 .overlay(alertBanner, alignment: .center)
+                .overlay(probeAlertBanner, alignment: .center)
         } else {
             timersPager
                 .overlay(alertBanner, alignment: .center)
+                .overlay(probeAlertBanner, alignment: .center)
         }
     }
 
@@ -431,6 +440,48 @@ struct TimersListView: View {
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color("TimerRed"))
+            }
+            .buttonStyle(.plain)
+            .ignoresSafeArea()
+        }
+    }
+
+    // Probe cook moment (pull now / target reached / resting done). Mirrors the
+    // red timer banner, but green — green reads "food is ready" and is the
+    // visual opposite of the timer red, matching the iPhone's green card.
+    @ViewBuilder
+    private var probeAlertBanner: some View {
+        if let event = probeAlertModel.alert {
+            Button {
+                probeAlertModel.alert = nil
+            } label: {
+                VStack(spacing: 6) {
+                    Image(systemName: "thermometer.high")
+                        .font(.system(size: 30))
+                    if let cookName = event.cookName {
+                        Text(cookName)
+                            .font(.headline)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                    }
+                    if let tempText = event.tempText {
+                        Text(tempText)
+                            .font(.system(size: 34, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                    }
+                    Text(event.title)
+                        .font(.footnote.weight(.semibold))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.7)
+                    Text("Tap to dismiss")
+                        .font(.caption2)
+                        .foregroundColor(.white.opacity(0.75))
+                }
+                .padding(.horizontal, 12)
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.green)
             }
             .buttonStyle(.plain)
             .ignoresSafeArea()

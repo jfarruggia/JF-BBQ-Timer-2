@@ -353,3 +353,73 @@ struct ProbeWatchSyncRound2Tests {
         #expect(ProbeCookPhase.done.rawValue == 5)
     }
 }
+
+// MARK: - Probe cook-moment alerts (iPhone → watch)
+
+@Suite("Probe cook-event wire format")
+struct ProbeEventWireTests {
+
+    @Test("Round-trips every field")
+    func roundTripsAllFields() {
+        let dict = probeEventWireDict(kind: .targetReached,
+                                      title: "Target temperature reached",
+                                      tempText: "135°F",
+                                      cookName: "Ribeye",
+                                      phoneForeground: true)
+        let decoded = decodeWatchProbeEvent(from: dict)
+        #expect(decoded == WatchProbeEvent(kind: .targetReached,
+                                           title: "Target temperature reached",
+                                           tempText: "135°F",
+                                           cookName: "Ribeye",
+                                           phoneForeground: true))
+    }
+
+    @Test("Optional temp and cook name survive as nil")
+    func optionalsStayNil() {
+        let dict = probeEventWireDict(kind: .pullNow,
+                                      title: "Time to pull the food",
+                                      tempText: nil,
+                                      cookName: nil,
+                                      phoneForeground: false)
+        let decoded = decodeWatchProbeEvent(from: dict)
+        #expect(decoded?.tempText == nil)
+        #expect(decoded?.cookName == nil)
+        #expect(decoded?.phoneForeground == false)
+        #expect(decoded?.kind == .pullNow)
+    }
+
+    @Test("Every kind survives the round trip")
+    func everyKindRoundTrips() {
+        for kind in WatchProbeAlertKind.allCases {
+            let dict = probeEventWireDict(kind: kind,
+                                          title: "t",
+                                          tempText: nil,
+                                          cookName: nil,
+                                          phoneForeground: true)
+            #expect(decodeWatchProbeEvent(from: dict)?.kind == kind)
+        }
+    }
+
+    @Test("Rejects a dict that is not a probe event")
+    func rejectsForeignDicts() {
+        #expect(decodeWatchProbeEvent(from: ["action": "probe"]) == nil)
+        #expect(decodeWatchProbeEvent(from: ["action": "snapshot"]) == nil)
+        #expect(decodeWatchProbeEvent(from: [:]) == nil)
+    }
+
+    @Test("Rejects an event name this build does not know")
+    func rejectsUnknownKind() {
+        let dict: [String: Any] = ["action": "probeEvent", "event": "somethingNew", "title": "t"]
+        #expect(decodeWatchProbeEvent(from: dict) == nil)
+    }
+
+    @Test("Payload is property-list safe for WatchConnectivity")
+    func payloadIsPlistSafe() {
+        let dict = probeEventWireDict(kind: .restingDone,
+                                      title: "Food is ready",
+                                      tempText: "203°F",
+                                      cookName: "Brisket",
+                                      phoneForeground: false)
+        #expect(PropertyListSerialization.propertyList(dict, isValidFor: .binary))
+    }
+}
