@@ -11,9 +11,36 @@ All items below are **Version 2**. Planned sequence:
 3. [x] **Main-screen layout pass** — header + preheat + ember-glow + probe UI + glass redesign
 4. [x] Design-consistency sweep (Settings, paywall, alerts, custom sounds, watch UI)
 5. [x] Onboarding review (`6df536a`) — redesigned to ember/glass, slimmed setup, replay-from-Settings
-6. [ ] Reconcile branch → ship (App Store)
+6. [ ] Reconcile branch → ship (App Store) — **in progress**, see "Shipping V2 as an update" below
 
 Isolated quick wins (voice announcements, preheat→`endDate`, the two bugs) slot in anytime.
+
+## Shipping V2 as an update — in progress (2026-09-06)
+V2 was built under the separate `GrillTime Pro Dev` record. It ships as an update to the
+released `GrillTime Pro` (ASC app id `6744303683`), whose bundle id is permanent.
+
+Done:
+- [x] `Settings.isDevBuild` → `isTestBuild`, keyed off build flavor (DEBUG / TestFlight
+      `sandboxReceipt`) instead of the `.dev` bundle id string (#61). Keeps the premium
+      override usable in TestFlight after the rename.
+- [x] Bundle ids moved to production on both targets + `WKCompanionAppBundleIdentifier` (#62).
+- [x] Breakage audit: no App Group / keychain group / UserDefaults suite exists; RevenueCat
+      already pointed at the production bundle id; the premium IAP is APPROVED on the
+      production record. No data-loss path.
+- [x] On-device upgrade test — installed live 1.2.2, made timers, built V2 over it.
+      Onboarding did **not** replay and the timers survived. Paywall brought up the real
+      Apple purchase sheet.
+- [x] Uploaded 2.0 (14) to the production TestFlight.
+
+Left to do:
+- [ ] Watch install + phone↔watch sync, via TestFlight (direct Xcode install to the watch
+      has always been unreliable on this project — TestFlight is the dependable route).
+- [ ] Remaining V2 testing on the TestFlight build.
+- [ ] **Re-upload as build 15 with "TestFlight & App Store".** Build 14 landed as
+      `INTERNAL_ONLY`, which cannot be submitted for review. Bump `CURRENT_PROJECT_VERSION`
+      on **both** targets.
+- [ ] App Store submission (screenshots, What's New, review notes).
+- [ ] Retire the `GrillTime Pro Dev` ASC record (app id `6785304855`) once V2 is live.
 
 ## Main-screen layout + glass redesign — DONE & refined on device (2026-06-25/27)
 Built as steps 1–6, then refined live with Jim from device screenshots. All on `Apple-Watch-Suport`:
