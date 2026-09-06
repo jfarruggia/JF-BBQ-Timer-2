@@ -64,6 +64,13 @@ glass + accent), added a "Done" button to the picker sheet, renamed discovered p
       read was a frozen copy from that moment (usually not `.active`) and the
       foreground guard always failed. Now asks
       `UIApplication.shared.applicationState`. Verified on an iOS 26.5 sim.
+- [x] **Watch extended runtime now renews itself (PR #59).** watchOS caps a
+      `WKExtendedRuntimeSession` near an hour, then invalidates it as
+      `.expired`; the controller logged that and stopped, so a long cook went
+      quiet on the wrist partway through. It now reopens a session — only on a
+      genuine expiry, only while a cook is running, and only if the old session
+      lived ≥60s (`ExtendedRuntimeRestartPolicy`, pure + unit-tested, guards
+      against a hot restart loop). Needs an on-device long cook to confirm.
 - [ ] **Probe alerts on the watch** (spec `probe-watch-alert-spec.md`, build
       after 13): the watch stayed silent at the target because the green-card
       spec put the watch out of scope, and iOS only relays a phone

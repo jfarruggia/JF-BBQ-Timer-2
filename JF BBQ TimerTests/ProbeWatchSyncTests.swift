@@ -423,3 +423,54 @@ struct ProbeEventWireTests {
         #expect(PropertyListSerialization.propertyList(dict, isValidFor: .binary))
     }
 }
+
+// MARK: - Watch extended-runtime restart policy
+
+@Suite("Extended runtime restart policy")
+struct ExtendedRuntimeRestartPolicyTests {
+
+    /// A genuine hour-long expiry during a cook is exactly the case this exists
+    /// for: renew, so a brisket keeps ticking on the wrist.
+    @Test("Renews after a real expiry while a cook is running")
+    func renewsAfterRealExpiry() {
+        #expect(ExtendedRuntimeRestartPolicy.shouldRestart(expired: true,
+                                                           timerRunning: true,
+                                                           sessionLifetime: 3600))
+    }
+
+    @Test("Does not renew when no cook is running")
+    func noRenewWithoutACook() {
+        #expect(!ExtendedRuntimeRestartPolicy.shouldRestart(expired: true,
+                                                            timerRunning: false,
+                                                            sessionLifetime: 3600))
+    }
+
+    /// Anything that is not the time cap — user left the app, system
+    /// suppression, an error — must stay dead.
+    @Test("Does not renew for any reason other than expiry")
+    func noRenewForOtherReasons() {
+        #expect(!ExtendedRuntimeRestartPolicy.shouldRestart(expired: false,
+                                                            timerRunning: true,
+                                                            sessionLifetime: 3600))
+    }
+
+    /// The hot-loop guard: a session that dies in seconds is failing, not
+    /// expiring, and restarting it would drain the battery.
+    @Test("Does not renew a session that died almost immediately")
+    func noRenewOnFastFailureLoop() {
+        #expect(!ExtendedRuntimeRestartPolicy.shouldRestart(expired: true,
+                                                            timerRunning: true,
+                                                            sessionLifetime: 0.5))
+    }
+
+    @Test("Renews exactly at the healthy-lifetime boundary")
+    func renewsAtBoundary() {
+        let t = ExtendedRuntimeRestartPolicy.minimumHealthyLifetime
+        #expect(ExtendedRuntimeRestartPolicy.shouldRestart(expired: true,
+                                                           timerRunning: true,
+                                                           sessionLifetime: t))
+        #expect(!ExtendedRuntimeRestartPolicy.shouldRestart(expired: true,
+                                                            timerRunning: true,
+                                                            sessionLifetime: t - 0.01))
+    }
+}

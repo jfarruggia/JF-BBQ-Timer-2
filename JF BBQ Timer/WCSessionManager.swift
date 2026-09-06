@@ -608,6 +608,39 @@ func decodeWatchProbeEvent(from dict: [String: Any]) -> WatchProbeEvent? {
     )
 }
 
+// MARK: - Extended runtime restart policy (watch)
+
+/// Decides whether the watch should immediately open a new extended runtime
+/// session after the old one ended.
+///
+/// watchOS caps a session at roughly an hour and then invalidates it as
+/// `.expired`. Without a restart the watch app goes quiet partway through a
+/// long cook (brisket, pork butt) — the countdown freezes on the wrist.
+///
+/// Pure so the iOS test target can cover it: the caller maps the watchOS-only
+/// `WKExtendedRuntimeSessionInvalidationReason` down to `expired`.
+enum ExtendedRuntimeRestartPolicy {
+    /// A real session lives for tens of minutes. Anything that dies faster than
+    /// this is failing, not expiring, so restarting it would spin a hot loop
+    /// that drains the battery. One minute is far below a genuine expiry and
+    /// far above any plausible failure loop.
+    static let minimumHealthyLifetime: TimeInterval = 60
+
+    /// - Parameters:
+    ///   - expired: true only when watchOS ended the session because it hit the
+    ///     time cap. Every other reason (user left the app, system suppression,
+    ///     an error) must not auto-restart.
+    ///   - timerRunning: whether a cook timer is still counting down. No timer,
+    ///     nothing to keep alive.
+    ///   - sessionLifetime: how long the session that just ended actually ran.
+    static func shouldRestart(expired: Bool,
+                              timerRunning: Bool,
+                              sessionLifetime: TimeInterval) -> Bool {
+        guard expired, timerRunning else { return false }
+        return sessionLifetime >= minimumHealthyLifetime
+    }
+}
+
 // MARK: - Watch countdown-ring math
 
 /// Pure fill math for the watch's countdown ring (watch-ring-layout-spec.md).
