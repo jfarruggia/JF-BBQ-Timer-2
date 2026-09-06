@@ -302,9 +302,9 @@ struct NewSettingsView: View {
                         .accessibilityIdentifier("SupportLink")
                 }
 
-                if Settings.isDevBuild {
+                if Settings.isTestBuild {
                     Section(header: Text("Debug"),
-                            footer: Text("Dev/TestFlight build only. Overrides premium status for testing — never appears in or affects the production App Store app.")) {
+                            footer: Text("Debug and TestFlight builds only. Overrides premium status for testing — never appears in or affects the production App Store app.")) {
                         Toggle("Override Premium", isOn: $settings.debugPremiumOverrideEnabled)
                             .onChange(of: settings.debugPremiumOverrideEnabled) { isOn in
                                 // When turning the override OFF, immediately re-sync the real status

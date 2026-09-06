@@ -120,8 +120,8 @@ struct JF_BBQ_TimerApp: App {
             debugLog("🔑 Entitlements: \(String(describing: customerInfo?.entitlements))")
             
             DispatchQueue.main.async {
-                if Settings.isDevBuild && settings.debugPremiumOverrideEnabled {
-                    debugLog("🧪 Premium override active (dev build) — ignoring RevenueCat sync")
+                if Settings.isTestBuild && settings.debugPremiumOverrideEnabled {
+                    debugLog("🧪 Premium override active (test build) — ignoring RevenueCat sync")
                     return
                 }
                 // Only persist the premium flag here to avoid overwriting
