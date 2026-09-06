@@ -461,13 +461,28 @@ struct ContentView: View {
             title = "Probe overheating"
             body = "A probe sensor is over its limit. Move the probe or handle away from direct heat."
         }
+        // Ask UIKit for the live foreground state, NOT the `scenePhase`
+        // environment value. This runs inside the `onCookEvent` closure captured
+        // in `.onAppear`, so `scenePhase` there is a frozen copy from that
+        // moment (usually not yet `.active`) — reading it suppressed the green
+        // card on every real cook (build 12/13 bug).
+        let phoneForeground = UIApplication.shared.applicationState == .active
+
+        // The green card covers the act-now moments while the app is up front.
+        // Tag those notifications "silent" so the foreground delegate holds the
+        // banner back — a banner on top of the card double-alerted on both iOS
+        // 18 and iOS 26 (Jim, 2026-09-06). The notification is still delivered,
+        // so Notification Centre keeps the record either way.
+        let cardWillCover = phoneForeground && watchAlertKind(for: event) != nil
+        let identifierPrefix = cardWillCover ? "probe-alert-silent-" : "probe-alert-"
+
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
         content.sound = NotificationSoundProvider.currentSound()
         content.interruptionLevel = .timeSensitive
         let request = UNNotificationRequest(
-            identifier: "probe-alert-\(UUID().uuidString)",
+            identifier: "\(identifierPrefix)\(UUID().uuidString)",
             content: content,
             trigger: nil   // nil trigger = deliver immediately
         )
@@ -475,13 +490,6 @@ struct ContentView: View {
             if let error { debugLog("❌ Probe alert notification failed: \(error)") }
         }
         if settings.hapticsEnabled { Haptics.tap() }
-
-        // Ask UIKit for the live foreground state, NOT the `scenePhase`
-        // environment value. This runs inside the `onCookEvent` closure captured
-        // in `.onAppear`, so `scenePhase` there is a frozen copy from that
-        // moment (usually not yet `.active`) — reading it suppressed the green
-        // card on every real cook (build 12/13 bug).
-        let phoneForeground = UIApplication.shared.applicationState == .active
 
         let cookName = probeManager.attachedCookID
             .flatMap { id in settings.allTimers.first(where: { $0.id == id })?.name }
@@ -1128,6 +1136,14 @@ struct ContentView: View {
         .onChange(of: alertState.isPresented) { isShown in
             let phase = isShown ? "start" : "stop"
             WCSessionManager.shared.sendCommand(["action": "alert", "phase": phase, "message": "Timer Finished"])
+        }
+        // Dismissing the green card on the phone takes it down on the watch too,
+        // the way the timer alert already behaves. The "start" side is sent from
+        // handleProbeCookEvent, which has the temp and cook name to send with it.
+        .onChange(of: probeAlertContent) { content in
+            if content == nil {
+                WCSessionManager.shared.sendProbeEvent(probeEventClearWireDict())
+            }
         }
         .onChange(of: showPreheatAlert) { isShown in
             let phase = isShown ? "start" : "stop"

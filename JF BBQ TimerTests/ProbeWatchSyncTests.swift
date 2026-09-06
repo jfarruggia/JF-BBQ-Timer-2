@@ -474,3 +474,45 @@ struct ExtendedRuntimeRestartPolicyTests {
                                                             sessionLifetime: t - 0.01))
     }
 }
+
+// MARK: - Probe card clear (iPhone → watch)
+
+@Suite("Probe event clear message")
+struct ProbeEventClearTests {
+
+    @Test("The clear dict is recognised as a clear")
+    func clearIsRecognised() {
+        #expect(isProbeEventClear(probeEventClearWireDict()))
+    }
+
+    /// A cook moment must never be mistaken for a clear — that would take the
+    /// card down the instant it appeared.
+    @Test("A cook moment is not a clear")
+    func cookMomentIsNotAClear() {
+        let start = probeEventWireDict(kind: .pullNow,
+                                       title: "Time to pull the food",
+                                       tempText: nil,
+                                       cookName: nil,
+                                       phoneForeground: true)
+        #expect(!isProbeEventClear(start))
+    }
+
+    @Test("Other routes are not a clear")
+    func otherRoutesAreNotClears() {
+        #expect(!isProbeEventClear(["action": "probe", "phase": "stop"]))
+        #expect(!isProbeEventClear(["action": "alert", "phase": "stop"]))
+        #expect(!isProbeEventClear([:]))
+    }
+
+    /// The watch checks `isProbeEventClear` before decoding, because a clear
+    /// carries no event kind and would otherwise look like a failed decode.
+    @Test("A clear does not decode as a cook moment")
+    func clearDoesNotDecodeAsAMoment() {
+        #expect(decodeWatchProbeEvent(from: probeEventClearWireDict()) == nil)
+    }
+
+    @Test("The clear payload is property-list safe")
+    func clearIsPlistSafe() {
+        #expect(PropertyListSerialization.propertyList(probeEventClearWireDict(), isValidFor: .binary))
+    }
+}

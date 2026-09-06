@@ -592,9 +592,24 @@ func probeEventWireDict(kind: WatchProbeAlertKind,
     return dict
 }
 
+/// Wire dict telling the watch to take its probe card down, sent when the card
+/// is dismissed on the iPhone. Mirrors the timer alert's "stop" phase, so the
+/// two devices agree about what is on screen instead of each needing its own
+/// tap (Jim, 2026-09-06).
+func probeEventClearWireDict() -> [String: Any] {
+    ["action": "probeEvent", "phase": "stop"]
+}
+
+/// True when a `probeEvent` dict is the "take the card down" message rather
+/// than a new cook moment.
+func isProbeEventClear(_ dict: [String: Any]) -> Bool {
+    dict["action"] as? String == "probeEvent" && dict["phase"] as? String == "stop"
+}
+
 /// Decodes a WatchConnectivity wire dict into a `WatchProbeEvent`.
 /// Returns nil unless `action` is `"probeEvent"` and `event` is a kind this
-/// build knows about.
+/// build knows about. A clear message decodes to nil — check
+/// `isProbeEventClear` first.
 func decodeWatchProbeEvent(from dict: [String: Any]) -> WatchProbeEvent? {
     guard dict["action"] as? String == "probeEvent",
           let raw = dict["event"] as? String,
