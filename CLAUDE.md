@@ -47,7 +47,7 @@ xcodebuild -scheme "JF BBQ Timer" \
 
 # Build the watch app
 xcodebuild -scheme "GrillTime Pro Watch App Watch App" \
-  -destination 'platform=watchOS Simulator,name=Apple Watch Series 10 (46mm)' build
+  -destination 'platform=watchOS Simulator,name=Apple Watch Series 11 (46mm)' build
 
 # Run unit tests (timer/progress math lives in JF BBQ TimerTests, Swift Testing)
 xcodebuild test -scheme "JF BBQ Timer" \
@@ -74,7 +74,7 @@ The raw CLI still works as a fallback:
 
 ```bash
 xcrun simctl install <id> "<DerivedData>/.../JF BBQ Timer.app"
-xcrun simctl launch  <id> com.jamesfarruggia.jfbbqtimer.dev
+xcrun simctl launch  <id> com.jamesfarruggia.JF-BBQ-Timer
 xcrun simctl io      <id> screenshot /tmp/shot.png
 ```
 
