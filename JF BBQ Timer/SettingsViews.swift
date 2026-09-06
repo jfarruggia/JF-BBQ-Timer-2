@@ -292,6 +292,13 @@ struct NewSettingsView: View {
 
                 // About & Support
                 Section(header: Text("About")) {
+                    HStack {
+                        Text("Version")
+                        Spacer()
+                        Text(AppVersion.current)
+                            .foregroundColor(.secondary)
+                    }
+                    .accessibilityIdentifier("AppVersion")
                     Button(action: { showOnboardingReview = true }) {
                         Label("Replay Welcome Tour", systemImage: "sparkles")
                     }
