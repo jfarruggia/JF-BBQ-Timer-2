@@ -221,25 +221,62 @@ sits in fixed space, so verify the longest realistic string
 
 ## Settings UI
 
-Add a **Total Time** stepper directly below "Extend Cook Time" in **both**
-editor sites in `SettingsViews.swift`:
+> **Updated 2026-09-07,** after `duration-picker-spec.md` shipped. Total Time
+> uses the new `DurationRow`, not a stepper — the steppers no longer exist.
 
-- the edit-existing-timer form (~line 772), which already branches
-  legacy-vs-additional through `isLegacy` / `legacyIndex` / `index` — Total
-  Time does not need that branch, since it writes to
-  `settings.setTotalTime(_:for: timer.id)` for every timer;
-- the `addTimerSheet` (~line 849).
+Add a **Total Time** row directly below "Extend Cook Time" in **both** editor
+sites in `SettingsViews.swift`:
 
-Shape:
+- the edit-existing-timer form (`timerRow(for:isLegacy:legacyIndex:at:)`),
+- the `addTimerSheet`.
 
-- Range `0...21600` (6 hours), step `60` (1 minute). Quick items need the
-  resolution — shrimp at 6 minutes cannot round to 5 or 10. Long cooks rely on
-  `Stepper`'s built-in press-and-hold repeat; do not add a custom accelerator.
-- **`0` means off** and must display as `Off`, not `0:00`. Everything else uses
-  `TimeFormatter.compactTimeString`.
-- Footer under the section:
-  *"Optional. Alerts you once when the total cook time is reached. The timer
-  keeps running so you can carry on cooking."*
+Use `DurationRow` with `style: .hoursMinutes` — hours and minutes, matching the
+table in `duration-picker-spec.md`. Minutes give the resolution quick items
+need (shrimp at 6 minutes cannot round to 5 or 10) and hours make a brisket
+reachable.
+
+### "Off" needs a new capability on DurationRow
+
+Total Time is the first **optional** duration in the app: absent means the
+feature is off for that timer. `DurationRow` currently always renders a
+formatted time, so `0` would read as `00:00:00`.
+
+Add one parameter to `DurationRow` in `DurationPicker.swift`:
+
+```swift
+/// Shown in place of the formatted value when `seconds == 0`. Nil (the
+/// default) keeps today's behaviour for every existing caller — a zero
+/// duration renders as a normal time.
+var offLabel: String? = nil
+```
+
+- When `offLabel != nil` and `seconds == 0`, the row shows that text instead of
+  the time. Total Time passes `offLabel: "Off"`.
+- Still accent-coloured with the chevron: the row is still tappable, and "Off"
+  is still a value you change by tapping.
+- The wheel sheet is unchanged. Spinning both wheels to zero **is** how you turn
+  it off; there is no separate switch to forget about.
+- Every existing caller keeps today's behaviour untouched — this is additive.
+
+### Binding
+
+- **Edit-existing-timer form:** unlike Flip Time and Extend Cook Time, Total
+  Time does **not** need the `isLegacy` / `legacyIndex` / `index` branch. It
+  writes to `settings.setTotalTime(_:for: timer.id)` for every timer, built-in
+  or additional, because the storage is one dictionary keyed by timer id.
+  Getter: `settings.totalTime(for: timer.id) ?? 0`.
+- **Add-timer sheet:** the timer does not exist yet, so there is no id to key
+  on. Hold the value in local `@State` alongside `tempPreset1` / `tempPreset2`,
+  and write it with `settings.setTotalTime(_:for:)` **immediately after** the
+  new `BBQTimer` is appended, using that new timer's id. Write nothing when the
+  value is `0`.
+
+### Copy
+
+Footer under the section:
+
+*"Optional. Alerts you once when the total cook time is reached. The timer
+keeps running so you can carry on cooking."*
 
 ---
 
