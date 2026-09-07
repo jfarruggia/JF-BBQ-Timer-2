@@ -270,6 +270,7 @@ struct ContentView: View {
                 if settings.soundEnabled { state.playTotalTimeDoneSound() }
                 if settings.hapticsEnabled {
                     alertState.completedTimerID = state.id
+                    alertState.isTotalTimeAlert = true
                     alertState.isPresented = true
                 }
             }
@@ -288,6 +289,7 @@ struct ContentView: View {
                 if settings.soundEnabled { state.playSound() }
                 if settings.hapticsEnabled {
                     alertState.completedTimerID = state.id
+                    alertState.isTotalTimeAlert = false
                     alertState.isPresented = true
                 }
             }
@@ -314,6 +316,7 @@ struct ContentView: View {
             if settings.soundEnabled { timer1State?.playSound() }
             if settings.hapticsEnabled {
                 alertState.completedTimerID = timer1State?.id
+                alertState.isTotalTimeAlert = false
                 alertState.isPresented = true
             }
         }
@@ -328,6 +331,7 @@ struct ContentView: View {
             if settings.soundEnabled { timer2State?.playSound() }
             if settings.hapticsEnabled {
                 alertState.completedTimerID = timer2State?.id
+                alertState.isTotalTimeAlert = false
                 alertState.isPresented = true
             }
         }
@@ -670,6 +674,7 @@ struct ContentView: View {
                                 if settings.soundEnabled { state.playSound() }
                                 if settings.hapticsEnabled {
                                     alertState.completedTimerID = state.id
+                                    alertState.isTotalTimeAlert = false
                                     alertState.isPresented = true
                                 }
                             }
@@ -684,6 +689,7 @@ struct ContentView: View {
                                 if settings.soundEnabled { state.playSound() }
                                 if settings.hapticsEnabled {
                                     alertState.completedTimerID = state.id
+                                    alertState.isTotalTimeAlert = false
                                     alertState.isPresented = true
                                 }
                             }
@@ -972,7 +978,7 @@ struct ContentView: View {
                 // so dismissing clears the right timer. Falls back to Timer 1 (the old
                 // hard-coded behaviour) if the id is missing or doesn't resolve — a wrong
                 // alert is better than none.
-                AlertView(alertState: alertState, audioPlayer: Settings.sharedAudioPlayer, isPreheat: false, settings: settings, timerState: resolvedState)
+                AlertView(alertState: alertState, audioPlayer: Settings.sharedAudioPlayer, kind: alertState.isTotalTimeAlert ? .totalTime : .flip, settings: settings, timerState: resolvedState)
                     .accessibilityIdentifier("TimerAlert")
             }
 
@@ -1119,6 +1125,7 @@ struct ContentView: View {
                             if settings.soundEnabled { state.playSound() }
                             if settings.hapticsEnabled {
                                 alertState.completedTimerID = state.id
+                                alertState.isTotalTimeAlert = false
                                 alertState.isPresented = true
                             }
                         })
@@ -1133,6 +1140,7 @@ struct ContentView: View {
                             if settings.soundEnabled { state.playSound() }
                             if settings.hapticsEnabled {
                                 alertState.completedTimerID = state.id
+                                alertState.isTotalTimeAlert = false
                                 alertState.isPresented = true
                             }
                         })
@@ -1150,6 +1158,7 @@ struct ContentView: View {
                             if settings.soundEnabled { state.playSound() }
                             if settings.hapticsEnabled {
                                 alertState.completedTimerID = state.id
+                                alertState.isTotalTimeAlert = false
                                 alertState.isPresented = true
                             }
                         })
@@ -1158,6 +1167,7 @@ struct ContentView: View {
                 case "ackAlert":
                     if alertState.isPresented { alertState.isPresented = false }
                     alertState.completedTimerID = nil
+                    alertState.isTotalTimeAlert = false
                     if showPreheatAlert { showPreheatAlert = false }
                     settings.stopLoopingAlertSound()
                     if let idString = dict["timerId"] as? String,

@@ -11,6 +11,11 @@ class AlertState: ObservableObject {
     /// TimerState from this so dismissing clears the right timer — it used to
     /// always clear Timer 1's.
     @Published var completedTimerID: UUID?
+    /// True while the currently-presented completion card is Total Time's
+    /// green "act now" alert rather than an ordinary flip completion. Set by
+    /// whichever call site raises the alert, cleared on dismiss (AlertView)
+    /// so it can never leak into the next, unrelated alert.
+    @Published var isTotalTimeAlert: Bool = false
     @Published var showPreheatAlert: Bool {
         didSet {
             debugLog("PreheatAlertState changed from \(oldValue) to \(showPreheatAlert)")
@@ -487,7 +492,9 @@ class TimerState: ObservableObject {
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [totalTimeNotificationIdentifier])
     }
 
-    private func displayName() -> String {
+    /// Not private: `AlertView` (AlertViews.swift) reads this to show the
+    /// timer's name on the Total Time completion card.
+    func displayName() -> String {
         if let settings = settings,
            let timer = settings.allTimers.first(where: { $0.id == self.id }) {
             return timer.name
