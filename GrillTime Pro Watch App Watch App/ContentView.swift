@@ -77,10 +77,13 @@ struct TimersListView: View {
                 snapshotRetryTimer?.invalidate()
                 snapshotRetryCount = 5
                 snapshotRetryTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
-                    // Stop retrying once we have data
-                    if !model.timers.isEmpty || snapshotRetryCount <= 0 {
+                    // Stop retrying once we have data — or once the phone has
+                    // answered at all (a locked phone answers with no timers).
+                    if !model.timers.isEmpty || model.access != .unknown || snapshotRetryCount <= 0 {
                         if !model.timers.isEmpty {
                             debugLog("[⌚️Watch] ✅ Got timers! Stopping retry loop")
+                        } else if model.access != .unknown {
+                            debugLog("[⌚️Watch] ✅ Phone answered (\(model.access)). Stopping retry loop")
                         } else {
                             debugLog("[⌚️Watch] ⏱️ Retry loop exhausted, still no timers")
                         }
@@ -99,6 +102,11 @@ struct TimersListView: View {
             
             // Ensure extended runtime is active if any timers are already running
             refreshExtendedRuntimeSession()
+        }
+        // Drop the page selection when the phone locks the app; the next unlocked
+        // snapshot re-seeds it from timers.first via the onChange below.
+        .onChange(of: model.access) { _, newValue in
+            if newValue == .locked { selectedTimerId = nil }
         }
         // Keep the selection valid when the timers list changes
         .onChange(of: model.timers) { oldValue, newValue in
@@ -159,7 +167,13 @@ struct TimersListView: View {
     // Break the main content into smaller subviews for faster type-checking
     @ViewBuilder
     private var mainContent: some View {
-        if model.timers.isEmpty {
+        // Locked beats everything: the phone sends no timers when locked, but
+        // the explicit branch keeps a stale list from ever flashing through.
+        if model.access == .locked {
+            lockedState
+                .overlay(alertBanner, alignment: .center)
+                .overlay(probeAlertBanner, alignment: .center)
+        } else if model.timers.isEmpty {
             emptyState
                 .overlay(alertBanner, alignment: .center)
                 .overlay(probeAlertBanner, alignment: .center)
@@ -285,6 +299,35 @@ struct TimersListView: View {
         }
     }
 
+    /// Shown when the paired iPhone says the Watch app is not unlocked
+    /// (watch-premium-gate-spec.md). Same skeleton as `emptyState` so the two
+    /// read as siblings. The only control asks the phone again — a real action,
+    /// not a button that just points at the phone.
+    private var lockedState: some View {
+        VStack(alignment: .center, spacing: 8) {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 32, weight: .regular))
+                .foregroundColor(.gray)
+            Text("Unlock on iPhone")
+                .font(.headline)
+            Text("Part of Grill Time Pro Premium. Upgrade in Settings on your iPhone.")
+                .font(.footnote)
+                .multilineTextAlignment(.center)
+                .foregroundColor(.secondary)
+                // Let the sentence wrap instead of truncating to one line.
+                .fixedSize(horizontal: false, vertical: true)
+            Button("Refresh") {
+                debugLog("[⌚️Watch] 👆 User tapped REFRESH on the locked screen")
+                WCSessionManager.shared.sendCommand(["action": "requestSnapshot"])
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding()
+        .onAppear {
+            debugLog("[⌚️Watch] 🔒 Showing LOCKED STATE")
+        }
+    }
+
     private var emptyState: some View {
         VStack(alignment: .center, spacing: 8) {
             Image(systemName: "applewatch.watchface")
@@ -296,6 +339,7 @@ struct TimersListView: View {
                 .font(.footnote)
                 .multilineTextAlignment(.center)
                 .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             Button("Refresh") {
                 // Ask the iPhone for a snapshot (safe no-op if ignored)
                 debugLog("[⌚️Watch] 👆 User tapped REFRESH button")
@@ -738,7 +782,13 @@ final class WatchTimersModel: ObservableObject {
         let runDurationSeconds: Int?
     }
 
+    /// Whether the paired iPhone has unlocked the Watch app
+    /// (watch-premium-gate-spec.md). `.unknown` until the first snapshot lands;
+    /// every snapshot resolves it. The watch never decides — the phone does.
+    enum Access { case unknown, locked, unlocked }
+
     @Published var timers: [Row] = []
+    @Published var access: Access = .unknown
     // When the last snapshot was received (used for local ticking)
     @Published var lastSnapshotAt: Date? = nil
     // Message to show in the alert banner when iPhone signals an alert
@@ -783,6 +833,13 @@ final class WatchTimersModel: ObservableObject {
             
             let snapshotDate = Date()
             self?.lastSnapshotAt = snapshotDate
+
+            // Access first, then timers, so the UI never renders timers against
+            // a stale access value. A locked phone sends no timers anyway.
+            let unlocked = WatchPremiumGate.isUnlocked(dict)
+            self?.access = unlocked ? .unlocked : .locked
+            ComplicationDataSource.shared.isLocked = !unlocked
+            debugLog("[⌚️Watch] \(unlocked ? "🔓" : "🔒") Watch app is \(unlocked ? "unlocked" : "locked")")
             
             // Parse timers and track any parsing failures
             let parsedTimers = arr.compactMap { item -> Row? in

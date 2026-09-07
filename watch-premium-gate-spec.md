@@ -135,9 +135,10 @@ so the two screens feel like siblings:
   phone's Probe chip uses for a locked feature. Not the crown (that badge means
   "premium sound" on the phone).
 - Headline: **"Unlock on iPhone"** (`.headline`)
-- Body (`.footnote`, `.secondary`, centred):
-  **"The Apple Watch app is part of Grill Time Pro Premium. Open Settings on
-  your iPhone to upgrade."**
+- Body (`.footnote`, `.secondary`, centred, allowed to wrap):
+  **"Part of Grill Time Pro Premium. Upgrade in Settings on your iPhone."**
+  (Shortened after the first simulator pass — the longer sentence truncated to
+  one line on a 46mm face, and the message is the whole point of the screen.)
 - One button: **"Refresh"** — `.borderedProminent`, sends `requestSnapshot`,
   exactly like the empty state's button. It is the only control on the screen
   and it does something real (asks the phone again). No "Upgrade" button: the

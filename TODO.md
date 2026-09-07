@@ -40,9 +40,10 @@ feature with broad appeal — most grillers are fine with 2 timers. Spec:
 `premium: false` + an empty timers array); the watch just shows one locked screen.
 
 Left to do:
-- [ ] **Watch Premium gate** — build from `watch-premium-gate-spec.md` (one PR:
-      phone helper + backstop, watch locked screen + complication copy, paywall
-      row, unit tests). Then test on TestFlight with the Override Premium toggle.
+- [x] **Watch Premium gate** — built from `watch-premium-gate-spec.md`; locked
+      screen verified end-to-end on paired simulators. Still to run: the 6-step
+      TestFlight plan in the spec (Override Premium toggle), especially flipping
+      Paid→Free mid-cook and the complication copy.
 - [ ] Paywall says "up to 24 timers" but `Settings.canAddMoreTimers()` caps
       Premium at **10**. Pick one and make the other match.
 - [ ] Watch install + phone↔watch sync, via TestFlight (direct Xcode install to the watch

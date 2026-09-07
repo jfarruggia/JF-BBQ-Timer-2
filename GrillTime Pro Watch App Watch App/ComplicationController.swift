@@ -15,6 +15,10 @@ final class ComplicationDataSource {
     // The timer that finishes soonest (if any are running)
     private(set) var soonestTimer: (name: String, remainingSeconds: Int)? = nil
     private(set) var lastUpdate: Date = Date()
+    /// Set from the timers model on every snapshot (watch-premium-gate-spec.md).
+    /// A locked snapshot carries no timers, so the empty template is the only
+    /// path that reads this — it changes the copy, not the logic.
+    var isLocked: Bool = false
     
     private init() {}
     
@@ -155,16 +159,17 @@ class ComplicationController: NSObject, CLKComplicationDataSource {
     }
     
     private func createEmptyTemplate(for family: CLKComplicationFamily) -> CLKComplicationTemplate {
+        let body = ComplicationDataSource.shared.isLocked ? "Unlock on iPhone" : "No timers"
         switch family {
         case .graphicRectangular:
             return CLKComplicationTemplateGraphicRectangularStandardBody(
                 headerTextProvider: CLKSimpleTextProvider(text: "GrillTime"),
-                body1TextProvider: CLKSimpleTextProvider(text: "No timers")
+                body1TextProvider: CLKSimpleTextProvider(text: body)
             )
         default:
             return CLKComplicationTemplateGraphicRectangularStandardBody(
                 headerTextProvider: CLKSimpleTextProvider(text: "GrillTime"),
-                body1TextProvider: CLKSimpleTextProvider(text: "No timers")
+                body1TextProvider: CLKSimpleTextProvider(text: body)
             )
         }
     }

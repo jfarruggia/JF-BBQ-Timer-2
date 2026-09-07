@@ -672,4 +672,40 @@ enum WatchRingMath {
     }
 }
 
+/// The Premium gate for the Apple Watch app (watch-premium-gate-spec.md).
+///
+/// The phone is the source of truth for timers, and it is the source of truth
+/// for access too: a locked phone sends `premium: false` **and an empty timers
+/// array**, so a locked watch has nothing to show and nothing to control even if
+/// it mishandles the flag. The watch never decides — it only displays.
+///
+/// Lives in this shared file so the watch target compiles it and the iOS test
+/// target can unit-test it.
+enum WatchPremiumGate {
+    /// Snapshot key carrying the access flag. Additive — V2 is the first
+    /// release with a Watch app, so every phone that can talk to it sends it.
+    static let key = "premium"
 
+    /// Phone side. Wraps the already-built timer rows in the wire snapshot.
+    static func snapshot(rows: [[String: Any]], premium: Bool) -> [String: Any] {
+        [
+            "timers": premium ? rows : [],
+            key: premium,
+        ]
+    }
+
+    /// Watch side. Reads the flag off an incoming snapshot.
+    ///
+    /// A missing (or malformed) key decodes as unlocked — fail open. A bug that
+    /// drops the key must never lock out someone who paid; the phone's
+    /// empty-timers rule is the real gate and does not depend on this decode.
+    static func isUnlocked(_ snapshot: [String: Any]) -> Bool {
+        (snapshot[key] as? Bool) ?? true
+    }
+
+    /// Phone side backstop: which wrist commands does a locked phone honour?
+    /// Only `requestSnapshot`, so a locked watch can still ask "am I locked?".
+    static func allowsWristCommand(_ action: String, premium: Bool) -> Bool {
+        premium || action == "requestSnapshot"
+    }
+}
