@@ -1061,6 +1061,15 @@ struct ContentView: View {
                 let uuid = idString.flatMap(UUID.init)
                 let timer: BBQTimer? = uuid.flatMap { u in settings.allTimers.first(where: { $0.id == u }) }
 
+                // Backstop for the Watch Premium gate: a locked phone only
+                // answers "am I locked?" — every timer command is dropped and
+                // the watch is re-told its state.
+                guard WatchPremiumGate.allowsWristCommand(action, premium: settings.isPremiumUser) else {
+                    debugLog("[📱iOS] 🔒 Ignoring wrist command '\(action)' — Watch app is locked")
+                    sendWatchSnapshotImmediately()
+                    return
+                }
+
                 switch action {
                 case "requestSnapshot":
                     sendWatchSnapshotImmediately()
@@ -1121,6 +1130,11 @@ struct ContentView: View {
         .onChange(of: settings.additionalTimers) { _ in
             initializeTimerStates()
         }
+        // Purchase, restore, or the Debug override: tell the watch at once
+        // rather than waiting for the sync timer to notice the flag changed.
+        .onChange(of: settings.isPremiumUser) { _ in
+            sendWatchSnapshotImmediately()
+        }
         .onChange(of: settings.selectedAlertSound) { _ in
             debugLog("Alert sound changed to \(settings.selectedAlertSound.displayName), updating timer states")
             timerStates.updateSettings(settings)
@@ -1135,7 +1149,9 @@ struct ContentView: View {
         }
         .onChange(of: alertState.isPresented) { isShown in
             let phase = isShown ? "start" : "stop"
-            WCSessionManager.shared.sendCommand(["action": "alert", "phase": phase, "message": "Timer Finished"])
+            if settings.isPremiumUser {
+                WCSessionManager.shared.sendCommand(["action": "alert", "phase": phase, "message": "Timer Finished"])
+            }
         }
         // Dismissing the green card on the phone takes it down on the watch too,
         // the way the timer alert already behaves. The "start" side is sent from
@@ -1147,7 +1163,9 @@ struct ContentView: View {
         }
         .onChange(of: showPreheatAlert) { isShown in
             let phase = isShown ? "start" : "stop"
-            WCSessionManager.shared.sendCommand(["action": "alert", "phase": phase, "message": "Preheat Complete"])
+            if settings.isPremiumUser {
+                WCSessionManager.shared.sendCommand(["action": "alert", "phase": phase, "message": "Preheat Complete"])
+            }
         }
         .onChange(of: scenePhase) { newPhase in
             debugLog("[📱iOS] 📱 scenePhase changed to: \(newPhase)")
@@ -1267,7 +1285,9 @@ struct ContentView: View {
             }
             return row
         }
-        return ["timers": rows]
+        // The Premium gate lives here, on the phone: a locked phone sends the
+        // flag AND an empty timers array (watch-premium-gate-spec.md).
+        return WatchPremiumGate.snapshot(rows: rows, premium: settings.isPremiumUser)
     }
 
     private func sendWatchSnapshotImmediately() {
@@ -1276,8 +1296,13 @@ struct ContentView: View {
             let runningTimers = timers.filter { ($0["state"] as? String) == "running" }
             debugLog("[📱iOS] 📤 sendWatchSnapshotImmediately: \(timers.count) timers, \(runningTimers.count) running")
         }
-        _ = WCSessionManager.shared.sendTimersSnapshot(snapshot)
-        lastSnapshot = snapshot
+        // Only remember the snapshot if it actually went out. Otherwise the
+        // sync timer sees "no change" and never retries — harmless while a
+        // timer is ticking (the snapshot changes every second) but a locked
+        // snapshot never changes, so a lost send would stay lost.
+        if WCSessionManager.shared.sendTimersSnapshot(snapshot) {
+            lastSnapshot = snapshot
+        }
     }
 
     // MARK: - Notification helpers
