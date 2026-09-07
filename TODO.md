@@ -18,13 +18,21 @@ Isolated quick wins (voice announcements, preheat→`endDate`, the two bugs) slo
 ## Duration entry + Total Time (decided 2026-09-07, not yet built)
 Raised while making the help videos: the flip-only method will confuse some users,
 and setting long durations with a 30s stepper is painful. Two specs, build in order:
-1. [ ] **Duration picker** — `duration-picker-spec.md`. Tap the number, spin a wheel.
-       Replaces the `+`/`−` steppers on Preheat Duration, Flip Time, Extend Cook Time,
-       and the add-timer sheet. Jim compared four styles on a throwaway screen and
-       chose this one. Deletes that throwaway plus the older `TimerPresetStylesPreview`.
-2. [ ] **Total Time** — `total-time-spec.md`. Optional per-timer total cook time that
-       alerts once when Lit passes it. Nothing stops; Lit keeps running so the cook can
-       carry on. Free feature. Adopts the duration picker rather than adding a stepper.
+1. [x] **Duration picker** — `duration-picker-spec.md` (#65). Tap the number, spin a
+       wheel; the `+`/`−` steppers are gone from all four duration fields.
+2. [x] **Total Time** — `total-time-spec.md`. Optional per-timer total cook time that
+       alerts once when Lit passes it. Nothing stops; Lit keeps running.
+
+Still to check on TestFlight (could not be verified on the simulator):
+- [ ] The Total Time notification actually firing with the phone locked.
+- [ ] The pre-26 card layouts for the Lit line — an iOS 26 simulator always takes
+      the `if #available(iOS 26, *)` branch.
+
+Found while building, **pre-existing, not caused by this work**:
+- [ ] The completion alert overlay in `ContentView` (~line 938) is always bound to
+      **Timer 1's** `TimerState`, whichever timer actually completed. Dismissing an
+      alert for Timer 2 calls `resetCompletionState()` on Timer 1. This is in the
+      shipping app and affects ordinary flip alerts, not just Total Time.
 
 ## Shipping V2 as an update — in progress (2026-09-06)
 V2 was built under the separate `GrillTime Pro Dev` record. It ships as an update to the

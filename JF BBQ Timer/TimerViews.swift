@@ -169,6 +169,20 @@ struct ElapsedTimerView: View {
         elapsedContent
     }
 
+    /// "13:20:00" (no target), "4:32:00 / 12:00:00" (target set, not
+    /// reached), or "13:20:00 / 12:00:00  +1:20:00" (target passed) — reuses
+    /// this view's own `TimeFormatter.timeString` so formatting matches its
+    /// neighbours (total-time-spec.md).
+    private var litLine: String {
+        let lit = TimeFormatter.timeString(from: Int(timerState.elapsedTime))
+        guard let total = timerState.totalTime else { return lit }
+        let targetLabel = TimeFormatter.timeString(from: total)
+        if let overtime = TotalTimeTarget.overtime(elapsed: timerState.elapsedTime, totalTime: total) {
+            return "\(lit) / \(targetLabel)  +\(TimeFormatter.timeString(from: Int(overtime)))"
+        }
+        return "\(lit) / \(targetLabel)"
+    }
+
     @ViewBuilder
     private var elapsedContent: some View {
         if #available(iOS 26, *) {
@@ -184,7 +198,7 @@ struct ElapsedTimerView: View {
                         .shadow(color: Color.black.opacity(0.8), radius: 3, x: 0, y: 2)
                 }
                 .padding(.top, 2)
-                Text(TimeFormatter.timeString(from: Int(timerState.elapsedTime)))
+                Text(litLine)
                     .font(.system(size: 72, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
                     .shadow(color: Color.black.opacity(0.8), radius: 4, x: 0, y: 2)
@@ -210,7 +224,7 @@ struct ElapsedTimerView: View {
                         .shadow(color: Color.black.opacity(0.7), radius: 3, x: 0, y: 2)
                 }
                 .padding(.top, 2)
-                Text(TimeFormatter.timeString(from: Int(timerState.elapsedTime)))
+                Text(litLine)
                     .font(.system(size: 72, weight: .bold, design: .rounded))
                     .foregroundColor(theme.accentColor)
                     .shadow(color: Color.black.opacity(0.7), radius: 4, x: 0, y: 2)
@@ -318,6 +332,19 @@ struct CompactTimerView: View {
     var onProbeStripTap: (() -> Void)? = nil
     #endif
 
+    /// Same rules as `ElapsedTimerView.litLine` (total-time-spec.md): no
+    /// target is unchanged, target set shows "/ target", target passed adds
+    /// "  +overtime" — all reusing this view's own `TimeFormatter`.
+    private var litLine: String {
+        let lit = TimeFormatter.timeString(from: Int(state.elapsedTime))
+        guard let total = state.totalTime else { return lit }
+        let targetLabel = TimeFormatter.timeString(from: total)
+        if let overtime = TotalTimeTarget.overtime(elapsed: state.elapsedTime, totalTime: total) {
+            return "\(lit) / \(targetLabel)  +\(TimeFormatter.timeString(from: Int(overtime)))"
+        }
+        return "\(lit) / \(targetLabel)"
+    }
+
     var body: some View {
         VStack(spacing: 4) {
             let screenWidth = UIScreen.main.bounds.width
@@ -348,10 +375,11 @@ struct CompactTimerView: View {
                                 .font(.system(size: 10))
                                 .foregroundColor(.red)
                         }
-                        Text(TimeFormatter.timeString(from: Int(state.elapsedTime)))
+                        Text(litLine)
                             .font(.system(size: 16, weight: .semibold, design: .rounded))
                             .monospacedDigit()
                             .minimumScaleFactor(0.8)
+                            .lineLimit(1)
                             .animation(.easeInOut, value: state.elapsedTime)
                             .id("elapsed-\(state.elapsedTime)")
                             .foregroundColor(Theme.defaultTheme.accentColor)
@@ -696,6 +724,19 @@ struct GlassLargeTimerContent: View {
             : String(format: "%d:%02d", minutes, secs)
     }
 
+    /// No target: unchanged "4:32". Target set, not reached: "4:32 / 12:00".
+    /// Target passed: "13:20 / 12:00  +1:20" (total-time-spec.md). Reuses
+    /// this view's own `timeLabel` so formatting matches its neighbours.
+    private var litLine: String {
+        let lit = timeLabel(Int(state.elapsedTime))
+        guard let total = state.totalTime else { return lit }
+        let targetLabel = timeLabel(total)
+        if let overtime = TotalTimeTarget.overtime(elapsed: state.elapsedTime, totalTime: total) {
+            return "\(lit) / \(targetLabel)  +\(timeLabel(Int(overtime)))"
+        }
+        return "\(lit) / \(targetLabel)"
+    }
+
     var body: some View {
         VStack(spacing: 12) {
             interlock
@@ -815,11 +856,13 @@ struct GlassLargeTimerContent: View {
                 Image(systemName: "flame.fill")
                     .font(.system(size: 13))
                     .foregroundStyle(Color("TimerAccent"))
-                Text("Lit \(timeLabel(Int(state.elapsedTime)))")
+                Text("Lit \(litLine)")
                     .font(.system(size: 16, weight: .medium))
                     .monospacedDigit()
                     .foregroundStyle(.white.opacity(0.7))
                     .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
             }
         }
     }
@@ -967,6 +1010,19 @@ struct GlassCompactTimerContent: View {
             : String(format: "%d:%02d", minutes, secs)
     }
 
+    /// No target: unchanged "4:32". Target set, not reached: "4:32 / 12:00".
+    /// Target passed: "13:20 / 12:00  +1:20" (total-time-spec.md). Reuses
+    /// this view's own `timeLabel` so formatting matches its neighbours.
+    private var litLine: String {
+        let lit = timeLabel(Int(state.elapsedTime))
+        guard let total = state.totalTime else { return lit }
+        let targetLabel = timeLabel(total)
+        if let overtime = TotalTimeTarget.overtime(elapsed: state.elapsedTime, totalTime: total) {
+            return "\(lit) / \(targetLabel)  +\(timeLabel(Int(overtime)))"
+        }
+        return "\(lit) / \(targetLabel)"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(timer.name)
@@ -1000,11 +1056,13 @@ struct GlassCompactTimerContent: View {
                         Image(systemName: "flame.fill")
                             .font(.system(size: 11))
                             .foregroundStyle(Color("TimerAccent"))
-                        Text("Lit \(timeLabel(Int(state.elapsedTime)))")
+                        Text("Lit \(litLine)")
                             .font(.system(size: 13, weight: .medium))
                             .monospacedDigit()
                             .foregroundStyle(.white.opacity(0.7))
                             .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.5)
                     }
                 }
 

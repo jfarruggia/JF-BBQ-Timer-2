@@ -22,6 +22,15 @@ enum AnnouncementMessage {
         return "\(timerName) \(trimmed)"
     }
 
+    /// The Total Time "done" phrase — "Ribeye is done." Deliberately
+    /// different from the flip-completion phrase above, and NOT customizable
+    /// (unlike `spoken(custom:timerName:)`): total-time-spec.md fixes the
+    /// wording so it can never be confused with the flip timer's own
+    /// completion message.
+    static func spokenDone(timerName: String) -> String {
+        "\(timerName) is done."
+    }
+
     /// Maps the legacy default (or blank) stored message onto the new
     /// default; leaves genuinely custom messages untouched.
     static func migratedStoredMessage(_ stored: String) -> String {

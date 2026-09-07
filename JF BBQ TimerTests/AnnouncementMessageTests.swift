@@ -53,4 +53,16 @@ struct AnnouncementMessageTests {
         #expect(AnnouncementMessage.migratedStoredMessage("Dinner bell for {timer}!")
                 == "Dinner bell for {timer}!")
     }
+
+    // MARK: - Total Time "done" phrase (total-time-spec.md)
+
+    @Test func spokenDoneIsNameFirstAndFixed() {
+        #expect(AnnouncementMessage.spokenDone(timerName: "Ribeye") == "Ribeye is done.")
+    }
+
+    @Test func spokenDoneDiffersFromCompletionPhrase() {
+        let done = AnnouncementMessage.spokenDone(timerName: "Ribeye")
+        let completion = AnnouncementMessage.spoken(custom: "", timerName: "Ribeye")
+        #expect(done != completion)
+    }
 }

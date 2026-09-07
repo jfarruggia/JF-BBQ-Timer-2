@@ -70,6 +70,12 @@ struct DurationRow: View {
     /// Called after Done commits a new value. Used for `settings.save()`
     /// when the binding's own setter doesn't already save.
     var onCommit: () -> Void = {}
+    /// Shown in place of the formatted value when `seconds == 0`. Nil (the
+    /// default) keeps today's behaviour for every existing caller — a zero
+    /// duration renders as a normal time. Total Time (the first optional
+    /// duration in the app) passes `"Off"`: the wheel sheet is unchanged —
+    /// spinning both wheels to zero *is* how you turn it off.
+    var offLabel: String? = nil
 
     @State private var showSheet = false
 
@@ -93,6 +99,9 @@ struct DurationRow: View {
     }
 
     private var formattedValue: String {
+        if seconds == 0, let offLabel {
+            return offLabel
+        }
         switch style {
         case .minutesSeconds:
             return TimeFormatter.compactTimeString(from: seconds)
