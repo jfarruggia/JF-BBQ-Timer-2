@@ -404,6 +404,10 @@ struct TimerManagementView: View {
     // Use same defaults as legacy timers: Flip Time 5:00 (300s), Extend 1:00 (60s)
     @State private var tempPreset1 = 300 // 5 minutes default
     @State private var tempPreset2 = 60  // 1 minute default
+    // Total Time for the add-timer sheet (total-time-spec.md): the new timer
+    // has no id yet to key `settings.totalTimeByTimerID` on, so this is held
+    // locally and written after the new BBQTimer is appended. 0 == off.
+    @State private var tempTotalTime = 0
     @State private var editingTimerIndex: Int? = nil
     @State private var editingLegacyTimer: Int? = nil // 0 for Timer 1, 1 for Timer 2
     @State private var showPremiumUpgrade = false // For showing premium upgrade modal
@@ -439,7 +443,7 @@ struct TimerManagementView: View {
                     .padding(.vertical, 2)
                 }
                 // Default Timers Section
-                Section(header: Text("Default Timers")) {
+                Section(header: Text("Default Timers"), footer: Text(totalTimeFooterCopy)) {
                     // Timer 1
                     timerRow(
                         for: settings.legacyTimersAsBBQTimers[0],
@@ -447,7 +451,7 @@ struct TimerManagementView: View {
                         legacyIndex: 0,
                         at: 0 // Pass index 0 for Timer 1
                     )
-                    
+
                     // Timer 2
                     timerRow(
                         for: settings.legacyTimersAsBBQTimers[1],
@@ -500,6 +504,7 @@ struct TimerManagementView: View {
                             // Reset to defaults matching legacy timers
                             tempPreset1 = 300 // 5 minutes
                             tempPreset2 = 60  // 1 minute
+                            tempTotalTime = 0 // Off by default
                             editingTimerIndex = nil
                             editingLegacyTimer = nil
                             showingAddTimerSheet = true
@@ -801,6 +806,24 @@ struct TimerManagementView: View {
             .font(.subheadline)
             .foregroundColor(.secondary)
             .padding(.horizontal, 16)
+
+            // Total Time (total-time-spec.md): optional, free, off by
+            // default. Unlike Flip Time / Extend Cook Time above, this
+            // doesn't need the isLegacy/legacyIndex/index branch — storage is
+            // one dictionary keyed by timer id, covering built-in and
+            // additional timers alike.
+            DurationRow(
+                label: "Total Time:",
+                style: .hoursMinutes,
+                seconds: Binding(
+                    get: { settings.totalTime(for: timer.id) ?? 0 },
+                    set: { newValue in settings.setTotalTime(newValue, for: timer.id) }
+                ),
+                offLabel: "Off"
+            )
+            .font(.subheadline)
+            .foregroundColor(.secondary)
+            .padding(.horizontal, 16)
             .padding(.bottom, 8)
         }
         .padding(.vertical, 4)
@@ -816,6 +839,11 @@ struct TimerManagementView: View {
         } else {
             return Color.black.opacity(0.08)
         }
+    }
+
+    /// Copy for the Total Time section footer (total-time-spec.md).
+    private var totalTimeFooterCopy: String {
+        "Optional. Alerts you once when the total cook time is reached. The timer keeps running so you can carry on cooking."
     }
 
     /// Same lookup as SettingsView's price fetch: prefer the lifetime package,
@@ -834,7 +862,7 @@ struct TimerManagementView: View {
     private var addTimerSheet: some View {
         NavigationView {
             Form {
-                Section(header: Text("Timer Details")) {
+                Section(header: Text("Timer Details"), footer: Text(totalTimeFooterCopy)) {
                     TextField("Timer Name", text: $newTimerName)
                         .autocapitalization(.words)
                         .padding(8)
@@ -860,6 +888,19 @@ struct TimerManagementView: View {
                         label: "Extend Cook Time",
                         style: .minutesSeconds,
                         seconds: $tempPreset2
+                    )
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 4)
+                    // Total Time (total-time-spec.md): optional, free, off by
+                    // default. The new timer doesn't exist yet, so this is
+                    // held in local @State and written to settings after
+                    // save() appends the new BBQTimer — see saveTimer().
+                    DurationRow(
+                        label: "Total Time",
+                        style: .hoursMinutes,
+                        seconds: $tempTotalTime,
+                        offLabel: "Off"
                     )
                     .font(.subheadline)
                     .foregroundColor(.secondary)
@@ -925,13 +966,19 @@ struct TimerManagementView: View {
                 preset2: tempPreset2
             )
         } else {
-            _ = settings.addTimer(
+            let added = settings.addTimer(
                 name: newTimerName,
                 preset1: tempPreset1,
                 preset2: tempPreset2
             )
+            // The new timer didn't exist to key totalTimeByTimerID on until
+            // now — write it against the just-appended timer's id. Nothing
+            // to write when Total Time is off (tempTotalTime == 0).
+            if added, tempTotalTime > 0, let newTimer = settings.additionalTimers.last {
+                settings.setTotalTime(tempTotalTime, for: newTimer.id)
+            }
         }
-        
+
         // Save changes
         settings.save()
     }

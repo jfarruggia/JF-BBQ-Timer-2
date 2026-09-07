@@ -259,6 +259,18 @@ struct ContentView: View {
         debugLog("ContentView: Initializing timer states with settings")
         timerStates.updateSettings(settings)
         timerStates.syncTimerStates(timers: settings.allTimers)
+        // Push each timer's Total Time target (nil == off) and wire its
+        // "done" alert. Re-running this is idempotent: setTotalTime() no-ops
+        // when the value hasn't changed, and the closure body is stateless.
+        for timer in settings.allTimers {
+            guard let state = timerStates.state(for: timer.id) else { continue }
+            state.setTotalTime(settings.totalTime(for: timer.id))
+            state.onTotalTimeDone = { [weak state] in
+                guard let state = state else { return }
+                if settings.soundEnabled { state.playTotalTimeDoneSound() }
+                if settings.hapticsEnabled { alertState.isPresented = true }
+            }
+        }
         // Wire onComplete for any timers that were restored from persistence
         // (their endDate is set but onCompleteAction is nil until the user taps Start).
         rewireRunningTimerCallbacks()
@@ -1128,6 +1140,11 @@ struct ContentView: View {
             }
         }
         .onChange(of: settings.additionalTimers) { _ in
+            initializeTimerStates()
+        }
+        // A Total Time edit in Settings must re-arm the latch and re-book
+        // the background alert immediately, not just at next relaunch.
+        .onChange(of: settings.totalTimeByTimerID) { _ in
             initializeTimerStates()
         }
         // Purchase, restore, or the Debug override: tell the watch at once

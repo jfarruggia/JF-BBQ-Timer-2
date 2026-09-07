@@ -531,6 +531,32 @@ extension Settings {
         }
     }
     
+    // Play sound and make the fixed "is done" announcement for Total Time.
+    // Mirrors playTimerCompletionWithAnnouncement above, but the wording is
+    // fixed (AnnouncementMessage.spokenDone) rather than the user's
+    // customAnnouncementMessage — Total Time's alert is deliberately not
+    // customizable, per total-time-spec.md.
+    func playTotalTimeDoneWithAnnouncement(timerId: UUID) {
+        configureAudioSessionForAlerts()
+
+        let requiresHeadphones = announceOnlyWithHeadphones
+        let headphonesConnected = hasBluetoothHeadphonesConnected
+        let shouldAnnounce = voiceAnnouncementsEnabled && (!requiresHeadphones || headphonesConnected)
+
+        if shouldAnnounce {
+            if let timerName = getTimerName(for: timerId) {
+                let message = AnnouncementMessage.spokenDone(timerName: timerName)
+                startRepeatingAnnouncement(message: message)
+            } else {
+                // Nothing to speak — fall back to the alarm so a completion
+                // is never silent.
+                playTimerCompletionSound(loop: true)
+            }
+            return
+        }
+        playTimerCompletionSound(loop: true)
+    }
+
     // Stop any looping alert sound and repeating announcement
     func stopLoopingAlertSound() {
         debugLog("[DEBUG] stopLoopingAlertSound() called on Settings instance: \(Unmanaged.passUnretained(self).toOpaque())")

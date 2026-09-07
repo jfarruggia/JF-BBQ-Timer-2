@@ -106,6 +106,17 @@ class TimerState: ObservableObject {
     var onCompleteAction: (() -> Void)?
     private var notificationIdentifier: String?
 
+    // --- Total Time (optional "this is done" alert; total-time-spec.md) ---
+    // Measured against elapsed ("Lit"), not the flip countdown. Pushed in
+    // from Settings whenever timer states are built/refreshed
+    // (ContentView.initializeTimerStates()).
+    @Published var totalTime: Int? = nil
+    private var totalTimeLatch = TotalTimeLatch()
+    /// Fired from the refresh tick when the latch crosses. Set once by the
+    /// owner (ContentView) — unlike `onCompleteAction`, it doesn't need to be
+    /// re-supplied per start(), since it's driven by Lit, not the countdown.
+    var onTotalTimeDone: (() -> Void)?
+
     init(id: UUID, interval: TimeInterval, settings: Settings? = nil) {
         self.id = id
         self.intervalTime = interval
@@ -156,6 +167,11 @@ class TimerState: ObservableObject {
         onCompleteAction = onComplete
 
         scheduleCompletionNotification(at: endDate!)
+        // Total Time's own background alert — independent identifier, never
+        // disturbs the flip-timer notification above. Runs every start()
+        // (incl. preset restarts); rebookTotalTimeNotification() is
+        // idempotent since the target date itself never moves.
+        rebookTotalTimeNotification()
         startRefreshTimer()
 
         intervalTime = starting
@@ -210,10 +226,24 @@ class TimerState: ObservableObject {
         elapsedTime = 0
         stopRefreshTimer()
         cancelPendingNotification()
+        // Total Time re-arms on Reset — a fresh cook can fire the alert again.
+        cancelTotalTimeNotification()
+        totalTimeLatch.reset()
         objectWillChange.send()
         debugLog("TimerState (\(id)): reset")
 
         clearPersistedState()
+    }
+
+    /// Push a new Total Time target (seconds, nil == off) from Settings. A
+    /// no-op when unchanged; an actual change re-arms the latch and re-books
+    /// the background alert against the (possibly now nil) target — same
+    /// clean-slate rule as Reset.
+    func setTotalTime(_ seconds: Int?) {
+        guard totalTime != seconds else { return }
+        totalTime = seconds
+        totalTimeLatch.reset()
+        rebookTotalTimeNotification()
     }
 
     func resetToZero() { reset() }
@@ -256,12 +286,24 @@ class TimerState: ObservableObject {
             guard let self = self else { return }
             let now = Date()
             self.elapsedTime = self.elapsed(at: now)
+            var flipCompletedThisTick = false
             if self.isRunning {
                 let r = self.remaining(at: now)
                 self.intervalTime = r
                 if r <= 0 && !self.isCompleted {
                     self.handleCompletion()
+                    flipCompletedThisTick = true
                 }
+            }
+            // Total Time is measured against Lit, so this runs every tick
+            // regardless of isRunning — Lit keeps counting while paused.
+            // Suppress the in-app alert (not the latch update itself) when a
+            // flip completion is already sounding this same tick — one sound,
+            // not two stacked loops (the notification and the card's overtime
+            // still tell the story).
+            if self.totalTimeLatch.update(elapsed: self.elapsedTime, totalTime: self.totalTime),
+               !flipCompletedThisTick {
+                self.onTotalTimeDone?()
             }
             self.objectWillChange.send()
         }
@@ -336,6 +378,17 @@ class TimerState: ObservableObject {
         }
     }
 
+    /// Total Time's "done" sound/announcement — same treatment as the flip
+    /// completion above, but with the fixed "<name> is done." wording (not
+    /// the user's customizable completion message).
+    func playTotalTimeDoneSound() {
+        if let settingsObj = settings, settingsObj.soundEnabled {
+            settingsObj.playTotalTimeDoneWithAnnouncement(timerId: self.id)
+        } else {
+            AudioServicesPlaySystemSound(1005)
+        }
+    }
+
     private func triggerCompletionHaptics() {
         guard let settingsObj = settings, settingsObj.hapticsEnabled else { return }
         DispatchQueue.main.async {
@@ -390,6 +443,44 @@ class TimerState: ObservableObject {
             UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [identifier])
             notificationIdentifier = nil
         }
+    }
+
+    // MARK: - Total Time local notification (background alert)
+
+    /// Separate identifier from `"timer-\(id)"` above — booking/cancelling
+    /// this must never disturb the existing flip-timer notification.
+    private var totalTimeNotificationIdentifier: String { "done-\(id.uuidString)" }
+
+    /// Book (or re-book) the Total Time "done" notification against the
+    /// current elapsedStartDate + totalTime. Idempotent: always cancels any
+    /// existing one first, so calling this repeatedly (every start(), every
+    /// Settings change) never stacks duplicate requests. No-op when there's
+    /// no target, no Lit start yet, or `doneAt` has already passed.
+    private func rebookTotalTimeNotification() {
+        cancelTotalTimeNotification()
+        guard let doneAt = TotalTimeTarget.doneAt(elapsedStart: elapsedStartDate, totalTime: totalTime),
+              doneAt > Date() else { return }
+
+        let identifier = totalTimeNotificationIdentifier
+        let content = UNMutableNotificationContent()
+        content.title = "Cook Complete"
+        content.body = "\(displayName()) is done."
+        content.sound = NotificationSoundProvider.currentSound()
+        content.interruptionLevel = .timeSensitive
+        let interval = max(1, doneAt.timeIntervalSinceNow)
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                debugLog("❌ Failed to schedule Total Time notification: \(error)")
+            } else {
+                debugLog("🗓️ Scheduled Total Time notification for timer \(self.id) in \(Int(interval))s")
+            }
+        }
+    }
+
+    private func cancelTotalTimeNotification() {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [totalTimeNotificationIdentifier])
     }
 
     private func displayName() -> String {

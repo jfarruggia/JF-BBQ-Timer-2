@@ -119,6 +119,13 @@ class Settings: ObservableObject {
     /// Drives the probe's prediction set point and the target-crossed alert.
     @Published var probeTargetsByCookID: [UUID: Double] = [:]
 
+    /// Optional per-timer total cook time in seconds (total-time-spec.md).
+    /// Timer ids are stable (the two built-in timers use fixed UUIDs), so one
+    /// dictionary covers both storage homes with one code path — same reason
+    /// `probeTargetsByCookID` exists. Absent id == no Total Time set, which
+    /// is the default (off, free feature).
+    @Published var totalTimeByTimerID: [UUID: Int] = [:]
+
     /// User-editable doneness presets shown in the probe target sheet.
     /// Seeded from `ProbeTargetPresets.defaults` when the key has never been
     /// written; an intentionally emptied list stays empty.
@@ -240,6 +247,13 @@ class Settings: ObservableObject {
             self.probeTargetsByCookID = [:]
         }
 
+        if let data = UserDefaults.standard.data(forKey: "totalTimeByTimerID"),
+           let stored = try? JSONDecoder().decode([UUID: Int].self, from: data) {
+            self.totalTimeByTimerID = stored
+        } else {
+            self.totalTimeByTimerID = [:]
+        }
+
         if let data = UserDefaults.standard.data(forKey: "probeTargetPresets"),
            let stored = try? JSONDecoder().decode([ProbeTargetPreset].self, from: data) {
             self.probeTargetPresets = stored
@@ -305,6 +319,9 @@ class Settings: ObservableObject {
         if let data = try? JSONEncoder().encode(probeTargetPresets) {
             UserDefaults.standard.set(data, forKey: "probeTargetPresets")
         }
+        if let data = try? JSONEncoder().encode(totalTimeByTimerID) {
+            UserDefaults.standard.set(data, forKey: "totalTimeByTimerID")
+        }
         UserDefaults.standard.synchronize()
         debugLog("✅ Settings saved successfully")
     }
@@ -342,7 +359,9 @@ class Settings: ObservableObject {
 
     func removeTimer(at index: Int) {
         guard index >= 0 && index < additionalTimers.count else { return }
+        let removedId = additionalTimers[index].id
         additionalTimers.remove(at: index)
+        totalTimeByTimerID[removedId] = nil
         save()
     }
 
@@ -388,6 +407,23 @@ class Settings: ObservableObject {
     func setProbeTarget(_ celsius: Double?, forCookID id: UUID) {
         if probeTargetsByCookID[id] == celsius { return }
         probeTargetsByCookID[id] = celsius
+        save()
+    }
+
+    // MARK: - Total Time (optional per-timer "done" alert; total-time-spec.md)
+
+    /// The Total Time target for a timer, in seconds, or nil when unset —
+    /// which is "off" for that timer.
+    func totalTime(for id: UUID) -> Int? {
+        totalTimeByTimerID[id]
+    }
+
+    /// Set (or clear, with nil or 0) the Total Time target and persist.
+    /// "Off" is absence from the dictionary, not a stored zero.
+    func setTotalTime(_ seconds: Int?, for id: UUID) {
+        let newValue: Int? = (seconds ?? 0) > 0 ? seconds : nil
+        if totalTimeByTimerID[id] == newValue { return }
+        totalTimeByTimerID[id] = newValue
         save()
     }
 
