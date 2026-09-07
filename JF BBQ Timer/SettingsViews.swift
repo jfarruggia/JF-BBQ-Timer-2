@@ -146,19 +146,13 @@ struct NewSettingsView: View {
                 Section(header: Text("Timers")) {
                     NavigationLink("Manage All Timers", destination: TimerManagementView(settings: settings))
                         .accessibilityIdentifier("ManageTimers")
-                    // Inline Stepper for Preheat Duration
-                    HStack {
-                        Text("Preheat Duration")
-                        Spacer()
-                        Stepper(
-                            value: $settings.preheatDuration,
-                            in: 0...3600,
-                            step: 30
-                        ) {
-                            Text(TimeFormatter.timeString(from: settings.preheatDuration))
-                                .foregroundColor(.gray)
-                        }
-                    }
+                    // Duration picker for Preheat Duration
+                    DurationRow(
+                        label: "Preheat Duration",
+                        style: .minutesSeconds,
+                        seconds: $settings.preheatDuration,
+                        onCommit: { settings.save() }
+                    )
                     .padding(.vertical, 4)
                     // Add Reset to Default button for Preheat Duration
                     Button(action: {
@@ -660,9 +654,10 @@ struct TimerManagementView: View {
     
     // Updated timer row to handle both legacy and additional timers
     private func timerRow(for timer: BBQTimer, isLegacy: Bool = false, legacyIndex: Int? = nil, at index: Int? = nil) -> some View {
-        // Generous on purpose: the iOS 26 glass stepper capsule paints well
-        // beyond its layout bounds, so anything tight makes the name bar and
-        // the two rows' − / + capsules read as touching (Jim, on device + sim).
+        // Generous on purpose: keeps the name bar clear of the two
+        // DurationRow lines below it. (Used to also clear the iOS 26 glass
+        // stepper capsule's oversized paint area, but those steppers were
+        // replaced by DurationRow.)
         VStack(alignment: .leading, spacing: 20) {
             HStack {
                 // Inline editing for timer name (row identified by timer.id —
@@ -704,7 +699,7 @@ struct TimerManagementView: View {
                         inlineEditedName = timer.name
                     }) {
                         Image(systemName: "pencil")
-                            .foregroundColor(.blue)
+                            .foregroundColor(Color("TimerAccent"))
                     }
                     .buttonStyle(BorderlessButtonStyle())
                 }
@@ -735,75 +730,94 @@ struct TimerManagementView: View {
             }
             .padding(.vertical, 8)
             .padding(.horizontal, 12)
-            .background(Color.white.opacity(0.7))
-            .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.08), radius: 4, x: 0, y: 2)
-
-            // Inline Stepper for Flip Time (was Preset 1)
-            HStack {
-                Text("Flip Time:") // Renamed from Preset 1
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                Stepper(
-                    value: Binding(
-                        get: { timer.preset1 },
-                        set: { newValue in
-                            if isLegacy, let legacyIndex = legacyIndex {
-                                if legacyIndex == 0 {
-                                    settings.timer1Preset1 = newValue
-                                } else if legacyIndex == 1 {
-                                    settings.timer2Preset1 = newValue
-                                }
-                            } else if let index = index {
-                                settings.updateTimer(at: index, preset1: newValue)
-                            }
-                            settings.save()
-                        }
-                    ),
-                    in: 0...3600,
-                    step: 30
-                ) {
-                    Text(TimeFormatter.compactTimeString(from: timer.preset1))
-                        .font(.subheadline)
+            .background(
+                // The pale card here was a pre-dark-redesign leftover: a light
+                // grey bar sitting right above two dark DurationRows reads as
+                // a mistake. On iOS 26 (ember background) reuse the same
+                // frosted section fill as the immersive lists (GrillGlassSectionFill
+                // in ButtonStyles.swift) clipped to this row's shape, so it
+                // reads as one more grouped row on the dark surface; pre-26
+                // keeps the original light-list treatment.
+                Group {
+                    if #available(iOS 26, *) {
+                        GrillGlassSectionFill()
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    } else {
+                        Color.white.opacity(0.7)
+                    }
                 }
-            }
+            )
+            .cornerRadius(12)
+            .shadow(color: nameBarShadowColor, radius: 4, x: 0, y: 2)
+
+            // Duration picker for Flip Time (was Preset 1). The binding's
+            // setter already calls settings.save() for all three storage
+            // paths (legacy timer 1, legacy timer 2, additional timer), so
+            // no onCommit here — that would save twice.
+            DurationRow(
+                label: "Flip Time:", // Renamed from Preset 1
+                style: .minutesSeconds,
+                seconds: Binding(
+                    get: { timer.preset1 },
+                    set: { newValue in
+                        if isLegacy, let legacyIndex = legacyIndex {
+                            if legacyIndex == 0 {
+                                settings.timer1Preset1 = newValue
+                            } else if legacyIndex == 1 {
+                                settings.timer2Preset1 = newValue
+                            }
+                        } else if let index = index {
+                            settings.updateTimer(at: index, preset1: newValue)
+                        }
+                        settings.save()
+                    }
+                )
+            )
+            .font(.subheadline)
+            .foregroundColor(.secondary)
             .padding(.horizontal, 16)
 
-            // Inline Stepper for Extend Cook Time (was Preset 2)
-            HStack {
-                Text("Extend Cook Time:") // Renamed from Preset 2
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                Stepper(
-                    value: Binding(
-                        get: { timer.preset2 },
-                        set: { newValue in
-                            if isLegacy, let legacyIndex = legacyIndex {
-                                if legacyIndex == 0 {
-                                    settings.timer1Preset2 = newValue
-                                } else if legacyIndex == 1 {
-                                    settings.timer2Preset2 = newValue
-                                }
-                            } else if let index = index {
-                                settings.updateTimer(at: index, preset2: newValue)
+            // Duration picker for Extend Cook Time (was Preset 2). Same
+            // save-once note as Flip Time above.
+            DurationRow(
+                label: "Extend Cook Time:", // Renamed from Preset 2
+                style: .minutesSeconds,
+                seconds: Binding(
+                    get: { timer.preset2 },
+                    set: { newValue in
+                        if isLegacy, let legacyIndex = legacyIndex {
+                            if legacyIndex == 0 {
+                                settings.timer1Preset2 = newValue
+                            } else if legacyIndex == 1 {
+                                settings.timer2Preset2 = newValue
                             }
-                            settings.save()
+                        } else if let index = index {
+                            settings.updateTimer(at: index, preset2: newValue)
                         }
-                    ),
-                    in: 0...3600,
-                    step: 30
-                ) {
-                    Text(TimeFormatter.compactTimeString(from: timer.preset2))
-                        .font(.subheadline)
-                }
-            }
+                        settings.save()
+                    }
+                )
+            )
+            .font(.subheadline)
+            .foregroundColor(.secondary)
             .padding(.horizontal, 16)
             .padding(.bottom, 8)
         }
         .padding(.vertical, 4)
         .padding(.horizontal, 4)
     }
-    
+
+    /// The name bar's drop shadow: a white-drop shadow value is meaningless on
+    /// the dark iOS 26 ember ground (it just disappears), so use a subtle dark
+    /// shadow there instead; pre-26 keeps the original light-card shadow.
+    private var nameBarShadowColor: Color {
+        if #available(iOS 26, *) {
+            return Color.black.opacity(0.35)
+        } else {
+            return Color.black.opacity(0.08)
+        }
+    }
+
     /// Same lookup as SettingsView's price fetch: prefer the lifetime package,
     /// fall back to the first available; keep the static fallback on failure.
     private func fetchPremiumPrice() {
@@ -831,35 +845,24 @@ struct TimerManagementView: View {
                                 .stroke(Color.blue.opacity(0.5), lineWidth: 1)
                         )
                         .padding(.vertical, 4)
-                    // Inline Stepper for Flip Time
-                    HStack {
-                        Text("Flip Time")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        Stepper(
-                            value: $tempPreset1,
-                            in: 0...3600,
-                            step: 30
-                        ) {
-                            Text(TimeFormatter.compactTimeString(from: tempPreset1))
-                                .font(.subheadline)
-                        }
-                    }
+                    // Duration picker for Flip Time. Local @State, saved on
+                    // the sheet's own Done — no onCommit needed here.
+                    DurationRow(
+                        label: "Flip Time",
+                        style: .minutesSeconds,
+                        seconds: $tempPreset1
+                    )
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
                     .padding(.horizontal, 4)
-                    // Inline Stepper for Extend Cook Time
-                    HStack {
-                        Text("Extend Cook Time")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        Stepper(
-                            value: $tempPreset2,
-                            in: 0...3600,
-                            step: 30
-                        ) {
-                            Text(TimeFormatter.compactTimeString(from: tempPreset2))
-                                .font(.subheadline)
-                        }
-                    }
+                    // Duration picker for Extend Cook Time. Same note.
+                    DurationRow(
+                        label: "Extend Cook Time",
+                        style: .minutesSeconds,
+                        seconds: $tempPreset2
+                    )
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
                     .padding(.horizontal, 4)
                 }
             }
@@ -1015,154 +1018,6 @@ struct TimerPickerSheet: View {
             Spacer()
         }
         .immersiveGlassBackground()
-    }
-}
-
-struct TimeTextField: View {
-    @Binding var seconds: Int
-    @State private var text: String = ""
-    
-    var body: some View {
-        TextField("MM:SS", text: $text, onCommit: {
-            let timeComponents = text.split(separator: ":")
-            if timeComponents.count == 2,
-               let minutes = Int(timeComponents[0]),
-               let seconds = Int(timeComponents[1]) {
-                self.seconds = minutes * 60 + seconds
-            }
-        })
-        .keyboardType(.numberPad)
-        .multilineTextAlignment(.trailing)
-        .onAppear {
-            let minutes = seconds / 60
-            let secs = seconds % 60
-            text = String(format: "%d:%02d", minutes, secs)
-        }
-    }
-}
-
-struct TimerPresetStylesPreview: View {
-    @State private var preset1: Int = 300 // 5 minutes
-    @State private var preset2: Int = 180 // 3 minutes
-    @State private var showCustomPicker = false
-    
-    var body: some View {
-        List {
-            Section(header: Text("Option 1: Stepper with Time Display")) {
-                HStack {
-                    Text("Preset Time")
-                    Spacer()
-                    Text(TimeFormatter.timeString(from: preset1))
-                        .font(.system(.body, design: .monospaced))
-                    Stepper("", onIncrement: {
-                        preset1 += 30
-                    }, onDecrement: {
-                        preset1 = max(0, preset1 - 30)
-                    })
-                }
-            }
-            
-            Section(header: Text("Option 2: Tap to Edit with Popup")) {
-                Button(action: {
-                    showCustomPicker = true
-                }) {
-                    HStack {
-                        Text("Preset Time")
-                        Spacer()
-                        Text(TimeFormatter.timeString(from: preset1))
-                            .foregroundColor(.gray)
-                    }
-                }
-                .sheet(isPresented: $showCustomPicker) {
-                    VStack {
-                        HStack {
-                            Button("Cancel") {
-                                showCustomPicker = false
-                            }
-                            Spacer()
-                            Button("Done") {
-                                showCustomPicker = false
-                            }
-                            .font(.headline)
-                        }
-                        .padding()
-                        
-                        HStack(spacing: 8) {
-                            Picker("Minutes", selection: Binding(
-                                get: { preset1 / 60 },
-                                set: { preset1 = $0 * 60 + preset1 % 60 }
-                            )) {
-                                ForEach(0..<60) { minute in
-                                    Text("\(minute)").tag(minute)
-                                }
-                            }
-                            .pickerStyle(.wheel)
-                            .frame(width: 100)
-                            
-                            Text("min")
-                            
-                            Picker("Seconds", selection: Binding(
-                                get: { preset1 % 60 },
-                                set: { preset1 = (preset1 / 60) * 60 + $0 }
-                            )) {
-                                ForEach(0..<60) { second in
-                                    Text("\(second)").tag(second)
-                                }
-                            }
-                            .pickerStyle(.wheel)
-                            .frame(width: 100)
-                            
-                            Text("sec")
-                        }
-                        Spacer()
-                    }
-                }
-            }
-            
-            Section(header: Text("Option 3: Slider with Time Display")) {
-                VStack {
-                    HStack {
-                        Text("Preset Time")
-                        Spacer()
-                        Text(TimeFormatter.timeString(from: preset2))
-                    }
-                    Slider(value: Binding(
-                        get: { Double(preset2) },
-                        set: { preset2 = Int($0) }
-                    ), in: 0...3600, step: 30)
-                }
-            }
-            
-            Section(header: Text("Option 4: Quick Preset Buttons")) {
-                VStack(alignment: .leading) {
-                    Text("Preset Time")
-                    HStack {
-                        ForEach([1, 3, 5, 10], id: \.self) { minutes in
-                            Button("\(minutes)m") {
-                                preset2 = minutes * 60
-                            }
-                            .buttonStyle(BorderedButtonStyle())
-                        }
-                        Button("Custom") {
-                            showCustomPicker = true
-                        }
-                        .buttonStyle(BorderedButtonStyle())
-                    }
-                    Text(TimeFormatter.timeString(from: preset2))
-                        .padding(.top, 4)
-                }
-            }
-            
-            Section(header: Text("Option 5: Text Field Input")) {
-                HStack {
-                    Text("Preset Time")
-                    Spacer()
-                    TimeTextField(seconds: $preset1)
-                        .frame(width: 80)
-                }
-            }
-        }
-        .navigationTitle("Timer Preset Options")
     }
 }
 
