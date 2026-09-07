@@ -1,10 +1,24 @@
 import SwiftUI
 import AVFoundation
 
+/// Which flavor of the full-screen completion card `AlertView` is showing.
+/// Kept as one enum (rather than a second boolean alongside `isPreheat`) so
+/// there's no illegal `preheat && totalTime` combination to guard against.
+enum AlertKind: Equatable {
+    /// Ordinary flip-timer countdown completion. Red card, "Time to Flip".
+    case flip
+    /// Grill preheat countdown completion. Red card, "Preheat Complete! 🔥".
+    case preheat
+    /// Total Time's "this cook is done" alert. Green card, timer name +
+    /// "Time's Up" + "Pull the food off" — per total-time-spec.md, this is
+    /// an act-now-and-stop signal, not a flip reminder.
+    case totalTime
+}
+
 struct AlertView: View {
     @ObservedObject var alertState: AlertState
     let audioPlayer: AVAudioPlayer?
-    let isPreheat: Bool
+    let kind: AlertKind
     let settings: Settings
     @ObservedObject var timerState: TimerState
 
@@ -12,15 +26,25 @@ struct AlertView: View {
     /// a repeating, auto-reversing animation so the rim breathes until dismissed.
     @State private var pulse = false
 
+    private var iconName: String {
+        switch kind {
+        case .preheat: return "flame.fill"
+        case .flip: return "checkmark.circle.fill"
+        case .totalTime: return "fork.knife"
+        }
+    }
+
     private func dismiss() {
         audioPlayer?.stop()
         settings.stopLoopingAlertSound()
         timerState.resetCompletionState()
-        if isPreheat {
+        switch kind {
+        case .preheat:
             alertState.showPreheatAlert = false
-        } else {
+        case .flip, .totalTime:
             alertState.isPresented = false
             alertState.completedTimerID = nil
+            alertState.isTotalTimeAlert = false
         }
     }
 
@@ -32,23 +56,39 @@ struct AlertView: View {
 
             Button(action: dismiss) {
                 VStack(spacing: 10) {
-                    Image(systemName: isPreheat ? "flame.fill" : "checkmark.circle.fill")
+                    Image(systemName: iconName)
                         .font(.system(size: 46, weight: .bold))
                         .foregroundColor(.white)
-                    if isPreheat {
+                    switch kind {
+                    case .preheat:
                         Text("Preheat")
                             .font(.system(size: 34, weight: .bold, design: .rounded))
                         Text("Complete! 🔥")
                             .font(.system(size: 30, weight: .bold, design: .rounded))
-                    } else {
-                        Text("Interval\nComplete!")
+                    case .flip:
+                        Text("Time to Flip")
                             .font(.system(size: 32, weight: .bold, design: .rounded))
+                    case .totalTime:
+                        // Name is the dominant line after the icon — a long
+                        // name (e.g. "Chicken Thighs") shrinks to fit rather
+                        // than truncating or forcing a fixed-width box.
+                        Text(timerState.displayName())
+                            .font(.system(size: 30, weight: .bold, design: .rounded))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.4)
+                        Text("Time's Up")
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                        Text("Pull the food off")
+                            .font(.system(size: 18, weight: .semibold, design: .rounded))
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.6)
                     }
                 }
                 .foregroundColor(.white)
                 .multilineTextAlignment(.center)
+                .padding(.horizontal, 18)
                 .frame(width: 240, height: 240)
-                .modifier(AlertGlassCardStyle(pulse: pulse))
+                .modifier(AlertGlassCardStyle(pulse: pulse, tint: kind == .totalTime ? .green : .red))
             }
             .buttonStyle(PlainButtonStyle())
         }

@@ -408,6 +408,7 @@ struct CompactTimerView: View {
                                 if settings.soundEnabled { state.playSound() }
                                 if settings.hapticsEnabled {
                                     alertState.completedTimerID = state.id
+                                    alertState.isTotalTimeAlert = false
                                     alertState.isPresented = true
                                 }
                             }
@@ -431,6 +432,7 @@ struct CompactTimerView: View {
                                 if settings.soundEnabled { state.playSound() }
                                 if settings.hapticsEnabled {
                                     alertState.completedTimerID = state.id
+                                    alertState.isTotalTimeAlert = false
                                     alertState.isPresented = true
                                 }
                             }
@@ -717,6 +719,7 @@ struct GlassLargeTimerContent: View {
             if settings.soundEnabled { state.playSound() }
             if settings.hapticsEnabled {
                 alertState.completedTimerID = state.id
+                alertState.isTotalTimeAlert = false
                 alertState.isPresented = true
             }
         }
@@ -1006,6 +1009,7 @@ struct GlassCompactTimerContent: View {
             if settings.soundEnabled { state.playSound() }
             if settings.hapticsEnabled {
                 alertState.completedTimerID = state.id
+                alertState.isTotalTimeAlert = false
                 alertState.isPresented = true
             }
         }
