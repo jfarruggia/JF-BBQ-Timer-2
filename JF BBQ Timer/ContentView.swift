@@ -268,7 +268,10 @@ struct ContentView: View {
             state.onTotalTimeDone = { [weak state] in
                 guard let state = state else { return }
                 if settings.soundEnabled { state.playTotalTimeDoneSound() }
-                if settings.hapticsEnabled { alertState.isPresented = true }
+                if settings.hapticsEnabled {
+                    alertState.completedTimerID = state.id
+                    alertState.isPresented = true
+                }
             }
         }
         // Wire onComplete for any timers that were restored from persistence
@@ -283,7 +286,10 @@ struct ContentView: View {
             state.onCompleteAction = { [weak state] in
                 guard let state = state else { return }
                 if settings.soundEnabled { state.playSound() }
-                if settings.hapticsEnabled { alertState.isPresented = true }
+                if settings.hapticsEnabled {
+                    alertState.completedTimerID = state.id
+                    alertState.isPresented = true
+                }
             }
         }
     }
@@ -306,7 +312,10 @@ struct ContentView: View {
     private func startTimer1() {
         timer1State?.start {
             if settings.soundEnabled { timer1State?.playSound() }
-            if settings.hapticsEnabled { alertState.isPresented = true }
+            if settings.hapticsEnabled {
+                alertState.completedTimerID = timer1State?.id
+                alertState.isPresented = true
+            }
         }
     }
 
@@ -317,7 +326,10 @@ struct ContentView: View {
     private func startTimer2() {
         timer2State?.start {
             if settings.soundEnabled { timer2State?.playSound() }
-            if settings.hapticsEnabled { alertState.isPresented = true }
+            if settings.hapticsEnabled {
+                alertState.completedTimerID = timer2State?.id
+                alertState.isPresented = true
+            }
         }
     }
 
@@ -656,7 +668,10 @@ struct ContentView: View {
                         action: {
                             state.startPreset(TimeInterval(timer.preset1)) {
                                 if settings.soundEnabled { state.playSound() }
-                                if settings.hapticsEnabled { alertState.isPresented = true }
+                                if settings.hapticsEnabled {
+                                    alertState.completedTimerID = state.id
+                                    alertState.isPresented = true
+                                }
                             }
                         }
                     )
@@ -667,7 +682,10 @@ struct ContentView: View {
                         action: {
                             state.startPreset(TimeInterval(timer.preset2)) {
                                 if settings.soundEnabled { state.playSound() }
-                                if settings.hapticsEnabled { alertState.isPresented = true }
+                                if settings.hapticsEnabled {
+                                    alertState.completedTimerID = state.id
+                                    alertState.isPresented = true
+                                }
                             }
                         }
                     )
@@ -947,8 +965,14 @@ struct ContentView: View {
             }
             #endif
 
-            if alertState.isPresented, let timer1 = settings.legacyTimersAsBBQTimers.first, let timer1State = timerStates.state(for: timer1.id) {
-                AlertView(alertState: alertState, audioPlayer: Settings.sharedAudioPlayer, isPreheat: false, settings: settings, timerState: timer1State)
+            if alertState.isPresented,
+               let resolvedState = (alertState.completedTimerID.flatMap { timerStates.state(for: $0) })
+                    ?? settings.legacyTimersAsBBQTimers.first.flatMap({ timerStates.state(for: $0.id) }) {
+                // Resolves the TimerState that actually completed from completedTimerID
+                // so dismissing clears the right timer. Falls back to Timer 1 (the old
+                // hard-coded behaviour) if the id is missing or doesn't resolve — a wrong
+                // alert is better than none.
+                AlertView(alertState: alertState, audioPlayer: Settings.sharedAudioPlayer, isPreheat: false, settings: settings, timerState: resolvedState)
                     .accessibilityIdentifier("TimerAlert")
             }
 
@@ -1093,7 +1117,10 @@ struct ContentView: View {
                         state.setIntervalTime(presetSeconds)
                         state.start(onComplete: {
                             if settings.soundEnabled { state.playSound() }
-                            if settings.hapticsEnabled { alertState.isPresented = true }
+                            if settings.hapticsEnabled {
+                                alertState.completedTimerID = state.id
+                                alertState.isPresented = true
+                            }
                         })
                     }
 
@@ -1104,7 +1131,10 @@ struct ContentView: View {
                         state.setIntervalTime(presetSeconds)
                         state.start(onComplete: {
                             if settings.soundEnabled { state.playSound() }
-                            if settings.hapticsEnabled { alertState.isPresented = true }
+                            if settings.hapticsEnabled {
+                                alertState.completedTimerID = state.id
+                                alertState.isPresented = true
+                            }
                         })
                     }
 
@@ -1118,12 +1148,16 @@ struct ContentView: View {
                         }
                         state.start(onComplete: {
                             if settings.soundEnabled { state.playSound() }
-                            if settings.hapticsEnabled { alertState.isPresented = true }
+                            if settings.hapticsEnabled {
+                                alertState.completedTimerID = state.id
+                                alertState.isPresented = true
+                            }
                         })
                     }
 
                 case "ackAlert":
                     if alertState.isPresented { alertState.isPresented = false }
+                    alertState.completedTimerID = nil
                     if showPreheatAlert { showPreheatAlert = false }
                     settings.stopLoopingAlertSound()
                     if let idString = dict["timerId"] as? String,

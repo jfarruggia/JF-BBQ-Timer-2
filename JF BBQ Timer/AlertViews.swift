@@ -20,6 +20,7 @@ struct AlertView: View {
             alertState.showPreheatAlert = false
         } else {
             alertState.isPresented = false
+            alertState.completedTimerID = nil
         }
     }
 

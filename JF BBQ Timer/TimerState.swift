@@ -7,6 +7,10 @@ import Combine
 
 class AlertState: ObservableObject {
     @Published var isPresented: Bool
+    /// Which timer's completion the alert is showing. The overlay resolves the
+    /// TimerState from this so dismissing clears the right timer — it used to
+    /// always clear Timer 1's.
+    @Published var completedTimerID: UUID?
     @Published var showPreheatAlert: Bool {
         didSet {
             debugLog("PreheatAlertState changed from \(oldValue) to \(showPreheatAlert)")

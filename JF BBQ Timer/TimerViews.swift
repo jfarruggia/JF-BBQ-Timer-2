@@ -406,7 +406,10 @@ struct CompactTimerView: View {
                         Button(action: {
                             state.startPreset(preset1) {
                                 if settings.soundEnabled { state.playSound() }
-                                if settings.hapticsEnabled { alertState.isPresented = true }
+                                if settings.hapticsEnabled {
+                                    alertState.completedTimerID = state.id
+                                    alertState.isPresented = true
+                                }
                             }
                         }) {
                             Text(verbatim: {
@@ -426,7 +429,10 @@ struct CompactTimerView: View {
                         Button(action: {
                             state.startPreset(preset2) {
                                 if settings.soundEnabled { state.playSound() }
-                                if settings.hapticsEnabled { alertState.isPresented = true }
+                                if settings.hapticsEnabled {
+                                    alertState.completedTimerID = state.id
+                                    alertState.isPresented = true
+                                }
                             }
                         }) {
                             Text(verbatim: {
@@ -709,7 +715,10 @@ struct GlassLargeTimerContent: View {
     private func startWithPreset(_ preset: TimeInterval) {
         state.startPreset(preset) {
             if settings.soundEnabled { state.playSound() }
-            if settings.hapticsEnabled { alertState.isPresented = true }
+            if settings.hapticsEnabled {
+                alertState.completedTimerID = state.id
+                alertState.isPresented = true
+            }
         }
     }
 
@@ -995,7 +1004,10 @@ struct GlassCompactTimerContent: View {
     private func startWithPreset(_ preset: TimeInterval) {
         state.startPreset(preset) {
             if settings.soundEnabled { state.playSound() }
-            if settings.hapticsEnabled { alertState.isPresented = true }
+            if settings.hapticsEnabled {
+                alertState.completedTimerID = state.id
+                alertState.isPresented = true
+            }
         }
     }
 
