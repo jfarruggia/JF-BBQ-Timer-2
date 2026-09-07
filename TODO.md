@@ -32,7 +32,19 @@ Done:
       Apple purchase sheet.
 - [x] Uploaded 2.0 (14) to the production TestFlight.
 
+**Pricing decision (2026-09-07): the whole Watch app is Premium.** Not a split.
+Giving it away is a one-way door (you can make a paid feature free later; you
+cannot take a free one back), and after the $150 probe it is the only Premium
+feature with broad appeal — most grillers are fine with 2 timers. Spec:
+`watch-premium-gate-spec.md`. Gate lives on the phone (locked ⇒ snapshot carries
+`premium: false` + an empty timers array); the watch just shows one locked screen.
+
 Left to do:
+- [ ] **Watch Premium gate** — build from `watch-premium-gate-spec.md` (one PR:
+      phone helper + backstop, watch locked screen + complication copy, paywall
+      row, unit tests). Then test on TestFlight with the Override Premium toggle.
+- [ ] Paywall says "up to 24 timers" but `Settings.canAddMoreTimers()` caps
+      Premium at **10**. Pick one and make the other match.
 - [ ] Watch install + phone↔watch sync, via TestFlight (direct Xcode install to the watch
       has always been unreliable on this project — TestFlight is the dependable route).
 - [ ] Remaining V2 testing on the TestFlight build.
