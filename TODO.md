@@ -15,6 +15,17 @@ All items below are **Version 2**. Planned sequence:
 
 Isolated quick wins (voice announcements, preheat→`endDate`, the two bugs) slot in anytime.
 
+## Duration entry + Total Time (decided 2026-09-07, not yet built)
+Raised while making the help videos: the flip-only method will confuse some users,
+and setting long durations with a 30s stepper is painful. Two specs, build in order:
+1. [ ] **Duration picker** — `duration-picker-spec.md`. Tap the number, spin a wheel.
+       Replaces the `+`/`−` steppers on Preheat Duration, Flip Time, Extend Cook Time,
+       and the add-timer sheet. Jim compared four styles on a throwaway screen and
+       chose this one. Deletes that throwaway plus the older `TimerPresetStylesPreview`.
+2. [ ] **Total Time** — `total-time-spec.md`. Optional per-timer total cook time that
+       alerts once when Lit passes it. Nothing stops; Lit keeps running so the cook can
+       carry on. Free feature. Adopts the duration picker rather than adding a stepper.
+
 ## Shipping V2 as an update — in progress (2026-09-06)
 V2 was built under the separate `GrillTime Pro Dev` record. It ships as an update to the
 released `GrillTime Pro` (ASC app id `6744303683`), whose bundle id is permanent.
