@@ -150,6 +150,32 @@ The app builds against the iOS/watchOS 26 SDK. Recompiling against this SDK caus
 - Prefer small, reviewable commits with clear messages.
 - **Work autonomously on low-risk tasks** (reading, builds/tests, searches, code edits, committing/merging build-verified cleanup & refactor PRs, docs/config) — act and report, don't ask. **Pause and ask only for consequential decisions:** changes that risk the live app's user-facing behavior, anything irreversible (force-push, history rewrite, data deletion), new dependencies, App Store submission, or design choices with real tradeoffs. A scoped permissions allowlist in `.claude/settings.json` reflects this (routine tools auto-approved; destructive git denied).
 
+### Model routing — keep the main session cheap
+
+Jim is on a **Claude Pro plan** and the main-session model is expensive for him.
+Split the work by phase, every time, not just for big jobs:
+
+- **Main session (whatever model Jim has set with `/model`)** — talking, deciding,
+  writing/approving specs, reviewing diffs, git (commit / PR / merge), and reporting.
+- **Sonnet subagent** — *all* code-writing and build/test verification. Spawn it with
+  the Agent tool: `model: sonnet`, `subagent_type: general-purpose` (so it can Edit/Write).
+  This is a standing instruction from Jim (2026-09-07); it counts as him asking, so
+  spawn without re-confirming.
+
+How to hand off well:
+- Agree the spec here first. Then give the subagent **one self-contained prompt**: the
+  spec (or its path), the exact files to touch, and the hard rules above (unit-test
+  time/money math; never hand-edit `project.pbxproj` — surface Xcode steps instead;
+  one concern per PR; gate iOS 26 glass behind `if #available`; shared watch wire
+  types live in `WCSessionManager.swift`). It starts cold and cannot see this chat.
+- Ask it to **build, run the relevant tests, and report back** a short summary plus
+  `git diff --stat`. Do not sit in the main session polling `xcodebuild` — every wait
+  turn re-sends the whole conversation.
+- Review its diff here, then commit/PR/merge here. Product decisions, tradeoffs, and
+  anything touching the live app's behaviour stay with Jim and the main session — the
+  subagent does not make those calls.
+- One line of narration is enough ("building this with a Sonnet subagent").
+
 ### Git & branching (solo App Store workflow)
 
 - `main` is **production** — only finished, shippable work lands there. Tag each App Store release (`v1.2.1`, `v2.0`, …).
