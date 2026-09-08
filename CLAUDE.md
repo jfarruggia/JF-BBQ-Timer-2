@@ -23,6 +23,14 @@ Grill Time Pro is a shipping iOS app (live on the App Store) that helps users ti
 
 ## Build & test
 
+> **Xcode 26.6 Distribute App:** the sheet offers **"TestFlight"** and
+> **"App Store"** as *separate* options — there is no combined "TestFlight &
+> App Store" (that is pre-26 wording; quoting it cost Jim a wasted upload).
+> **TestFlight** yields a build App Store Connect reports as
+> `buildAudienceType: INTERNAL_ONLY` — correct and expected for a test build,
+> not a mistake. Submitting for review needs an **App Store** distribution,
+> and therefore a fresh build number.
+>
 > **Jim's Xcode version: 26.6 (17F113).** When giving GUI directions (menu paths,
 > Settings panels, where to click), reference *this* version — Xcode moves things
 > between releases, so instructions written for older versions can send him to the
