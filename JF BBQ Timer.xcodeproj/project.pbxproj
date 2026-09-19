@@ -678,6 +678,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "JF-BBQ-Timer-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "GrillTime Pro";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Grill Time Pro connects to your Combustion temperature probe to show live cooking temperatures.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -716,6 +717,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "JF-BBQ-Timer-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "GrillTime Pro";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Grill Time Pro connects to your Combustion temperature probe to show live cooking temperatures.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
