@@ -66,14 +66,14 @@ Left to do:
       screen verified end-to-end on paired simulators. Still to run: the 6-step
       TestFlight plan in the spec (Override Premium toggle), especially flipping
       Paid→Free mid-cook and the complication copy.
-- [ ] Paywall says "up to 24 timers" but `Settings.canAddMoreTimers()` caps
-      Premium at **10**. Pick one and make the other match.
+- [x] Paywall said "up to 24 timers" but the cap is **10** — Jim chose 10; copy fixed.
 - [ ] Watch install + phone↔watch sync, via TestFlight (direct Xcode install to the watch
       has always been unreliable on this project — TestFlight is the dependable route).
 - [ ] Remaining V2 testing on the TestFlight build.
-- [ ] **Re-upload as build 15 with "TestFlight & App Store".** Build 14 landed as
-      `INTERNAL_ONLY`, which cannot be submitted for review. Bump `CURRENT_PROJECT_VERSION`
-      on **both** targets.
+- [ ] **Upload build 16 to TestFlight** (bumped 2026-09-19 via `agvtool new-version -all 16`;
+      that is the sanctioned way — it edits only `CURRENT_PROJECT_VERSION`). Build 15
+      (Sep 7) predates Total Time, Time to Flip, the alert fix, RevenueCat 5.90 and the
+      paywall fixes. After TestFlight passes: bump again and upload with **App Store**.
 - [ ] App Store submission (screenshots, What's New, review notes).
 - [ ] Retire the `GrillTime Pro Dev` ASC record (app id `6785304855`) once V2 is live.
 
