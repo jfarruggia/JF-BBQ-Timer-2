@@ -50,6 +50,11 @@ Done:
       Onboarding did **not** replay and the timers survived. Paywall brought up the real
       Apple purchase sheet.
 - [x] Uploaded 2.0 (14) to the production TestFlight.
+- [x] **Xcode 27 + RevenueCat 5.90.2 (2026-09-19):** Xcode 27 forced the RevenueCat
+      bump (5.31 would not compile). Verified on Jim's iPhone (iOS 27, Debug build):
+      sandbox purchase completed, lock cleared, delete + reinstall + Restore Purchases
+      re-unlocked, and the customer showed up in RevenueCat. Paywall copy no longer
+      truncates and scrolls on small phones (`a9cf06d`).
 
 **Pricing decision (2026-09-07): the whole Watch app is Premium.** Not a split.
 Giving it away is a one-way door (you can make a paid feature free later; you
