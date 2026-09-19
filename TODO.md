@@ -29,10 +29,8 @@ Still to check on TestFlight (could not be verified on the simulator):
       the `if #available(iOS 26, *)` branch.
 
 Found while building, **pre-existing, not caused by this work**:
-- [ ] The completion alert overlay in `ContentView` (~line 938) is always bound to
-      **Timer 1's** `TimerState`, whichever timer actually completed. Dismissing an
-      alert for Timer 2 calls `resetCompletionState()` on Timer 1. This is in the
-      shipping app and affects ordinary flip alerts, not just Total Time.
+- [x] The completion alert overlay in `ContentView` was always bound to **Timer 1's**
+      `TimerState`, whichever timer completed — fixed in #67 (`e879f53`).
 
 ## Shipping V2 as an update — in progress (2026-09-06)
 V2 was built under the separate `GrillTime Pro Dev` record. It ships as an update to the
