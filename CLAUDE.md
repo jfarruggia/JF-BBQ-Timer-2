@@ -31,13 +31,29 @@ Grill Time Pro is a shipping iOS app (live on the App Store) that helps users ti
 > not a mistake. Submitting for review needs an **App Store** distribution,
 > and therefore a fresh build number.
 >
-> **Jim's Xcode version: 26.6 (17F113).** When giving GUI directions (menu paths,
-> Settings panels, where to click), reference *this* version — Xcode moves things
-> between releases, so instructions written for older versions can send him to the
-> wrong place. Known 26.x change: **merging a branch is in the Source Control
-> *navigator*** (2nd sidebar icon → expand repo → Branches → right-click the branch
-> → "Merge … into …"), **not** the Integrate menu. If unsure where something lives in
-> 26.5, say so rather than guessing a path from an older version.
+> **Jim's Xcode version: 27.0 (27A266a), since 2026-09-19.** It ships only the
+> iOS 27 / watchOS 27 SDK (the 26 SDK is gone), so both apps now compile against
+> iOS 27. When giving GUI directions (menu paths, Settings panels, where to click),
+> reference *this* version — Xcode moves things between releases, so instructions
+> written for older versions can send him to the wrong place. Known 26.x+ change:
+> **merging a branch is in the Source Control *navigator*** (2nd sidebar icon →
+> expand repo → Branches → right-click the branch → "Merge … into …"), **not** the
+> Integrate menu. If unsure where something lives in 27, say so rather than
+> guessing a path from an older version.
+>
+> **Xcode 27 gotchas (2026-09-19):**
+> - **RevenueCat must be ≥ 5.78.0** — older 5.x fails to compile under Swift 6.4
+>   (`PaywallColor init(stringRepresentation:)` redeclaration). Pinned to 5.90.2.
+>   Update packages via **File ▸ Packages ▸ Update to Latest Package Versions**.
+> - **Run tests with `-parallel-testing-enabled NO`.** With parallel clones on,
+>   a simulator clone froze mid-run and `xcodebuild test` hung for 25+ minutes
+>   with no output. Serial runs finish in under a minute. If a run produces no
+>   log output for a few minutes, kill it (`pkill -f 'xcodebuild test'`) rather
+>   than waiting.
+> - Xcode 27 migrated `ITSAppUsesNonExemptEncryption` from the Info.plist into
+>   the `INFOPLIST_KEY_…` build setting (committed). It also drops an untracked
+>   `JF BBQ Timer.xcodeproj/xcshareddata/xcodecloud/manifest.json` — Xcode Cloud
+>   is not in use; leave it uncommitted.
 
 The architecture fields above were confirmed on 2026-06-14. Useful commands:
 
@@ -57,9 +73,11 @@ xcodebuild -scheme "JF BBQ Timer" \
 xcodebuild -scheme "GrillTime Pro Watch App Watch App" \
   -destination 'platform=watchOS Simulator,name=Apple Watch Series 11 (46mm)' build
 
-# Run unit tests (timer/progress math lives in JF BBQ TimerTests, Swift Testing)
+# Run unit tests (timer/progress math lives in JF BBQ TimerTests, Swift Testing).
+# Serial only — parallel clones hang under Xcode 27 (see gotchas above).
 xcodebuild test -scheme "JF BBQ Timer" \
-  -destination 'platform=iOS Simulator,name=iPhone 16'
+  -destination 'id=DD218285-0833-46D8-85D6-62BE07D1B767' \
+  -only-testing:"JF BBQ TimerTests" -parallel-testing-enabled NO
 ```
 
 To see a change running, prefer the desktop app's **iOS Simulator tools**
@@ -75,8 +93,11 @@ xcrun simctl boot DD218285-0833-46D8-85D6-62BE07D1B767   # iPhone 16, iOS 18.3
 
 **Pick the runtime to match what you are checking.** Most installed simulators are
 iOS 18.x, which renders the **pre-26 fallback** — flat cards, no glass. To verify any
-Liquid Glass work, boot an **iOS 26.5** simulator instead
-(`xcrun simctl list devices available` groups devices under their runtime).
+Liquid Glass work, boot an **iOS 26.5** (iPhone 17, `0B76097A-2334-4B7B-AAA7-0E4A40620B0E`)
+or **iOS 27.0** (iPhone 17, `6FAD6C01-4F0D-41C1-B27A-E2BE4320681C`) simulator instead
+(`xcrun simctl list devices available` groups devices under their runtime). The watch
+simulator used for builds is Apple Watch Series 11 (46mm), watchOS 26.5,
+`35707036-0E45-4EAD-9F57-499ED4D30FBA`.
 
 The raw CLI still works as a fallback:
 
