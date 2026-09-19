@@ -19,6 +19,40 @@ struct CustomPaywallView: View {
     @State private var shouldDismissAfterRestore = false
     
     var body: some View {
+        // Scroll only when the content is taller than the screen (small phones such as
+        // the SE); on taller phones the min-height keeps the middle Spacer working so
+        // the layout stays centered exactly as before.
+        GeometryReader { proxy in
+            ScrollView(.vertical, showsIndicators: false) {
+                content
+                    .frame(minHeight: proxy.size.height)
+            }
+        }
+        .background {
+            // Pre-26 keeps the original salmon backdrop; iOS 26 gets the shared
+            // ember bed (added by immersiveGlassBackground below).
+            if #unavailable(iOS 26) {
+                Color(red: 225/255, green: 139/255, blue: 130/255)
+            }
+        }
+        .immersiveGlassBackground()
+        .onAppear {
+            fetchPrice()  // Load price when view appears
+        }
+        // Present user-friendly messages after restore
+        .alert(restoreAlertTitle, isPresented: $showRestoreAlert) {
+            Button("OK") {
+                // If restore succeeded, dismiss the paywall after the alert
+                if shouldDismissAfterRestore {
+                    dismissAction()
+                }
+            }
+        } message: {
+            Text(restoreAlertMessage)
+        }
+    }
+
+    private var content: some View {
         VStack(spacing: 16) {  // Reduced spacing
             // Header with Skip button
             HStack {
@@ -47,6 +81,7 @@ struct CustomPaywallView: View {
                 .font(.title)
                 .fontWeight(.bold)
                 .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal)
             
             // Subtitle
@@ -54,6 +89,7 @@ struct CustomPaywallView: View {
                 .font(.title3)
                 .foregroundColor(.orange)
                 .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)  // the Spacer below can otherwise squeeze this to one line
                 .padding(.horizontal)
                 .padding(.vertical, 8)
                 .background(
@@ -126,28 +162,6 @@ struct CustomPaywallView: View {
             .padding(.bottom)
         }
         .padding(.vertical, 16)
-        .background {
-            // Pre-26 keeps the original salmon backdrop; iOS 26 gets the shared
-            // ember bed (added by immersiveGlassBackground below).
-            if #unavailable(iOS 26) {
-                Color(red: 225/255, green: 139/255, blue: 130/255)
-            }
-        }
-        .immersiveGlassBackground()
-        .onAppear {
-            fetchPrice()  // Load price when view appears
-        }
-        // Present user-friendly messages after restore
-        .alert(restoreAlertTitle, isPresented: $showRestoreAlert) {
-            Button("OK") {
-                // If restore succeeded, dismiss the paywall after the alert
-                if shouldDismissAfterRestore {
-                    dismissAction()
-                }
-            }
-        } message: {
-            Text(restoreAlertMessage)
-        }
     }
     
     private func fetchPrice() {
@@ -301,6 +315,7 @@ struct FeatureRow: View {
             Text(text)
                 .font(.callout.bold())  // Slightly smaller font
                 .foregroundColor(.primary)  // adapts: dark on salmon (pre-26), light on ember (iOS 26)
+                .fixedSize(horizontal: false, vertical: true)  // always wrap; never truncate to one line
         }
     }
 }
