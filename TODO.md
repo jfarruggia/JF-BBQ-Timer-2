@@ -15,6 +15,16 @@ All items below are **Version 2**. Planned sequence:
 
 Isolated quick wins (voice announcements, preheat→`endDate`, the two bugs) slot in anytime.
 
+## Analytics / crash visibility (decided 2026-09-20)
+No user tracking in the app today, and Jim wants none of the personal kind. Decision:
+**start with Apple's free tools, add nothing before V2 ships.**
+- After 2.0 is live, check weekly: App Store Connect ▸ Analytics (iOS versions,
+  devices, retention) and Xcode ▸ Organizer ▸ Crashes / Hangs. RevenueCat covers purchases.
+- [ ] Revisit in 2.1: if there are questions the free tools can't answer (probe /
+      watch / Total Time / Cook Guide usage, paywall funnel), add **TelemetryDeck**
+      (privacy-first, no user IDs, new dependency → flag first; App Privacy label
+      gains "Product interaction, not linked to you").
+
 ## 2.1 — Cook Guide (decided 2026-09-20, spec written, not started)
 Top customer request (26 Aug 2026 support email: "just a timer"). Ships **after**
 V2. Spec: `cook-guide-spec.md`. Free feature. Bundled JSON of pull/final temps +
