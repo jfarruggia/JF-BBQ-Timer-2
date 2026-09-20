@@ -20,7 +20,11 @@ Top customer request (26 Aug 2026 support email: "just a timer"). Ships **after*
 V2. Spec: `cook-guide-spec.md`. Free feature. Bundled JSON of pull/final temps +
 flip/total times by food/thickness/doneness, with a one-tap "Use these settings"
 that fills Flip Time, Total Time, name and probe target.
-- [ ] **Jim reviews the starter data table in the spec** and returns corrected numbers.
+**Works without a probe (2026-09-20):** times first on the card, then temps; every
+entry carries a "How to check" cue (touch test, juices run clear, flakes with a
+fork); heat level shown under the food name; one "instant-read thermometer" line.
+- [ ] **Jim reviews both starter tables in the spec** (temps/times, and the
+      "How to check" cues) and returns corrected numbers + wording.
 - [ ] JSON + decoder + invariant tests → derivation + apply tests → screens → entry points.
 
 ## Duration entry + Total Time (decided 2026-09-07, not yet built)
