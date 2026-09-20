@@ -66,8 +66,12 @@ struct AlertView: View {
                         Text("Complete! 🔥")
                             .font(.system(size: 30, weight: .bold, design: .rounded))
                     case .flip:
+                        Text(timerState.displayName())
+                            .font(.system(size: 26, weight: .bold, design: .rounded))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.4)
                         Text("Time to Flip")
-                            .font(.system(size: 32, weight: .bold, design: .rounded))
+                            .font(.system(size: 30, weight: .bold, design: .rounded))
                     case .totalTime:
                         // Name is the dominant line after the icon — a long
                         // name (e.g. "Chicken Thighs") shrinks to fit rather
