@@ -129,7 +129,7 @@ struct NewSettingsView: View {
                                 VStack(alignment: .leading) {
                                     Text("Upgrade to Premium")
                                         .bold()
-                                    Text("Unlock unlimited timers, custom sounds, and more!")
+                                    Text("Unlock the Watch app, the probe, more timers, and custom sounds")
                                         .font(.footnote)
                                         .foregroundColor(.secondary)
                                 }
