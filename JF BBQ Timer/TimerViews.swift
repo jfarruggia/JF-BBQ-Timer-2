@@ -736,17 +736,22 @@ struct GlassLargeTimerContent: View {
             : String(format: "%d:%02d", minutes, secs)
     }
 
-    /// No target: unchanged "4:32". Target set, not reached: "4:32 / 12:00".
-    /// Target passed: "13:20 / 12:00  +1:20" (total-time-spec.md). Reuses
-    /// this view's own `timeLabel` so formatting matches its neighbours.
-    private var litLine: String {
-        let lit = timeLabel(Int(state.elapsedTime))
-        guard let total = state.totalTime else { return lit }
+    /// No target: unchanged "4:32", rendered alone. Target set: paired with
+    /// `litTargetLabel` ("of 12:00", or "of 12:00 · +1:20" past target) as a
+    /// smaller second line inside the ring, so the combined text no longer
+    /// needs `minimumScaleFactor` to shrink to fit (total-time-spec.md).
+    /// Reuses this view's own `timeLabel` so formatting matches its neighbours.
+    private var litElapsedLabel: String {
+        timeLabel(Int(state.elapsedTime))
+    }
+
+    private var litTargetLabel: String? {
+        guard let total = state.totalTime else { return nil }
         let targetLabel = timeLabel(total)
         if let overtime = TotalTimeTarget.overtime(elapsed: state.elapsedTime, totalTime: total) {
-            return "\(lit) / \(targetLabel)  +\(timeLabel(Int(overtime)))"
+            return "of \(targetLabel) · +\(timeLabel(Int(overtime)))"
         }
-        return "\(lit) / \(targetLabel)"
+        return "of \(targetLabel)"
     }
 
     var body: some View {
@@ -864,17 +869,28 @@ struct GlassLargeTimerContent: View {
                 .contentTransition(.numericText())
                 .animation(.easeInOut, value: state.intervalTime)
                 .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
-            HStack(spacing: 5) {
-                Image(systemName: "flame.fill")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Color("TimerAccent"))
-                Text("Lit \(litLine)")
-                    .font(.system(size: 16, weight: .medium))
-                    .monospacedDigit()
-                    .foregroundStyle(.white.opacity(0.7))
-                    .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.5)
+            VStack(spacing: 2) {
+                HStack(spacing: 5) {
+                    Image(systemName: "flame.fill")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color("TimerAccent"))
+                    Text("Lit \(litElapsedLabel)")
+                        .font(.system(size: 16, weight: .medium))
+                        .monospacedDigit()
+                        .foregroundStyle(.white.opacity(0.7))
+                        .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.5)
+                }
+                if let litTargetLabel {
+                    Text(litTargetLabel)
+                        .font(.system(size: 14, weight: .medium))
+                        .monospacedDigit()
+                        .foregroundStyle(.white.opacity(0.55))
+                        .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
             }
         }
     }
@@ -1026,17 +1042,22 @@ struct GlassCompactTimerContent: View {
             : String(format: "%d:%02d", minutes, secs)
     }
 
-    /// No target: unchanged "4:32". Target set, not reached: "4:32 / 12:00".
-    /// Target passed: "13:20 / 12:00  +1:20" (total-time-spec.md). Reuses
-    /// this view's own `timeLabel` so formatting matches its neighbours.
-    private var litLine: String {
-        let lit = timeLabel(Int(state.elapsedTime))
-        guard let total = state.totalTime else { return lit }
+    /// No target: unchanged "4:32", rendered alone. Target set: paired with
+    /// `litTargetLabel` ("of 12:00", or "of 12:00 · +1:20" past target) as a
+    /// smaller second line inside the ring, so the combined text no longer
+    /// needs `minimumScaleFactor` to shrink to fit (total-time-spec.md).
+    /// Reuses this view's own `timeLabel` so formatting matches its neighbours.
+    private var litElapsedLabel: String {
+        timeLabel(Int(state.elapsedTime))
+    }
+
+    private var litTargetLabel: String? {
+        guard let total = state.totalTime else { return nil }
         let targetLabel = timeLabel(total)
         if let overtime = TotalTimeTarget.overtime(elapsed: state.elapsedTime, totalTime: total) {
-            return "\(lit) / \(targetLabel)  +\(timeLabel(Int(overtime)))"
+            return "of \(targetLabel) · +\(timeLabel(Int(overtime)))"
         }
-        return "\(lit) / \(targetLabel)"
+        return "of \(targetLabel)"
     }
 
     var body: some View {
@@ -1068,17 +1089,28 @@ struct GlassCompactTimerContent: View {
                     }
                     .frame(width: 84, height: 84)
 
-                    HStack(spacing: 4) {
-                        Image(systemName: "flame.fill")
-                            .font(.system(size: 11))
-                            .foregroundStyle(Color("TimerAccent"))
-                        Text("Lit \(litLine)")
-                            .font(.system(size: 13, weight: .medium))
-                            .monospacedDigit()
-                            .foregroundStyle(.white.opacity(0.7))
-                            .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.5)
+                    VStack(spacing: 2) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "flame.fill")
+                                .font(.system(size: 11))
+                                .foregroundStyle(Color("TimerAccent"))
+                            Text("Lit \(litElapsedLabel)")
+                                .font(.system(size: 13, weight: .medium))
+                                .monospacedDigit()
+                                .foregroundStyle(.white.opacity(0.7))
+                                .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.5)
+                        }
+                        if let litTargetLabel {
+                            Text(litTargetLabel)
+                                .font(.system(size: 11, weight: .medium))
+                                .monospacedDigit()
+                                .foregroundStyle(.white.opacity(0.55))
+                                .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                        }
                     }
                 }
 
