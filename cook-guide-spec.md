@@ -32,6 +32,8 @@ cooks (wrap at 165, pull at 203). Those can follow once the lookup exists.
 | Times are guidance | Every time is a range, shown as a range ("4–5 min per side"). The value written into the timer is the **low end** — an early flip alert is safer than a late one |
 | Apply writes, never runs | "Use these settings" fills the timer's name, Flip Time, Total Time and probe target. It does **not** start the timer |
 | Overwrite is explicit | If the timer already has a custom name or a Total Time, the apply sheet says what will change. One confirm. No silent overwrite |
+| Works without a probe | **Most users have no probe.** Times come first on the card; temperatures second. Every entry carries a **"How to check"** cue that needs no probe (touch test, juices run clear, flakes with a fork). The temps stay useful via a cheap instant-read thermometer, and the guide says so once |
+| Heat level is shown | "Direct, high heat" / "Indirect, medium" sits right under the food name. Without a probe, the heat level is what makes the times right |
 | Disclaimer | One line at the bottom of the guide: "Times are a starting point. Always check doneness with a thermometer." Not a modal, not repeated |
 
 ---
@@ -51,6 +53,7 @@ enough; verify it shows under the target's resources).
       "name": "Steak",
       "category": "Beef",
       "method": "Direct, high heat",
+      "heat": "high",
       "usdaMinimumC": 62.8,
       "thicknesses": [
         { "id": "1in",  "label": "1\" (2.5 cm)" },
@@ -62,6 +65,7 @@ enough; verify it shows under the target's resources).
           "id": "rare", "name": "Rare",
           "pullC": 48.9, "finalC": 51.7,
           "belowUsdaMinimum": true,
+          "checkWithoutProbe": "Touch test: very soft, like the fleshy base of a relaxed thumb. Cool red center.",
           "times": {
             "1in":   { "perSideMinSec": 150, "perSideMaxSec": 180, "flips": 1 },
             "1.5in": { "perSideMinSec": 240, "perSideMaxSec": 300, "flips": 1 },
@@ -82,6 +86,11 @@ Rules the decoder enforces (unit-tested):
 - `perSideMinSec <= perSideMaxSec`, both > 0.
 - Every `thicknesses.id` referenced in `times` exists, and every thickness has
   a `times` entry for every doneness (no holes — the UI never shows "—").
+- `checkWithoutProbe` is **required** on every doneness entry and non-blank.
+  This is the non-probe user's doneness test; an entry without one is a
+  decode error.
+- `heat` is one of `high`, `medium`, `low`, `indirect` (drives an SF symbol and
+  the one-line method text; not used by the timer).
 - Foods without a thickness axis (burgers, sausages, whole chicken) use one
   thickness entry with `label` = "" and the picker step is skipped.
 - Foods without a doneness axis (chicken, pork, fish) use one doneness entry
@@ -122,9 +131,27 @@ fish 145 °F.
 | Hot dogs / sausages | Done | — | 160 | 2–3 | — | 3 | |
 | Veggies (asparagus, corn, peppers) | Done | — | — | 3–5 | — | 1 | time only |
 
-Open for Jim: heat level per food (high / medium / indirect) — shown as one
-line in the guide, not used by the timer. Add lamb chops? Ribs and brisket are
-**out** for 2.1 (multi-stage; a flip timer is the wrong tool).
+**"How to check" cues (no probe) — Jim edits the wording:**
+
+| Food | Cue |
+|---|---|
+| Steak, rare | Very soft. Cool red center. Touch test: like the base of a relaxed thumb |
+| Steak, medium-rare | Soft with slight spring. Warm red center. Thumb-to-index-finger |
+| Steak, medium | Springy. Pink center. Thumb-to-middle-finger |
+| Steak, medium-well | Firm. Slight pink. Thumb-to-ring-finger |
+| Steak, well | Very firm. No pink. Thumb-to-pinky |
+| Burgers | No pink inside. Juices run clear |
+| Chicken breast | Juices run clear. No pink. Firm, springs back |
+| Chicken thighs | Juices run clear. No pink at the bone. Meat pulls from the bone |
+| Pork chops / tenderloin | Slight blush of pink is fine. Juices run clear. Firm with a little give |
+| Salmon | Flakes easily with a fork. Center just turns opaque |
+| Shrimp | Pink and curled into a "C". An "O" is overcooked |
+| Hot dogs / sausages | Plumped up, browned, hot through. Sausage juices run clear |
+| Veggies | Tender when pierced. Light char on the edges |
+
+Also open for Jim: heat level per food (high / medium / low / indirect). Add
+lamb chops? Ribs and brisket are **out** for 2.1 (multi-stage; a flip timer is
+the wrong tool).
 
 ---
 
@@ -143,14 +170,21 @@ book icon). Opens a sheet:
 
 ### 2. Food detail
 
+- Under the title: the heat line with its symbol — "🔥 Direct, high heat".
 - Segmented pickers, only the axes that exist: **Thickness**, **Doneness**.
-- A result card (`.grillGlassPane`):
+- A result card (`.grillGlassPane`), **times first**:
+  - **Flip after** `3–4 min` · **Total** `6–8 min` · `1 flip`
+  - **How to check:** the `checkWithoutProbe` cue for this doneness.
   - **Pull** `130 °F` · **Final** `135 °F` (unit from settings)
   - "Below USDA minimum (145 °F)" in a small amber line when flagged.
-  - **Flip after** `3–4 min` · **Total** `6–8 min` · `1 flip`
+- Under the card, one dim line, shown to everyone without a connected probe:
+  "No probe? A quick check with an instant-read thermometer works — aim for
+  the Final temp." When a Combustion probe is connected the line changes to
+  "Use these settings sets the probe target to the Pull temp."
 - Primary button: **Use these settings** (`GlassActionButtonStyle .primary`).
 - Secondary text link: **Set a probe target only** (Premium — opens the paywall
-  when locked, same as the Probe chip).
+  when locked, same as the Probe chip). Hidden entirely when no probe has ever
+  been connected on this phone, so non-probe users never see a dead link.
 
 ### 3. Apply sheet
 
@@ -191,7 +225,8 @@ the numbers afterwards and the guide must not fight them.
 ## Unit tests (Swift Testing, `JF BBQ TimerTests`)
 
 - `CookGuideDecodingTests` — the bundled file decodes; every invariant above
-  holds for every entry (this is the test that catches a bad number).
+  holds for every entry, including a non-blank `checkWithoutProbe` on every
+  doneness (this is the test that catches a bad number or a missing cue).
 - `CookGuideDerivationTests` — Flip / Total / target / name from a fixture
   entry, incl. the 3-flip tenderloin case (`Total = min × 4`).
 - `CookGuideUnitTests` — °C → displayed °F rounding matches the probe sheet
