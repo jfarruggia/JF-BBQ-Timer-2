@@ -15,6 +15,14 @@ All items below are **Version 2**. Planned sequence:
 
 Isolated quick wins (voice announcements, preheat→`endDate`, the two bugs) slot in anytime.
 
+## 2.1 — Cook Guide (decided 2026-09-20, spec written, not started)
+Top customer request (26 Aug 2026 support email: "just a timer"). Ships **after**
+V2. Spec: `cook-guide-spec.md`. Free feature. Bundled JSON of pull/final temps +
+flip/total times by food/thickness/doneness, with a one-tap "Use these settings"
+that fills Flip Time, Total Time, name and probe target.
+- [ ] **Jim reviews the starter data table in the spec** and returns corrected numbers.
+- [ ] JSON + decoder + invariant tests → derivation + apply tests → screens → entry points.
+
 ## Duration entry + Total Time (decided 2026-09-07, not yet built)
 Raised while making the help videos: the flip-only method will confuse some users,
 and setting long durations with a 30s stepper is painful. Two specs, build in order:
