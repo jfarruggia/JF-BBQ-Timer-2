@@ -74,7 +74,8 @@ Left to do:
       that is the sanctioned way — it edits only `CURRENT_PROJECT_VERSION`). Build 15
       (Sep 7) predates Total Time, Time to Flip, the alert fix, RevenueCat 5.90 and the
       paywall fixes. After TestFlight passes: bump again and upload with **App Store**.
-- [ ] App Store submission (screenshots, What's New, review notes).
+- [ ] App Store submission — screenshots still needed; all listing text is drafted in
+      `app-store-listing-2.0.md` (What's New, description, promo, keywords, review notes).
 - [ ] Retire the `GrillTime Pro Dev` ASC record (app id `6785304855`) once V2 is live.
 
 ## Main-screen layout + glass redesign — DONE & refined on device (2026-06-25/27)
