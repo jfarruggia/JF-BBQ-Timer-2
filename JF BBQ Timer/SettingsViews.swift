@@ -266,6 +266,14 @@ struct NewSettingsView: View {
                         Toggle("Show Predicted Ready Time", isOn: $settings.showProbePredictedReady)
                             .tint(.blue)
                             .accessibilityIdentifier("ShowProbePredictedReady")
+                        Link(destination: ProbeStoreLink.url) {
+                            HStack {
+                                Text("Get a Combustion Probe")
+                                Spacer()
+                                Image(systemName: "arrow.up.right")
+                            }
+                        }
+                        .accessibilityIdentifier("GetProbeLink")
                     }
                 }
 

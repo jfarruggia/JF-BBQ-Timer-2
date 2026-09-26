@@ -105,6 +105,17 @@ struct CustomPaywallView: View {
                 FeatureRow(text: "Choose from premium alert sounds or upload your own custom sound")
                 FeatureRow(text: "Voice announcements—hear alerts in your AirPods or speakers")
                 FeatureRow(text: "Connect your Combustion probe — live temps, guided cook, and pull-now alerts")
+                // Small, secondary — must not compete visually with the purchase
+                // button below. Indented to align with the feature row's text
+                // (past the checkmark icon + its spacing).
+                Link(destination: ProbeStoreLink.url) {
+                    Text("Don't have a probe? Get one →")
+                        .font(.footnote.weight(.semibold))
+                        .underline()
+                        .foregroundColor(.primary)
+                }
+                .padding(.leading, 28)
+                .accessibilityIdentifier("GetProbeLink")
                 FeatureRow(text: "One-time purchase. Lifetime access.")
             }
             .padding(.horizontal, 24)

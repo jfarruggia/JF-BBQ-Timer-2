@@ -9,6 +9,17 @@
 
 import SwiftUI
 
+// MARK: - ProbeStoreLink
+
+/// Single source of truth for the "buy a probe" URL, shared by the Connect
+/// Probe screen, the paywall, and Settings ▸ Temperature Probe. Points at a
+/// redirect on Jim's own domain (not a store link directly) so where it
+/// forwards to can change server-side without an app update — see
+/// probe-buy-link-spec.md.
+enum ProbeStoreLink {
+    static let url = URL(string: "https://farruggiacreations.com/probe")!
+}
+
 // MARK: - ProbeReadingRow
 
 /// Simple label + value row that avoids LabeledContent (requires iOS 16 in Swift 6 mode).
@@ -170,6 +181,31 @@ struct ProbePickerView: View {
             // Shown during `.reconnecting` too so the user can cancel a stuck reconnect.
             if case .connected   = probeManager.connectionState { disconnectSection }
             if case .reconnecting = probeManager.connectionState { disconnectSection }
+
+            // MARK: Get a probe — hidden once one is connected/reconnecting,
+            // since a user already holding a probe doesn't need to buy one.
+            if !isProbeConnectedOrReconnecting {
+                Section(footer: Text("Don't have a probe?")) {
+                    Link(destination: ProbeStoreLink.url) {
+                        HStack {
+                            Text("Get a Combustion Probe")
+                            Spacer()
+                            Image(systemName: "arrow.up.right")
+                        }
+                    }
+                    .foregroundStyle(Color("TimerAccent"))
+                    .accessibilityIdentifier("GetProbeLink")
+                }
+            }
+        }
+    }
+
+    /// True while a probe is connected or mid-reconnect — the two states
+    /// where showing a "buy a probe" link would be redundant.
+    private var isProbeConnectedOrReconnecting: Bool {
+        switch probeManager.connectionState {
+        case .connected, .reconnecting: return true
+        default: return false
         }
     }
 
