@@ -58,6 +58,8 @@ Found while building, **pre-existing, not caused by this work**:
 V2 was built under the separate `GrillTime Pro Dev` record. It ships as an update to the
 released `GrillTime Pro` (ASC app id `6744303683`), whose bundle id is permanent.
 
+- [ ] **Jim: make `https://farruggiacreations.com/probe` redirect live before V2 ships.** The app's "Get a Combustion Probe" links (picker, paywall, Settings — PR #69) open it. Point it at the Combustion store now; swap to the Amazon affiliate link later, no app update needed.
+
 Done:
 - [x] `Settings.isDevBuild` → `isTestBuild`, keyed off build flavor (DEBUG / TestFlight
       `sandboxReceipt`) instead of the `.dev` bundle id string (#61). Keeps the premium
