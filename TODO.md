@@ -59,6 +59,7 @@ V2 was built under the separate `GrillTime Pro Dev` record. It ships as an updat
 released `GrillTime Pro` (ASC app id `6744303683`), whose bundle id is permanent.
 
 - [x] **`https://farruggiacreations.com/probe` redirect live (2026-09-26, cPanel 302 → Combustion product page).** The app's "Get a Combustion Probe" links (picker, paywall, Settings — PR #69) open it. Point it at the Combustion store now; swap to the Amazon affiliate link later, no app update needed.
+- [ ] **Jim: the day V2 goes live, upload the website refresh** — `iCloud Drive/Farruggia Creations/FarruggiaCreation Website 2.0/site-update-v2-launch.zip` (cPanel File Manager → public_html → Upload → Extract). It has the 2.0 screenshots, new feature cards, "New in 2.0" chips, iOS 16.6+, and the probe callout without the "Coming in 2.0" chip. Do NOT upload it before V2 is on the App Store. (The smaller `site-update-probe-link.zip` is the safe-to-upload-today version.)
 
 Done:
 - [x] `Settings.isDevBuild` → `isTestBuild`, keyed off build flavor (DEBUG / TestFlight
