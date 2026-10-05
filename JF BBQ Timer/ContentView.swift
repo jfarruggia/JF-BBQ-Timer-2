@@ -1120,8 +1120,7 @@ struct ContentView: View {
                     guard let uuid = uuid, let timer = timer else { break }
                     let presetSeconds = TimeInterval(timer.preset1)
                     if let state = timerStates.state(for: uuid) {
-                        state.setIntervalTime(presetSeconds)
-                        state.start(onComplete: {
+                        state.startPreset(presetSeconds, onComplete: {
                             if settings.soundEnabled { state.playSound() }
                             if settings.hapticsEnabled {
                                 alertState.completedTimerID = state.id
@@ -1135,8 +1134,7 @@ struct ContentView: View {
                     guard let uuid = uuid, let timer = timer else { break }
                     let presetSeconds = TimeInterval(timer.preset2)
                     if let state = timerStates.state(for: uuid) {
-                        state.setIntervalTime(presetSeconds)
-                        state.start(onComplete: {
+                        state.startPreset(presetSeconds, onComplete: {
                             if settings.soundEnabled { state.playSound() }
                             if settings.hapticsEnabled {
                                 alertState.completedTimerID = state.id
@@ -1151,17 +1149,19 @@ struct ContentView: View {
                     if state.isRunning {
                         state.stop()
                     } else {
-                        if state.intervalTime <= 0, let t = timer {
-                            state.setIntervalTime(TimeInterval(t.preset1))
-                        }
-                        state.start(onComplete: {
+                        let onComplete: () -> Void = {
                             if settings.soundEnabled { state.playSound() }
                             if settings.hapticsEnabled {
                                 alertState.completedTimerID = state.id
                                 alertState.isTotalTimeAlert = false
                                 alertState.isPresented = true
                             }
-                        })
+                        }
+                        if state.intervalTime <= 0, let t = timer {
+                            state.startPreset(TimeInterval(t.preset1), onComplete: onComplete)
+                        } else {
+                            state.start(onComplete: onComplete)
+                        }
                     }
 
                 case "ackAlert":
