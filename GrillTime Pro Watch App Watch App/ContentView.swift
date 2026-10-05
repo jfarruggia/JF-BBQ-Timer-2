@@ -198,7 +198,9 @@ struct TimersListView: View {
     private static let probePageID = "probe"
 
     private var probeConnected: Bool {
-        probeModel.probe?.connected == true
+        guard let probe = probeModel.probe else { return false }
+        // Stay on the page while out of range (signal lost, last temp shown).
+        return probe.connected || probe.outOfRange
     }
 
     @ViewBuilder
@@ -229,6 +231,25 @@ struct TimersListView: View {
                     }
                 }
 
+                if probe.outOfRange {
+                    // Signal lost: last core temp (dim) + age; nothing else is trustworthy.
+                    Text(shortTemp(probe.lastCoreC, unit: probe.unit))
+                        .font(.system(size: 42, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .opacity(0.5)
+                    TimelineView(.periodic(from: .now, by: 60)) { context in
+                        let age = probe.lastReadingDate.map {
+                            probeReadingAgeText(lastReadingAt: $0, now: context.date)
+                        }
+                        Label("Out of range" + (age.map { " · \($0)" } ?? ""),
+                              systemImage: "antenna.radiowaves.left.and.right.slash")
+                            .font(.footnote)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.8)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.top, 2)
+                } else {
                 // Core temp — the hero
                 Text(shortTemp(probe.coreC, unit: probe.unit))
                     .font(.system(size: 42, weight: .bold, design: .rounded))
@@ -245,6 +266,7 @@ struct TimersListView: View {
                 // Guided-cook status line — phase-aware (mirrors the iPhone card)
                 probeStatusLine(for: probe)
                     .padding(.top, 2)
+                }
 
                 Spacer(minLength: 0)
             }
@@ -450,6 +472,18 @@ struct TimersListView: View {
                         .monospacedDigit()
                         .foregroundColor(Color("TimerAccent"))
                 }
+            } else if let probe = probeModel.probe, probe.outOfRange, let last = probe.lastCoreC,
+                      probe.attachedCookID == row.id {
+                // Out of range: last temp, dimmed, with a signal-lost icon (no age — no room).
+                HStack(spacing: 2) {
+                    Image(systemName: "antenna.radiowaves.left.and.right.slash")
+                        .font(.system(size: 10, weight: .medium))
+                    Text(probe.unit.compactString(fromCelsius: last))
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                }
+                .foregroundColor(Color("TimerAccent"))
+                .opacity(0.5)
             }
         }
         .padding(.horizontal, 12)

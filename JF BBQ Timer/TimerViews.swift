@@ -34,6 +34,42 @@ struct CardProbeInfo: Equatable {
     var batteryLow: Bool = false
     /// A probe sensor is overheating — strip warning icon (wins over battery).
     var overheating: Bool = false
+    /// Non-nil = the probe signal is lost (out of range); text is the age, e.g.
+    /// "3 min ago". `coreText` then holds the LAST known core temp (drawn dim)
+    /// and surface/ambient/ready are hidden by the builder.
+    var outOfRangeAgeText: String? = nil
+    /// When the last reading arrived; the strip's second line re-derives the
+    /// age from this on a timer so it stays live.
+    var lastReadingAt: Date? = nil
+
+    var isOutOfRange: Bool { outOfRangeAgeText != nil }
+}
+
+/// "Out of range · last reading 3 min ago" — the second line under a probe strip
+/// while the signal is lost. One line, scales down rather than wrapping.
+struct ProbeOutOfRangeLine: View {
+    let info: CardProbeInfo
+    var fontSize: CGFloat = 12
+    var color: Color = .secondary
+
+    var body: some View {
+        if info.isOutOfRange {
+            TimelineView(.periodic(from: .now, by: 30)) { context in
+                let age = info.lastReadingAt
+                    .map { probeReadingAgeText(lastReadingAt: $0, now: context.date) }
+                    ?? info.outOfRangeAgeText ?? ""
+                HStack(spacing: 4) {
+                    Image(systemName: "antenna.radiowaves.left.and.right.slash")
+                    Text("Out of range · last reading \(age)")
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+                .font(.system(size: fontSize, weight: .medium))
+                .foregroundStyle(color)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
 }
 
 /// Small probe-health warning icon shared by the three probe strips.
@@ -483,58 +519,62 @@ struct CompactTimerView: View {
                 Divider()
                     .padding(.horizontal, 4)
 
-                HStack(spacing: 6) {
-                    Image(systemName: "thermometer.medium")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(Color("TimerAccent"))
-                    ProbeHealthIcon(info: info, size: 11)
-                    Text("Core")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.secondary)
-                    Text(info.coreText)
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundColor(Color("TimerAccent"))
-                    if let target = info.targetText {
-                        Text("→ \(target)")
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "thermometer.medium")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(Color("TimerAccent"))
+                        ProbeHealthIcon(info: info, size: 11)
+                        Text("Core")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.secondary)
+                        Text(info.coreText)
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
                             .monospacedDigit()
-                            .foregroundColor(.secondary)
-                    } else if onProbeStripTap != nil {
-                        Text("Set target")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .overlay(Capsule().stroke(Color.secondary.opacity(0.5), lineWidth: 1))
-                    }
-                    if let surface = info.surfaceText {
-                        Text("Sfc \(surface)")
-                            .font(.system(size: 11, weight: .medium))
-                            .monospacedDigit()
-                            .foregroundColor(.secondary)
-                    }
-                    if let ambient = info.ambientText {
-                        Text("Amb \(ambient)")
-                            .font(.system(size: 11, weight: .medium))
-                            .monospacedDigit()
-                            .foregroundColor(.secondary)
-                    }
-                    Spacer()
-                    if info.showReady {
-                        Text(info.readySlotLabel)
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(info.readySlotEmphasized ? Color("TimerAccent") : .secondary)
-                        if let readyDate = info.readyDate {
-                            Text(timerInterval: Date()...readyDate, countsDown: true)
+                            .foregroundColor(Color("TimerAccent"))
+                        .opacity(info.isOutOfRange ? 0.5 : 1)
+                        if let target = info.targetText {
+                            Text("→ \(target)")
                                 .font(.system(size: 13, weight: .semibold, design: .rounded))
                                 .monospacedDigit()
-                        } else {
-                            Text(info.readySlotText ?? (info.readyDate != nil ? "~" : "—"))
-                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                .foregroundColor(.secondary)
+                        } else if onProbeStripTap != nil {
+                            Text("Set target")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .overlay(Capsule().stroke(Color.secondary.opacity(0.5), lineWidth: 1))
+                        }
+                        if let surface = info.surfaceText {
+                            Text("Sfc \(surface)")
+                                .font(.system(size: 11, weight: .medium))
+                                .monospacedDigit()
+                                .foregroundColor(.secondary)
+                        }
+                        if let ambient = info.ambientText {
+                            Text("Amb \(ambient)")
+                                .font(.system(size: 11, weight: .medium))
+                                .monospacedDigit()
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        if info.showReady {
+                            Text(info.readySlotLabel)
+                                .font(.system(size: 11, weight: .medium))
                                 .foregroundColor(info.readySlotEmphasized ? Color("TimerAccent") : .secondary)
+                            if let readyDate = info.readyDate {
+                                Text(timerInterval: Date()...readyDate, countsDown: true)
+                                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                    .monospacedDigit()
+                            } else {
+                                Text(info.readySlotText ?? (info.readyDate != nil ? "~" : "—"))
+                                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                    .foregroundColor(info.readySlotEmphasized ? Color("TimerAccent") : .secondary)
+                            }
                         }
                     }
+                    ProbeOutOfRangeLine(info: info, fontSize: 11, color: .secondary)
                 }
                 .padding(.horizontal, 4)
                 .padding(.bottom, 2)
@@ -763,61 +803,65 @@ struct GlassLargeTimerContent: View {
                 Divider()
                     .overlay(Color.white.opacity(0.25))
 
-                HStack(spacing: 8) {
-                    Image(systemName: "thermometer.medium")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(Color("TimerAccent"))
-                    ProbeHealthIcon(info: info, size: 13)
-                    Text("Core")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.7))
-                    Text(info.coreText)
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(Color("TimerAccent"))
-                    if let target = info.targetText {
-                        Text("→ \(target)")
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundStyle(.white.opacity(0.75))
-                    } else if onProbeStripTap != nil {
-                        Text("Set target")
-                            .font(.system(size: 12, weight: .medium))
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "thermometer.medium")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(Color("TimerAccent"))
+                        ProbeHealthIcon(info: info, size: 13)
+                        Text("Core")
+                            .font(.system(size: 14, weight: .medium))
                             .foregroundStyle(.white.opacity(0.7))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .overlay(Capsule().stroke(.white.opacity(0.35), lineWidth: 1))
-                    }
-                    if let surface = info.surfaceText {
-                        Text("Sfc \(surface)")
-                            .font(.system(size: 13, weight: .medium))
+                        Text(info.coreText)
+                            .font(.system(size: 18, weight: .semibold, design: .rounded))
                             .monospacedDigit()
-                            .foregroundStyle(.white.opacity(0.6))
-                    }
-                    if let ambient = info.ambientText {
-                        Text("Amb \(ambient)")
-                            .font(.system(size: 13, weight: .medium))
-                            .monospacedDigit()
-                            .foregroundStyle(.white.opacity(0.6))
-                    }
-                    Spacer()
-                    if info.showReady {
-                        Text(info.readySlotLabel)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(info.readySlotEmphasized
-                                             ? Color("TimerAccent") : .white.opacity(0.6))
-                        if let readyDate = info.readyDate {
-                            Text(timerInterval: Date()...readyDate, countsDown: true)
+                            .foregroundStyle(Color("TimerAccent"))
+                        .opacity(info.isOutOfRange ? 0.5 : 1)
+                        if let target = info.targetText {
+                            Text("→ \(target)")
                                 .font(.system(size: 15, weight: .semibold, design: .rounded))
                                 .monospacedDigit()
-                                .foregroundStyle(.white)
-                        } else {
-                            Text(info.readySlotText ?? "—")
-                                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.75))
+                        } else if onProbeStripTap != nil {
+                            Text("Set target")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.7))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .overlay(Capsule().stroke(.white.opacity(0.35), lineWidth: 1))
+                        }
+                        if let surface = info.surfaceText {
+                            Text("Sfc \(surface)")
+                                .font(.system(size: 13, weight: .medium))
+                                .monospacedDigit()
+                                .foregroundStyle(.white.opacity(0.6))
+                        }
+                        if let ambient = info.ambientText {
+                            Text("Amb \(ambient)")
+                                .font(.system(size: 13, weight: .medium))
+                                .monospacedDigit()
+                                .foregroundStyle(.white.opacity(0.6))
+                        }
+                        Spacer()
+                        if info.showReady {
+                            Text(info.readySlotLabel)
+                                .font(.system(size: 13, weight: .medium))
                                 .foregroundStyle(info.readySlotEmphasized
-                                                 ? Color("TimerAccent") : .white.opacity(0.5))
+                                                 ? Color("TimerAccent") : .white.opacity(0.6))
+                            if let readyDate = info.readyDate {
+                                Text(timerInterval: Date()...readyDate, countsDown: true)
+                                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                    .monospacedDigit()
+                                    .foregroundStyle(.white)
+                            } else {
+                                Text(info.readySlotText ?? "—")
+                                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(info.readySlotEmphasized
+                                                     ? Color("TimerAccent") : .white.opacity(0.5))
+                            }
                         }
                     }
+                    ProbeOutOfRangeLine(info: info, fontSize: 13, color: .white.opacity(0.7))
                 }
                 .contentShape(Rectangle())
                 .onTapGesture { onProbeStripTap?() }
@@ -1167,61 +1211,65 @@ struct GlassCompactTimerContent: View {
                     .overlay(Color.white.opacity(0.25))
                     .padding(.horizontal, 16)
 
-                HStack(spacing: 6) {
-                    Image(systemName: "thermometer.medium")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(Color("TimerAccent"))
-                    ProbeHealthIcon(info: info, size: 11)
-                    Text("Core")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.65))
-                    Text(info.coreText)
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(Color("TimerAccent"))
-                    if let target = info.targetText {
-                        Text("→ \(target)")
-                            .font(.system(size: 12, weight: .semibold, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundStyle(.white.opacity(0.7))
-                    } else if onProbeStripTap != nil {
-                        Text("Set target")
-                            .font(.system(size: 10, weight: .medium))
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "thermometer.medium")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(Color("TimerAccent"))
+                        ProbeHealthIcon(info: info, size: 11)
+                        Text("Core")
+                            .font(.system(size: 12, weight: .medium))
                             .foregroundStyle(.white.opacity(0.65))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .overlay(Capsule().stroke(.white.opacity(0.3), lineWidth: 1))
-                    }
-                    if let surface = info.surfaceText {
-                        Text("Sfc \(surface)")
-                            .font(.system(size: 11, weight: .medium))
+                        Text(info.coreText)
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
                             .monospacedDigit()
-                            .foregroundStyle(.white.opacity(0.55))
-                    }
-                    if let ambient = info.ambientText {
-                        Text("Amb \(ambient)")
-                            .font(.system(size: 11, weight: .medium))
-                            .monospacedDigit()
-                            .foregroundStyle(.white.opacity(0.55))
-                    }
-                    Spacer()
-                    if info.showReady {
-                        Text(info.readySlotLabel)
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(info.readySlotEmphasized
-                                             ? Color("TimerAccent") : .white.opacity(0.55))
-                        if let readyDate = info.readyDate {
-                            Text(timerInterval: Date()...readyDate, countsDown: true)
-                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .foregroundStyle(Color("TimerAccent"))
+                        .opacity(info.isOutOfRange ? 0.5 : 1)
+                        if let target = info.targetText {
+                            Text("→ \(target)")
+                                .font(.system(size: 12, weight: .semibold, design: .rounded))
                                 .monospacedDigit()
-                                .foregroundStyle(.white)
-                        } else {
-                            Text(info.readySlotText ?? "—")
-                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.7))
+                        } else if onProbeStripTap != nil {
+                            Text("Set target")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.65))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .overlay(Capsule().stroke(.white.opacity(0.3), lineWidth: 1))
+                        }
+                        if let surface = info.surfaceText {
+                            Text("Sfc \(surface)")
+                                .font(.system(size: 11, weight: .medium))
+                                .monospacedDigit()
+                                .foregroundStyle(.white.opacity(0.55))
+                        }
+                        if let ambient = info.ambientText {
+                            Text("Amb \(ambient)")
+                                .font(.system(size: 11, weight: .medium))
+                                .monospacedDigit()
+                                .foregroundStyle(.white.opacity(0.55))
+                        }
+                        Spacer()
+                        if info.showReady {
+                            Text(info.readySlotLabel)
+                                .font(.system(size: 11, weight: .medium))
                                 .foregroundStyle(info.readySlotEmphasized
-                                                 ? Color("TimerAccent") : .white.opacity(0.45))
+                                                 ? Color("TimerAccent") : .white.opacity(0.55))
+                            if let readyDate = info.readyDate {
+                                Text(timerInterval: Date()...readyDate, countsDown: true)
+                                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                    .monospacedDigit()
+                                    .foregroundStyle(.white)
+                            } else {
+                                Text(info.readySlotText ?? "—")
+                                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(info.readySlotEmphasized
+                                                     ? Color("TimerAccent") : .white.opacity(0.45))
+                            }
                         }
                     }
+                    ProbeOutOfRangeLine(info: info, fontSize: 11, color: .white.opacity(0.65))
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 4)

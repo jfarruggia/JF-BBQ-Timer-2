@@ -516,3 +516,45 @@ struct ProbeEventClearTests {
         #expect(PropertyListSerialization.propertyList(probeEventClearWireDict(), isValidFor: .binary))
     }
 }
+
+// MARK: - Suite: out-of-range wire keys + age text
+
+@Suite("Probe out-of-range — wire + age text")
+struct ProbeOutOfRangeTests {
+
+    @Test("Out-of-range keys round-trip")
+    func outOfRangeRoundTrip() {
+        let last = Date(timeIntervalSince1970: 1_700_000_000)
+        let dict = probeReadingWireDict(connected: false, reading: nil,
+                                        now: last.addingTimeInterval(120),
+                                        outOfRange: true, lastCoreC: 62.5, lastReadingAt: last)
+        let decoded = decodeWatchProbeReading(from: dict)
+        #expect(decoded?.outOfRange == true)
+        #expect(decoded?.lastCoreC == 62.5)
+        #expect(decoded?.lastReadingDate == last)
+        #expect(decoded?.connected == false)
+    }
+
+    @Test("Older payloads without the keys decode as in range")
+    func legacyPayload() {
+        let dict = probeReadingWireDict(connected: true, reading: nil, now: Date())
+        #expect(dict["outOfRange"] == nil)
+        #expect(dict["lastReadingEpoch"] == nil)
+        let decoded = decodeWatchProbeReading(from: dict)
+        #expect(decoded?.outOfRange == false)
+        #expect(decoded?.lastCoreC == nil)
+        #expect(decoded?.lastReadingDate == nil)
+    }
+
+    @Test("Age text rows and edges", arguments: [
+        (-30, "just now"), (0, "just now"), (59, "just now"),
+        (60, "1 min ago"), (180, "3 min ago"), (3599, "59 min ago"),
+        (3600, "1 h ago"), (3900, "1 h 5 min ago"), (7200, "2 h ago"),
+        (7260, "2 h 1 min ago")
+    ])
+    func ageText(seconds: Int, expected: String) {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let last = now.addingTimeInterval(-TimeInterval(seconds))
+        #expect(probeReadingAgeText(lastReadingAt: last, now: now) == expected)
+    }
+}

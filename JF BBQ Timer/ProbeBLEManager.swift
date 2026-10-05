@@ -84,6 +84,19 @@ final class ProbeBLEManager: ObservableObject {
     @Published private(set) var connectionState: ProbeConnectionState = .idle
     @Published private(set) var discoveredProbes: [DiscoveredProbe] = []
     @Published private(set) var latestReading: ProbeReading?
+    /// Last valid reading seen this session. Unlike `latestReading` it SURVIVES an
+    /// unexpected disconnect so the UI can show "Out of range" with the last temp.
+    /// Cleared on user disconnect, on connecting a probe, and Bluetooth off. Never persisted.
+    @Published private(set) var lastKnownReading: ProbeReading?
+    /// When `lastKnownReading` arrived (absolute date; age is derived from it).
+    @Published private(set) var lastReadingAt: Date?
+
+    /// True when the link dropped unexpectedly (auto-reconnecting) and we hold a
+    /// last-known reading to show. Display-only; alert logic never reads this.
+    var isOutOfRange: Bool {
+        if case .reconnecting = connectionState { return lastKnownReading != nil }
+        return false
+    }
     @Published private(set) var bluetoothReady: Bool = false
     /// The id of the cook (BBQTimer) this probe is currently attached to.
     /// nil means the probe is connected but not yet assigned to any cook.
@@ -162,6 +175,8 @@ final class ProbeBLEManager: ObservableObject {
         shouldReconnect = true
         notifiedBatteryLow = false
         notifiedOverheating = false
+        lastKnownReading = nil
+        lastReadingAt = nil
         connectionState = .connecting(id)
         central.connect(identifier: id)
     }
@@ -172,6 +187,8 @@ final class ProbeBLEManager: ObservableObject {
     func disconnect() {
         shouldReconnect = false
         attachedCookID = nil
+        lastKnownReading = nil
+        lastReadingAt = nil
         targetCelsius = nil   // association over; don't write to a dying link
         phaseEngine.reset()
         crossingLatch.reset()
@@ -334,6 +351,8 @@ final class ProbeBLEManager: ObservableObject {
             connectionState = .poweredOff
             discoveredProbes = []
             latestReading = nil
+            lastKnownReading = nil
+            lastReadingAt = nil
         } else {
             // Restore to idle if we were in poweredOff
             if case .poweredOff = connectionState {
@@ -402,6 +421,8 @@ final class ProbeBLEManager: ObservableObject {
         #endif
         guard let reading = ProbeReading.decode(data: data) else { return }
         latestReading = reading
+        lastKnownReading = reading
+        lastReadingAt = Date()
         var events = phaseEngine.update(prediction: reading.prediction,
                                         targetCelsius: targetCelsius)
         // Phone-side safety net: the MEASURED core crossing the target. Skipped
