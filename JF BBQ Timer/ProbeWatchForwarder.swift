@@ -33,6 +33,7 @@ final class ProbeWatchForwarder {
     private var lastConnected: Bool? = nil
     private var lastHadValidReading: Bool? = nil
     private var lastPhase: ProbeCookPhase? = nil
+    private var lastOutOfRange: Bool? = nil
     /// Read at send time for the target temp (not published; changes always
     /// coincide with a phase reset, which triggers a forward anyway).
     private weak var bleManager: ProbeBLEManager?
@@ -79,7 +80,12 @@ final class ProbeWatchForwarder {
         let connectionChanged  = lastConnected != connected
         let validityChanged    = lastHadValidReading != hasValidReading
         let phaseChanged       = lastPhase != phase
+        // Out-of-range display state (published props are updated before
+        // connectionState changes, so reading the manager here is current).
+        let outOfRange         = bleManager?.isOutOfRange ?? false
+        let outOfRangeChanged  = lastOutOfRange != outOfRange
         let immediateForward   = connectionChanged || validityChanged || phaseChanged
+            || outOfRangeChanged
 
         // Apply throttle unless this is a forced send
         let shouldSend = immediateForward
@@ -101,7 +107,10 @@ final class ProbeWatchForwarder {
             targetC: bleManager?.targetCelsius,
             phaseRaw: phase.rawValue,
             overheating: reading?.isOverheating ?? false,
-            attachedCookID: bleManager?.attachedCookID?.uuidString
+            attachedCookID: bleManager?.attachedCookID?.uuidString,
+            outOfRange: outOfRange,
+            lastCoreC: bleManager?.lastKnownReading?.coreTempC,
+            lastReadingAt: bleManager?.lastReadingAt
         )
         let sent = WCSessionManager.shared.sendProbeReading(dict)
 
@@ -113,6 +122,7 @@ final class ProbeWatchForwarder {
         lastConnected       = connected
         lastHadValidReading = hasValidReading
         lastPhase           = phase
+        lastOutOfRange      = outOfRange
     }
 }
 

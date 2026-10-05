@@ -410,6 +410,22 @@ struct ContentView: View {
     /// result straight into the card content view; no probe logic runs in the
     /// card views themselves.
     private func probeInfo(for timer: BBQTimer) -> CardProbeInfo? {
+        #if DEBUG
+        // Visual-check hook: `-probeDebugOutOfRange <minutes>` forces the first
+        // timer's strip into the out-of-range state with a fake last reading.
+        if let mins = debugOutOfRangeMinutes, timer.id == settings.allTimers.first?.id {
+            let since = Date().addingTimeInterval(-mins * 60)
+            return CardProbeInfo(
+                coreText: settings.temperatureUnit.compactString(fromCelsius: 62),
+                readyDate: nil,
+                showReady: false,
+                targetText: settings.probeTarget(forCookID: timer.id)
+                    .map { settings.temperatureUnit.compactString(fromCelsius: $0) },
+                outOfRangeAgeText: probeReadingAgeText(lastReadingAt: since, now: Date()),
+                lastReadingAt: since
+            )
+        }
+        #endif
         guard probeManager.attachedCookID == timer.id else { return nil }
         switch probeManager.connectionState {
         case .connected, .reconnecting:
@@ -417,7 +433,11 @@ struct ContentView: View {
         default:
             return nil
         }
+        let outOfRange = probeManager.isOutOfRange
+        // While out of range show the last-known core temp (dimmed by the strip);
+        // otherwise the live reading (nil when reconnecting with nothing to show).
         let reading = probeManager.latestReading
+        let lastKnown = probeManager.lastKnownReading
         // Formats a °C value in the user's unit; "—" at/below the −20 °C sensor
         // floor (raw 0 = no data).
         func tempText(_ celsius: Double?) -> String {
@@ -449,20 +469,33 @@ struct ContentView: View {
         }
 
         return CardProbeInfo(
-            coreText: tempText(reading?.coreTempC),
-            surfaceText: settings.showProbeSurfaceTemp ? tempText(reading?.surfaceTempC) : nil,
-            ambientText: settings.showProbeAmbientTemp ? tempText(reading?.ambientTempC) : nil,
-            readyDate: readyDate,
-            showReady: settings.showProbePredictedReady,
+            coreText: tempText(outOfRange ? lastKnown?.coreTempC : reading?.coreTempC),
+            surfaceText: (!outOfRange && settings.showProbeSurfaceTemp) ? tempText(reading?.surfaceTempC) : nil,
+            ambientText: (!outOfRange && settings.showProbeAmbientTemp) ? tempText(reading?.ambientTempC) : nil,
+            readyDate: outOfRange ? nil : readyDate,
+            showReady: !outOfRange && settings.showProbePredictedReady,
             targetText: settings.probeTarget(forCookID: timer.id)
                 .map { settings.temperatureUnit.compactString(fromCelsius: $0) },
             readySlotLabel: readySlotLabel,
             readySlotText: readySlotText,
             readySlotEmphasized: readySlotEmphasized,
             batteryLow: reading?.batteryStatus == .low,
-            overheating: reading?.isOverheating ?? false
+            overheating: reading?.isOverheating ?? false,
+            outOfRangeAgeText: outOfRange
+                ? probeManager.lastReadingAt.map { probeReadingAgeText(lastReadingAt: $0, now: Date()) }
+                : nil,
+            lastReadingAt: outOfRange ? probeManager.lastReadingAt : nil
         )
     }
+
+    #if DEBUG
+    /// Minutes for the `-probeDebugOutOfRange` launch argument, or nil.
+    private var debugOutOfRangeMinutes: Double? {
+        let args = ProcessInfo.processInfo.arguments
+        guard let i = args.firstIndex(of: "-probeDebugOutOfRange"), i + 1 < args.count else { return nil }
+        return Double(args[i + 1])
+    }
+    #endif
 
     /// Alerts for the guided-cook moments. State-driven (never scheduled from a
     /// drifting estimate, per the probe spec): an immediate local notification —
@@ -713,44 +746,49 @@ struct ContentView: View {
                     // orange accent both wash out against this card's orange body
                     // (Jim, iOS 18 device), and fixed tones hold up in dark mode
                     // where .primary/.secondary would flip light.
-                    HStack(spacing: 6) {
-                        Image(systemName: "thermometer.medium")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(.black.opacity(0.65))
-                        Text("Core")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(.black.opacity(0.65))
-                        Text(info.coreText)
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundColor(.black.opacity(0.9))
-                        if let target = info.targetText {
-                            Text("\u{2192} \(target)")
-                                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "thermometer.medium")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.black.opacity(0.65))
+                            Text("Core")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.black.opacity(0.65))
+                            Text(info.coreText)
+                                .font(.system(size: 16, weight: .bold, design: .rounded))
                                 .monospacedDigit()
-                                .foregroundColor(.black.opacity(0.75))
-                        } else {
-                            Text("Set target")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundColor(.black.opacity(0.7))
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .overlay(Capsule().stroke(Color.black.opacity(0.45), lineWidth: 1))
+                                .foregroundColor(.black.opacity(info.isOutOfRange ? 0.45 : 0.9))
+                            if let target = info.targetText {
+                                Text("\u{2192} \(target)")
+                                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                    .monospacedDigit()
+                                    .foregroundColor(.black.opacity(0.75))
+                            } else {
+                                Text("Set target")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundColor(.black.opacity(0.7))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .overlay(Capsule().stroke(Color.black.opacity(0.45), lineWidth: 1))
+                            }
+                            Spacer()
+                            if !info.isOutOfRange {
+                            Text("ready")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.black.opacity(0.65))
+                            if let readyDate = info.readyDate {
+                                Text(timerInterval: Date()...readyDate, countsDown: true)
+                                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                    .monospacedDigit()
+                                    .foregroundColor(.black.opacity(0.9))
+                            } else {
+                                Text(info.readyDate != nil ? "~" : "—")
+                                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                    .foregroundColor(.black.opacity(0.55))
+                            }
+                            }
                         }
-                        Spacer()
-                        Text("ready")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.black.opacity(0.65))
-                        if let readyDate = info.readyDate {
-                            Text(timerInterval: Date()...readyDate, countsDown: true)
-                                .font(.system(size: 14, weight: .semibold, design: .rounded))
-                                .monospacedDigit()
-                                .foregroundColor(.black.opacity(0.9))
-                        } else {
-                            Text(info.readyDate != nil ? "~" : "—")
-                                .font(.system(size: 14, weight: .semibold, design: .rounded))
-                                .foregroundColor(.black.opacity(0.55))
-                        }
+                        ProbeOutOfRangeLine(info: info, fontSize: 12, color: .black.opacity(0.65))
                     }
                     .padding(.horizontal, 4)
                     .padding(.bottom, 4)
@@ -1369,6 +1407,10 @@ struct ContentView: View {
     // MARK: - Notification helpers
 
     private func requestNotificationPermission() {
+        #if DEBUG
+        // Keep the system prompt off screen during the out-of-range visual check.
+        if debugOutOfRangeMinutes != nil { return }
+        #endif
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
             if let error = error {
                 debugLog("❌ Notification permission error: \(error)")

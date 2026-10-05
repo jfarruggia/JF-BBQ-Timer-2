@@ -43,7 +43,10 @@ func probeReadingWireDict(
     targetC: Double? = nil,
     phaseRaw: UInt8 = 0,
     overheating: Bool = false,
-    attachedCookID: String? = nil
+    attachedCookID: String? = nil,
+    outOfRange: Bool = false,
+    lastCoreC: Double? = nil,
+    lastReadingAt: Date? = nil
 ) -> [String: Any] {
     var dict: [String: Any] = [
         "action":     "probe",
@@ -56,6 +59,12 @@ func probeReadingWireDict(
     ]
     if let targetC { dict["targetC"] = targetC }
     if let attachedCookID { dict["cookID"] = attachedCookID }
+    // Out-of-range display data (additive; older builds ignore these keys).
+    if outOfRange {
+        dict["outOfRange"] = true
+        if let lastCoreC, lastCoreC > -19.99 { dict["lastCoreC"] = lastCoreC }
+        if let lastReadingAt { dict["lastReadingEpoch"] = lastReadingAt.timeIntervalSince1970 }
+    }
 
     // Temperature values: omit if at or below the −20 °C sensor floor
     let floorC = -19.99

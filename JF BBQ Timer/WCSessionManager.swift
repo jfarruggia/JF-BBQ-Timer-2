@@ -503,6 +503,26 @@ struct WatchProbeReading: Equatable {
     /// UUID string of the cook (timer) the probe is attached to; nil when
     /// unattached. Lets the watch show the temp only on that timer's page.
     var attachedCookID: String? = nil
+    /// True when the phone lost the probe's signal (auto-reconnecting) but still
+    /// holds a last-known reading. Defaults to false for older payloads.
+    var outOfRange: Bool = false
+    /// Last core temperature (°C) seen before the signal dropped; set with `outOfRange`.
+    var lastCoreC: Double? = nil
+    /// When that last reading arrived (absolute date). The watch derives the
+    /// age text from this itself, so it stays right after waking from sleep.
+    var lastReadingDate: Date? = nil
+}
+
+/// Age of the last probe reading as short text: "just now" / "3 min ago" /
+/// "1 h 5 min ago" ("2 h ago" on the hour). Negative age (clock skew) reads
+/// "just now". Pure — `now` is injected. Shared by phone and watch.
+func probeReadingAgeText(lastReadingAt: Date, now: Date) -> String {
+    let seconds = Int(now.timeIntervalSince(lastReadingAt))
+    guard seconds >= 60 else { return "just now" }
+    let minutes = seconds / 60
+    if minutes < 60 { return "\(minutes) min ago" }
+    let h = minutes / 60, m = minutes % 60
+    return m == 0 ? "\(h) h ago" : "\(h) h \(m) min ago"
 }
 
 /// Decodes a WatchConnectivity wire dict into a `WatchProbeReading`.
@@ -536,7 +556,11 @@ func decodeWatchProbeReading(from dict: [String: Any]) -> WatchProbeReading? {
         targetC: dict["targetC"] as? Double,
         phaseRaw: UInt8((dict["phaseRaw"] as? Int) ?? 0),
         overheating: dict["overheating"] as? Bool ?? false,
-        attachedCookID: dict["cookID"] as? String
+        attachedCookID: dict["cookID"] as? String,
+        outOfRange: dict["outOfRange"] as? Bool ?? false,
+        lastCoreC: dict["lastCoreC"] as? Double,
+        lastReadingDate: (dict["lastReadingEpoch"] as? Double)
+            .map { Date(timeIntervalSince1970: $0) }
     )
 }
 
