@@ -328,6 +328,7 @@ class TimerState: ObservableObject {
     // MARK: - Completion
 
     private func handleCompletion() {
+        let completedEndDate = endDate
         endDate = nil
         remainingAtPause = 0
         isRunning = false
@@ -343,6 +344,24 @@ class TimerState: ObservableObject {
         clearPersistedState()
         onCompleteAction?()
         triggerCompletionHaptics()
+        sendWatchCompletionAlert(endedAt: completedEndDate)
+    }
+
+    /// Tells the watch this timer just finished, whatever the Haptics setting
+    /// (the phone's own alert flag is gated on it; the watch's is not). Skipped
+    /// for stale completions found on foreground resync — the watch's own
+    /// 10-minute catch-up covers "you missed it".
+    private func sendWatchCompletionAlert(endedAt: Date?) {
+        guard let settings = settings, settings.isPremiumUser else { return }
+        if let end = endedAt, Date().timeIntervalSince(end) > 30 { return }
+        var payload: [String: Any] = [
+            "action": "alert",
+            "phase": "start",
+            "timerId": id.uuidString,
+            "message": AnnouncementMessage.spoken(custom: settings.customAnnouncementMessage, timerName: displayName()),
+        ]
+        if let end = endedAt { payload["endDate"] = end.timeIntervalSince1970 }
+        WCSessionManager.shared.sendCommand(payload)
     }
 
     func completeNow() { handleCompletion() }

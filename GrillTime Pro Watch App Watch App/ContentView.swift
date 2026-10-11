@@ -16,6 +16,7 @@ struct TimersListView: View {
     // Local ticker so the watch UI updates every second without waiting for iPhone
     // Only active when timers are running to save battery
     @State private var now = Date()
+    @Environment(\.scenePhase) private var scenePhase
     @State private var activeTickerTimer: Timer? = nil
     // Retry requesting a snapshot from iPhone a few times on first launch
     @State private var snapshotRetryCount: Int = 5
@@ -102,6 +103,8 @@ struct TimersListView: View {
             
             // Ensure extended runtime is active if any timers are already running
             refreshExtendedRuntimeSession()
+            if hasRunningTimer { startTickerIfNeeded() }
+            model.checkCompletions(now: Date())
         }
         // Drop the page selection when the phone locks the app; the next unlocked
         // snapshot re-seeds it from timers.first via the onChange below.
@@ -142,6 +145,17 @@ struct TimersListView: View {
             guard let id = newValue else { return }
             withAnimation { selectedTimerId = id }
             model.focusTimerId = nil
+        }
+        // The watch decides by itself when a timer is done (the phone may be
+        // suspended): check on every tick and when the app wakes.
+        .onChange(of: now) { _, newNow in
+            model.checkCompletions(now: newNow)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                now = Date()
+                model.checkCompletions(now: Date())
+            }
         }
         // When an alert appears, play a lightweight haptic once
         .onChange(of: model.alertMessage) { oldValue, newValue in
@@ -498,9 +512,9 @@ struct TimersListView: View {
             Button {
                 // Tell the iPhone to stop the alert, and hide locally
                 var payload: [String: Any] = ["action": "ackAlert"]
-                if let id = selectedTimerId { payload["timerId"] = id }
+                if let id = model.alertTimerId ?? selectedTimerId { payload["timerId"] = id }
                 WCSessionManager.shared.sendCommand(payload)
-                model.alertMessage = nil
+                model.dismissAlert()
             } label: {
                 VStack(spacing: 10) {
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -827,6 +841,50 @@ final class WatchTimersModel: ObservableObject {
     @Published var lastSnapshotAt: Date? = nil
     // Message to show in the alert banner when iPhone signals an alert
     @Published var alertMessage: String? = nil
+    // Which timer the showing alert is for, so a tap acks THAT timer (not
+    // whichever page happens to be selected).
+    @Published var alertTimerId: String? = nil
+    // Fire-once memory of which (timer, endDate) runs already alerted.
+    private var completionLatch = WatchCompletionLatch()
+
+    /// Shows the red alert unless one is already up (no second alert, no
+    /// second buzz). Never alerts on a locked watch app.
+    private func present(message: String, timerId: String?) {
+        guard access != .locked, alertMessage == nil else { return }
+        alertMessage = message
+        alertTimerId = timerId
+        debugLog("[⌚️Watch] 🚨 Showing alert: \(message)")
+    }
+
+    func dismissAlert() {
+        alertMessage = nil
+        alertTimerId = nil
+    }
+
+    /// Watch-side completion: called from the 1 s ticker and on wake. Alerts
+    /// for a running row whose endDate has just passed.
+    func checkCompletions(now: Date) {
+        guard access != .locked, alertMessage == nil else { return }
+        let candidates = timers.compactMap { row -> WatchCompletionLatch.Candidate? in
+            guard row.state == "running", let end = row.endDate else { return nil }
+            return WatchCompletionLatch.Candidate(timerId: row.id, endDate: end)
+        }
+        guard let due = completionLatch.nextDue(from: candidates, now: now),
+              let row = timers.first(where: { $0.id == due.timerId }) else { return }
+        present(message: WatchAlertMessage.timerComplete(name: row.name), timerId: row.id)
+    }
+
+    /// The phone's mirrored notification reached the foreground watch app.
+    func handleMirroredNotification(identifier: String) {
+        if identifier.hasPrefix("timer-") {
+            let id = String(identifier.dropFirst("timer-".count))
+            let row = timers.first(where: { $0.id == id })
+            guard completionLatch.claimForNotification(timerId: id, rowEndDate: row?.endDate, now: Date()) else { return }
+            present(message: WatchAlertMessage.timerComplete(name: row?.name ?? ""), timerId: id)
+        } else if identifier.hasPrefix("preheat-") {
+            present(message: WatchAlertMessage.preheatComplete, timerId: nil)
+        }
+    }
     // Set when a snapshot shows a timer that just transitioned to running (e.g.
     // started from the iPhone) — the pager focuses it so the user can see it's
     // going. Starts made on the watch don't trigger this: the optimistic local
@@ -936,14 +994,37 @@ final class WatchTimersModel: ObservableObject {
             debugLog("[⌚️Watch] Alert phase: \(phase)")
             if phase == "start" {
                 let msg = (info["message"] as? String) ?? "Timer Finished"
-                self?.alertMessage = msg
-                debugLog("[⌚️Watch] 🚨 Showing alert: \(msg)")
+                let timerId = info["timerId"] as? String
+                // With a timerId + endDate the phone's start goes through the
+                // same fire-once latch as the watch's own detection.
+                if let timerId = timerId, let end = (info["endDate"] as? Double).map({ Date(timeIntervalSince1970: $0) }) {
+                    guard self?.completionLatch.claim(timerId: timerId, endDate: end) == true else { return }
+                }
+                self?.present(message: msg, timerId: timerId)
             } else if phase == "stop" {
-                self?.alertMessage = nil
+                self?.dismissAlert()
                 debugLog("[⌚️Watch] ✅ Alert dismissed")
             }
         }
-        
+
+        NotificationCenter.default.addObserver(forName: Notification.Name("watchMirroredNotificationWillPresent"), object: nil, queue: .main) { [weak self] note in
+            guard let identifier = note.userInfo?["identifier"] as? String else { return }
+            self?.handleMirroredNotification(identifier: identifier)
+        }
+
+        #if DEBUG
+        // Simulator check: `-debugWatchTimerEndsIn N` injects a running row
+        // that ends in N seconds (premium unlocked).
+        let debugSeconds = UserDefaults.standard.integer(forKey: "debugWatchTimerEndsIn")
+        if debugSeconds > 0 {
+            access = .unlocked
+            timers = [Row(id: "debug-timer", name: "Ribeye", remaining: debugSeconds, state: "running",
+                          preset1Seconds: 120, preset2Seconds: 300, elapsedSeconds: 0,
+                          endDate: Date().addingTimeInterval(TimeInterval(debugSeconds)),
+                          runDurationSeconds: debugSeconds)]
+        }
+        #endif
+
         debugLog("[⌚️Watch] ✅ WatchTimersModel notification observers registered")
     }
 }

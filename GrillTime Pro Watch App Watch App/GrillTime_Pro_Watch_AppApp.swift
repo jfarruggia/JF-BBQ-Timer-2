@@ -13,6 +13,7 @@ import UserNotifications
 @main
 struct GrillTime_Pro_Watch_App_Watch_AppApp: App {
     init() {
+        UNUserNotificationCenter.current().delegate = WatchNotificationDelegate.shared
         WCSessionManager.shared.activate()
 
         // The watch posts its own local notification for a probe cook moment
@@ -32,5 +33,25 @@ struct GrillTime_Pro_Watch_App_Watch_AppApp: App {
         WindowGroup {
             TimersListView()
         }
+    }
+}
+
+/// Foreground notification handling. When the watch app is frontmost, watchOS
+/// hands the phone's mirrored notification here; without a delegate it is
+/// hidden. For a timer (or preheat) notification we raise the full-screen alert
+/// through the model's fire-once latch and let only the sound play. Anything
+/// else (probe alerts have their own banner) stays hidden, as before.
+final class WatchNotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
+    static let shared = WatchNotificationDelegate()
+
+    func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
+        let identifier = notification.request.identifier
+        guard identifier.hasPrefix("timer-") || identifier.hasPrefix("preheat-") else { return [] }
+        await MainActor.run {
+            NotificationCenter.default.post(name: Notification.Name("watchMirroredNotificationWillPresent"),
+                                            object: nil, userInfo: ["identifier": identifier])
+        }
+        return [.sound]
     }
 }

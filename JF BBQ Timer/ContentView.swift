@@ -1248,6 +1248,11 @@ struct ContentView: View {
         }
         .onChange(of: alertState.isPresented) { isShown in
             let phase = isShown ? "start" : "stop"
+            // A flip completion's proper start (timerId, name-first message) is
+            // already sent by TimerState; a second generic one could arrive
+            // first and ack the wrong timer. Total Time alerts still send it.
+            let isFlipCompletion = alertState.completedTimerID != nil && !alertState.isTotalTimeAlert
+            if isShown && isFlipCompletion { return }
             if settings.isPremiumUser {
                 WCSessionManager.shared.sendCommand(["action": "alert", "phase": phase, "message": "Timer Finished"])
             }
