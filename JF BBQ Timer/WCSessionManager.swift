@@ -733,3 +733,82 @@ enum WatchPremiumGate {
         premium || action == "requestSnapshot"
     }
 }
+
+// MARK: - Watch-side timer completion alert (watch-timer-alert-spec.md)
+
+/// Builds the watch's full-screen alert text. Name-first, matching the phone's
+/// default spoken phrase ("Ribeye timer is complete"). A small pure copy of the
+/// default `AnnouncementMessage` wording, because that file is iOS-only.
+enum WatchAlertMessage {
+    static func timerComplete(name: String) -> String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "Timer is complete" : "\(trimmed) timer is complete"
+    }
+
+    static let preheatComplete = "Preheat Complete"
+}
+
+/// Remembers which `(timerId, endDate)` runs the watch has already alerted for,
+/// so a repeated snapshot, a phone "start" message and the mirrored phone
+/// notification can never raise a second alert for the same completion. Pure:
+/// every method takes an injectable `now`.
+struct WatchCompletionLatch {
+    /// A run that ended longer ago than this is not alerted on wake — a "you
+    /// missed it" catch-up, not a stale surprise.
+    static let catchUpWindow: TimeInterval = 10 * 60
+
+    /// Two end dates closer than this are the same run (wire rounding).
+    private static let sameRunTolerance: TimeInterval = 0.5
+
+    struct Candidate: Equatable {
+        let timerId: String
+        let endDate: Date
+    }
+
+    private var alerted: [String: Date] = [:]
+
+    /// True when `endDate` has passed, but only just (strictly under 10 min).
+    static func isInCatchUpWindow(endDate: Date, now: Date) -> Bool {
+        let age = now.timeIntervalSince(endDate)
+        return age >= 0 && age < catchUpWindow
+    }
+
+    func hasAlerted(timerId: String, endDate: Date) -> Bool {
+        guard let stored = alerted[timerId] else { return false }
+        return stored >= endDate.addingTimeInterval(-Self.sameRunTolerance)
+    }
+
+    /// Records the pair. Returns true the first time (caller should alert),
+    /// false if this run already alerted.
+    mutating func claim(timerId: String, endDate: Date) -> Bool {
+        guard !hasAlerted(timerId: timerId, endDate: endDate) else { return false }
+        alerted[timerId] = endDate
+        return true
+    }
+
+    /// The first expired, in-window, not-yet-alerted candidate; claims it.
+    /// Callers pass only running rows, and only call while no alert is showing,
+    /// so any other due row is picked up on a later tick.
+    mutating func nextDue(from candidates: [Candidate], now: Date) -> Candidate? {
+        for c in candidates
+        where Self.isInCatchUpWindow(endDate: c.endDate, now: now)
+            && !hasAlerted(timerId: c.timerId, endDate: c.endDate) {
+            _ = claim(timerId: c.timerId, endDate: c.endDate)
+            return c
+        }
+        return nil
+    }
+
+    /// For the mirrored phone notification, which knows only a timer id. With
+    /// the row's `endDate` it behaves like `claim`. Without one (the snapshot
+    /// already moved on) it alerts only if nothing alerted for that timer
+    /// within the catch-up window.
+    mutating func claimForNotification(timerId: String, rowEndDate: Date?, now: Date) -> Bool {
+        if let end = rowEndDate { return claim(timerId: timerId, endDate: end) }
+        if let stored = alerted[timerId], now.timeIntervalSince(stored) < Self.catchUpWindow {
+            return false
+        }
+        alerted[timerId] = now
+        return true
+    }
+}
