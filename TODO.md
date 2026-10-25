@@ -97,8 +97,13 @@ Left to do:
 - [ ] Remaining V2 testing on the TestFlight build.
 - [x] **TestFlight builds 16, 17, 18 uploaded** (2026-09-19, 10-04, 10-11). Build **19** is
       bumped and committed (2026-10-25) for the **App Store** upload.
-- [ ] App Store submission — screenshots still needed; all listing text is drafted in
-      `app-store-listing-2.0.md` (What's New, description, promo, keywords, review notes).
+- [x] **App Store submission — 2.0 (19) submitted 2026-10-25, WAITING_FOR_REVIEW.**
+      Release type is Manual: when Apple approves, Jim presses "Release This Version".
+      Listing text from `app-store-listing-2.0.md`; screenshots from
+      `iCloud Drive/Work/GrillTime Pro/App Store Screenshots 2.0/upload-medium/`
+      (ASC now requires the 1206x2622 "medium" iPhone size; watch 416x496).
+- [ ] **On approval:** release 2.0, tag `v2.0` on the merge commit, merge
+      `Apple-Watch-Suport` → `main` (Jim, in Xcode), upload the website refresh zip.
 - [ ] Retire the `GrillTime Pro Dev` ASC record (app id `6785304855`) once V2 is live.
 
 ## Main-screen layout + glass redesign — DONE & refined on device (2026-06-25/27)
