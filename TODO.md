@@ -59,7 +59,7 @@ V2 was built under the separate `GrillTime Pro Dev` record. It ships as an updat
 released `GrillTime Pro` (ASC app id `6744303683`), whose bundle id is permanent.
 
 - [x] **`https://farruggiacreations.com/probe` redirect live (2026-09-26, cPanel 302 → Combustion product page).** The app's "Get a Combustion Probe" links (picker, paywall, Settings — PR #69) open it. Point it at the Combustion store now; swap to the Amazon affiliate link later, no app update needed.
-- [ ] **Jim: the day V2 goes live, upload the website refresh** — `iCloud Drive/Farruggia Creations/FarruggiaCreation Website 2.0/site-update-v2-launch.zip` (cPanel File Manager → public_html → Upload → Extract). It has the 2.0 screenshots, new feature cards, "New in 2.0" chips, iOS 16.6+, and the probe callout without the "Coming in 2.0" chip. Do NOT upload it before V2 is on the App Store. (The smaller `site-update-probe-link.zip` is the safe-to-upload-today version.)
+- [x] **Website refresh uploaded + live (2026-10-31)** — was: the day V2 goes live, upload the website refresh — `iCloud Drive/Farruggia Creations/FarruggiaCreation Website 2.0/site-update-v2-launch.zip` (cPanel File Manager → public_html → Upload → Extract). It has the 2.0 screenshots, new feature cards, "New in 2.0" chips, iOS 16.6+, and the probe callout without the "Coming in 2.0" chip. Do NOT upload it before V2 is on the App Store. (The smaller `site-update-probe-link.zip` is the safe-to-upload-today version.)
 
 Done:
 - [x] `Settings.isDevBuild` → `isTestBuild`, keyed off build flavor (DEBUG / TestFlight
@@ -102,8 +102,9 @@ Left to do:
       Listing text from `app-store-listing-2.0.md`; screenshots from
       `iCloud Drive/Work/GrillTime Pro/App Store Screenshots 2.0/upload-medium/`
       (ASC now requires the 1206x2622 "medium" iPhone size; watch 416x496).
-- [ ] **On approval:** release 2.0, tag `v2.0` on the merge commit, merge
-      `Apple-Watch-Suport` → `main` (Jim, in Xcode), upload the website refresh zip.
+- [x] 2.0 approved, released (READY_FOR_SALE), website refresh live (2026-10-31).
+- [ ] **Still open:** merge `Apple-Watch-Suport` → `main` (Jim, in Xcode; no conflicts predicted,
+      main has no new commits), then tag `v2.0` on the merge commit and push the tag.
 - [ ] Retire the `GrillTime Pro Dev` ASC record (app id `6785304855`) once V2 is live.
 
 ## Main-screen layout + glass redesign — DONE & refined on device (2026-06-25/27)
